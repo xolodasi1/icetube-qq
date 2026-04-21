@@ -1,13 +1,16 @@
-import { Search, Bell, Video, User, Menu, ArrowLeft } from "lucide-react";
+import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import React, { useState, useEffect } from "react";
+import { useAuth } from "../lib/AuthContext";
 
 export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
+  const { user, login, logoutUser } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   useEffect(() => {
@@ -100,7 +103,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
         
         <div className="relative">
           <button 
-            onClick={() => { setShowCreate(!showCreate); setShowNotification(false); }}
+            onClick={() => { setShowCreate(!showCreate); setShowNotification(false); setShowUserMenu(false); }}
             className="p-2 hover:bg-[rgba(112,214,255,0.08)] rounded-full text-slate-300 transition-colors relative"
           >
             <Video className="w-5 h-5" />
@@ -120,7 +123,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
 
         <div className="relative">
           <button 
-            onClick={() => { setShowNotification(!showNotification); setShowCreate(false); }}
+            onClick={() => { setShowNotification(!showNotification); setShowCreate(false); setShowUserMenu(false); }}
             className="p-2 hover:bg-[rgba(112,214,255,0.08)] rounded-full text-slate-300 transition-colors relative"
           >
             <Bell className="w-5 h-5" />
@@ -138,9 +141,48 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
             </div>
           )}
         </div>
-        <button className="ml-2 w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 border border-white/20 flex items-center justify-center transition-colors">
-          <User className="w-4 h-4 text-white" />
-        </button>
+        <div className="relative ml-2">
+          {user ? (
+            <>
+              <button 
+                onClick={() => { setShowUserMenu(!showUserMenu); setShowCreate(false); setShowNotification(false); }}
+                className="w-8 h-8 rounded-full bg-gradient-to-br from-[#70d6ff] to-blue-600 border border-white/20 flex items-center justify-center transition-colors text-white font-bold text-sm"
+              >
+                {user.name ? user.name.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
+              </button>
+              
+              {showUserMenu && (
+                <div className="absolute top-12 right-0 w-64 bg-[#0a192f] border ice-border shadow-2xl rounded-xl z-50 overflow-hidden" onClick={() => setShowUserMenu(false)}>
+                  <div className="p-4 border-b ice-border flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#70d6ff] to-blue-600 flex items-center justify-center text-white font-bold">
+                      {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-100 text-sm">{user.name || "User"}</span>
+                      <span className="text-xs text-slate-400 truncate w-36">{user.email}</span>
+                    </div>
+                  </div>
+                  <div className="py-2">
+                    <button 
+                      onClick={logoutUser}
+                      className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-white/5 transition-colors flex items-center gap-2"
+                    >
+                      <LogOut className="w-4 h-4" /> Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <button 
+              onClick={login}
+              className="flex items-center gap-2 border border-[#70d6ff]/40 text-[#70d6ff] hover:bg-[#70d6ff]/10 px-3 sm:px-4 py-1.5 rounded-full transition-colors text-sm font-medium whitespace-nowrap"
+            >
+              <User className="w-4 h-4" />
+              <span className="hidden sm:inline">Sign in</span>
+            </button>
+          )}
+        </div>
       </div>
     </nav>
   );
