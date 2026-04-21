@@ -32,7 +32,7 @@ export function VideoCard({ video, layout = "grid" }: VideoCardProps) {
         </div>
       </div>
       
-      <div className={clsx("flex gap-3 items-start", isList ? "mt-0 px-2 py-1" : "p-4")}>
+      <div className={clsx("flex gap-3 items-start", isList ? "mt-0 pl-1 pr-4 sm:px-2 py-4 sm:py-1" : "p-4 px-4 sm:px-0 sm:py-4")}>
         {!isList && (
           <div className="shrink-0">
             <img 

@@ -4,8 +4,8 @@ import clsx from "clsx";
 
 const navItems = [
   { icon: Home, label: "Home", path: "/" },
-  { icon: Compass, label: "Explore", path: "/explore" },
-  { icon: Flame, label: "Trending", path: "/trending" },
+  { icon: Compass, label: "Explore", path: "/?category=Explore" },
+  { icon: Flame, label: "Trending", path: "/?category=Trending" },
   { divider: true },
   { icon: PlaySquare, label: "Library", path: "/library" },
   { icon: History, label: "History", path: "/history" },
@@ -14,18 +14,22 @@ const navItems = [
   { icon: ThumbsUp, label: "Liked", path: "/liked" },
 ];
 
-export function Sidebar() {
+export function Sidebar({ isOpen }: { isOpen: boolean }) {
   const location = useLocation();
 
   return (
-    <aside className="fixed left-0 top-16 bottom-0 w-64 bg-transparent border-r ice-border overflow-y-auto px-4 py-4 hidden lg:block z-40 custom-scrollbar">
-      <div className="flex flex-col px-3">
+    <aside className={clsx(
+      "fixed left-0 top-16 bottom-0 w-64 bg-[#05070a]/95 backdrop-blur-3xl border-r ice-border overflow-y-auto px-4 py-4 z-40 custom-scrollbar transition-transform duration-300",
+      isOpen ? "translate-x-0" : "-translate-x-full"
+    )}>
+      <div className="flex flex-col px-1">
         {navItems.map((item, index) => {
           if (item.divider) {
             return <hr key={index} className="my-4 ice-border opacity-20 mx-2" />;
           }
 
-          const isActive = location.pathname === item.path;
+          // Very simple active check
+          const isActive = location.pathname === item.path || location.search === item.path.replace('/', '');
 
           return (
             <Link
@@ -40,7 +44,7 @@ export function Sidebar() {
             >
               <item.icon className={clsx(
                 "w-5 h-5 transition-colors",
-                isActive ? "text-ice-400" : "text-slate-500 group-hover:text-slate-300"
+                isActive ? "text-[#70d6ff]" : "text-slate-500 group-hover:text-slate-300"
               )} />
               <span className="text-sm">{item.label}</span>
             </Link>

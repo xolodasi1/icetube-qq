@@ -9,6 +9,7 @@ export interface Video {
   uploadDate: string;
   duration: string;
   description: string;
+  category: string;
 }
 
 export const mockVideos: Video[] = [
@@ -22,7 +23,8 @@ export const mockVideos: Video[] = [
     views: 124000,
     uploadDate: "2 days ago",
     duration: "14:20",
-    description: "Join us as we explore the coldest continent on Earth. A deep dive into the icy tundras and wildlife."
+    description: "Join us as we explore the coldest continent on Earth. A deep dive into the icy tundras and wildlife.",
+    category: "Explore"
   },
   {
     id: "2",
@@ -34,7 +36,8 @@ export const mockVideos: Video[] = [
     views: 89000,
     uploadDate: "1 week ago",
     duration: "08:45",
-    description: "Learn how to safely start your cold plunge and ice bath journey for maximum health benefits."
+    description: "Learn how to safely start your cold plunge and ice bath journey for maximum health benefits.",
+    category: "Lifestyle"
   },
   {
     id: "3",
@@ -46,7 +49,8 @@ export const mockVideos: Video[] = [
     views: 2100000,
     uploadDate: "3 months ago",
     duration: "4:00:00",
-    description: "Relaxing cyberpunk city ambience in heavy snow. Perfect for studying and sleeping."
+    description: "Relaxing cyberpunk city ambience in heavy snow. Perfect for studying and sleeping.",
+    category: "Chill"
   },
   {
     id: "4",
@@ -58,7 +62,8 @@ export const mockVideos: Video[] = [
     views: 45000,
     uploadDate: "5 hours ago",
     duration: "12:15",
-    description: "We rank the most spectacular ice hotels across Sweden, Canada, and beyond."
+    description: "We rank the most spectacular ice hotels across Sweden, Canada, and beyond.",
+    category: "Explore"
   },
   {
     id: "5",
@@ -70,7 +75,8 @@ export const mockVideos: Video[] = [
     views: 670000,
     uploadDate: "1 month ago",
     duration: "10:30",
-    description: "The fastest and coolest way to make ice cream at home using science!"
+    description: "The fastest and coolest way to make ice cream at home using science!",
+    category: "Science"
   },
   {
     id: "6",
@@ -82,7 +88,8 @@ export const mockVideos: Video[] = [
     views: 12000,
     uploadDate: "12 hours ago",
     duration: "45:00",
-    description: "A complete Point of View hike of the largest glacier in Iceland with no commentary."
+    description: "A complete Point of View hike of the largest glacier in Iceland with no commentary.",
+    category: "Explore"
   },
   {
     id: "7",
@@ -94,7 +101,8 @@ export const mockVideos: Video[] = [
     views: 9500,
     uploadDate: "3 days ago",
     duration: "25:12",
-    description: "I set the AC to minimum and coded an entire video streaming platform analogue to YouTube."
+    description: "I set the AC to minimum and coded an entire video streaming platform analogue to YouTube.",
+    category: "Programming"
   },
   {
     id: "8",
@@ -106,6 +114,7 @@ export const mockVideos: Video[] = [
     views: 3100000,
     uploadDate: "1 year ago",
     duration: "1:00:00",
-    description: "1 hour of satisfying thick ice cracking sounds. Please wear headphones."
+    description: "1 hour of satisfying thick ice cracking sounds. Please wear headphones.",
+    category: "ASMR"
   }
 ];

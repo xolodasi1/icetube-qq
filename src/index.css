@@ -76,6 +76,26 @@
   -webkit-text-fill-color: transparent;
 }
 
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
+  }
+}
+
+@supports (padding-top: env(safe-area-inset-top)) {
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
