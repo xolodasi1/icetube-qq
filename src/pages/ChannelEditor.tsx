@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { uploadImageToCloudinary } from '../lib/cloudinary';
 import { useAuth } from '../lib/AuthContext';
 import { databases } from '../lib/appwrite';
 import { useLanguage } from '../lib/LanguageContext';
@@ -10,6 +11,7 @@ export default function ChannelEditor() {
   const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -20,6 +22,22 @@ export default function ChannelEditor() {
   });
 
   const [dbDocId, setDbDocId] = useState<string | null>(null);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    setError(null);
+    try {
+        const avatarUrl = await uploadImageToCloudinary(file);
+        setFormData(prev => ({ ...prev, avatar: avatarUrl }));
+    } catch (err: any) {
+        setError(err.message || 'Failed to upload image');
+    } finally {
+        setIsUploading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -164,7 +182,9 @@ export default function ChannelEditor() {
           <div className="flex flex-col sm:flex-row items-center gap-8">
             <div className="relative group">
               <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-dashed border-slate-700 bg-slate-800/50 flex items-center justify-center transition-all group-hover:border-[#70d6ff]/50">
-                {formData.avatar ? (
+                {isUploading ? (
+                    <Loader2 className="w-10 h-10 animate-spin text-[#70d6ff]" />
+                ) : formData.avatar ? (
                   <img 
                     src={formData.avatar} 
                     alt="Preview" 
@@ -178,6 +198,10 @@ export default function ChannelEditor() {
                   <User className="w-12 h-12 text-slate-600" />
                 )}
               </div>
+              <label className="absolute bottom-0 right-0 p-2 bg-[#70d6ff] rounded-full text-black hover:bg-[#5bc0e6] transition-colors cursor-pointer shadow-lg">
+                <ImageIcon className="w-5 h-5" />
+                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} disabled={isUploading} />
+              </label>
             </div>
 
             <div className="flex-1 w-full space-y-4">
