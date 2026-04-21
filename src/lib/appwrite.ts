@@ -1,4 +1,4 @@
-import { Client, Account, OAuthProvider } from 'appwrite';
+import { Client, Account, OAuthProvider, Databases } from 'appwrite';
 
 export const client = new Client();
 
@@ -10,6 +10,7 @@ client
     .setProject(projectId);
 
 export const account = new Account(client);
+export const databases = new Databases(client);
 
 export const loginWithGoogle = () => {
     // Determine the current URL to redirect back to

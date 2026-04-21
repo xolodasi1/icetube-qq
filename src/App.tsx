@@ -3,6 +3,7 @@ import { Layout } from "./components/Layout";
 import Home from "./pages/Home";
 import Watch from "./pages/Watch";
 import ComingSoon from "./pages/ComingSoon";
+import AdminPanel from "./pages/AdminPanel";
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/your-videos" element={<ComingSoon />} />
           <Route path="/watch-later" element={<ComingSoon />} />
           <Route path="/liked" element={<ComingSoon />} />
+          <Route path="/admin" element={<AdminPanel />} />
           {/* Catch-all route to redirect back to home for unhandled tabs */}
           <Route path="*" element={<Home />} />
         </Routes>

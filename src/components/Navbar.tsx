@@ -1,4 +1,4 @@
-import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut } from "lucide-react";
+import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../lib/AuthContext";
@@ -162,7 +162,16 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
                       <span className="text-xs text-slate-400 truncate w-36">{user.email}</span>
                     </div>
                   </div>
-                  <div className="py-2">
+                  <div className="py-2 flex flex-col">
+                    {user.email === 'xolodtop889@gmail.com' && (
+                      <Link 
+                        to="/admin"
+                        onClick={() => setShowUserMenu(false)}
+                        className="w-full text-left px-4 py-3 text-sm text-[#70d6ff] hover:bg-white/5 transition-colors flex items-center gap-2 border-b ice-border"
+                      >
+                        <ShieldAlert className="w-4 h-4" /> Admin Panel
+                      </Link>
+                    )}
                     <button 
                       onClick={logoutUser}
                       className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-white/5 transition-colors flex items-center gap-2"
