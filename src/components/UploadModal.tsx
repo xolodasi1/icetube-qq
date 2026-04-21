@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/AuthContext';
 import { uploadVideoToCloudinary } from '../lib/cloudinary';
 import { databases } from '../lib/appwrite';
