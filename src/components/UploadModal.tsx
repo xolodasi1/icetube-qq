@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { uploadVideoToCloudinary } from '../lib/cloudinary';
 import { databases } from '../lib/appwrite';
@@ -29,7 +30,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFile(e.target.files[0]);
-      // Auto-set title from filename without extension
       if (!title) {
         setTitle(e.target.files[0].name.replace(/\.[^/.]+$/, ""));
       }
@@ -37,6 +37,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   };
 
   const handleUpload = async (e: React.FormEvent) => {
+    // ... existing logic ...
     e.preventDefault();
     if (!file || !title || !user) return;
     
@@ -45,14 +46,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
     setProgress(0);
 
     try {
-      // 1. Upload to Cloudinary
       const videoUrl = await uploadVideoToCloudinary(file, (p) => setProgress(p));
-
-      // 2. Generate a faux thumbnail from the video URL by changing extension to jpg
-      // Cloudinary handles this automatically!
       const thumbnailUrl = videoUrl.replace(/\.[^/.]+$/, ".jpg");
 
-      // 3. Save directly to Appwrite 'Videos' collection
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
       const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
       
@@ -77,7 +73,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         }
       );
 
-      // Clean up and close
       setFile(null);
       setTitle('');
       setDescription('');
@@ -91,8 +86,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+  const modalContent = (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="bg-[#0f1115] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <h2 className="text-xl font-bold font-display text-white">Upload Video</h2>
@@ -214,4 +209,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
