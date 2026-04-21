@@ -120,6 +120,21 @@ export default function ChannelEditor() {
         await databases.createDocument(dbId, colId, 'unique()', payload);
       }
 
+      // Update all videos by this user to reflect new profile info
+      const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+      if (videosColId) {
+        const videos = await databases.listDocuments(dbId, videosColId, [
+          Query.equal('uploaderId', user.$id)
+        ]);
+        
+        for (const video of videos.documents) {
+          await databases.updateDocument(dbId, videosColId, video.$id, {
+            uploaderName: formData.name,
+            uploaderAvatar: formData.avatar
+          });
+        }
+      }
+
       setSuccess(true);
       setTimeout(() => setSuccess(false), 5000);
     } catch (err: any) {
