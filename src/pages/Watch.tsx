@@ -1,20 +1,20 @@
 import { useParams } from "react-router-dom";
-import { mockVideos } from "../data";
-import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video } from "lucide-react";
 import { VideoCard } from "../components/VideoCard";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { databases } from "../lib/appwrite";
 
 export default function Watch() {
   const { id } = useParams();
-  // Strip _copy if it exists for finding the base video
-  const baseId = id?.replace("_copy", "");
-  const video = mockVideos.find(v => v.id === baseId) || mockVideos[0];
+  
+  const [video, setVideo] = useState<any | null>(null);
+  const [suggestedVideos, setSuggestedVideos] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const suggestedVideos = mockVideos.filter(v => v.id !== baseId);
-
+  // Fallback / standard state
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [likeState, setLikeState] = useState<'none' | 'liked' | 'disliked'>('none');
-  const [likesCount, setLikesCount] = useState(24000);
+  const [likesCount, setLikesCount] = useState(24000); // We'll update this later if mapped
   const [newComment, setNewComment] = useState("");
   const [comments, setComments] = useState([
     {
@@ -24,6 +24,47 @@ export default function Watch() {
       id: 2, author: "IceExplorer", ts: "1 day ago", text: "Icetube 2.0 is looking very sleek. Glad we have a true dark mode platform now.", likes: 89
     }
   ]);
+
+  useEffect(() => {
+    const fetchVideoData = async () => {
+      try {
+        setIsLoading(true);
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+        
+        if (!dbId || !colId || !id) return;
+
+        // Fetch all videos to find the one we need, and populate suggestions
+        const response = await databases.listDocuments(dbId, colId);
+        
+        const allFormatted = response.documents.map(v => ({
+            id: v.$id,
+            title: v.title,
+            thumbnailUrl: v.thumbnailUrl,
+            videoUrl: v.videoUrl,
+            channelName: v.uploaderName,
+            channelAvatar: v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
+            views: v.views || 0,
+            uploadDate: "Recently",
+            description: v.description || "No description provided."
+        }));
+
+        const currentVideo = allFormatted.find(v => v.id === id);
+        
+        if (currentVideo) {
+          setVideo(currentVideo);
+          setSuggestedVideos(allFormatted.filter(v => v.id !== id).reverse());
+        }
+
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchVideoData();
+  }, [id]);
 
   const formatViews = (views: number) => {
     return new Intl.NumberFormat('en-US').format(views);
@@ -35,7 +76,7 @@ export default function Watch() {
       setLikesCount(prev => prev - 1);
     } else {
       setLikeState('liked');
-      setLikesCount(prev => likeState === 'disliked' ? prev + 1 : prev + 1); // Mock increment
+      setLikesCount(prev => likeState === 'disliked' ? prev + 1 : prev + 1);
     }
   };
 
@@ -58,6 +99,25 @@ export default function Watch() {
     ]);
     setNewComment("");
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 text-slate-400 gap-4 h-[70vh]">
+        <Loader2 className="w-10 h-10 animate-spin text-[#70d6ff]" />
+        <p>Loading video...</p>
+      </div>
+    );
+  }
+
+  if (!video) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 text-slate-400 gap-4 h-[70vh]">
+        <Video className="w-12 h-12 text-slate-500 mb-2" />
+        <h1 className="text-2xl font-bold text-white">Video not found</h1>
+        <p>This video may have been deleted or does not exist.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 max-w-[1600px] mx-auto">

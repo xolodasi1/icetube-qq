@@ -1,7 +1,8 @@
-import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert } from "lucide-react";
+import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert, Upload } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../lib/AuthContext";
+import { UploadModal } from "./UploadModal";
 
 export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
   const { user, login, logoutUser } = useAuth();
@@ -12,6 +13,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
   const [showNotification, setShowNotification] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   useEffect(() => {
     setSearchQuery(searchParams.get("search") || "");
@@ -103,22 +105,21 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
         
         <div className="relative">
           <button 
-            onClick={() => { setShowCreate(!showCreate); setShowNotification(false); setShowUserMenu(false); }}
+            onClick={() => { 
+                if (!user) {
+                  login();
+                } else {
+                  setIsUploadModalOpen(true);
+                  setShowCreate(false);
+                  setShowNotification(false);
+                  setShowUserMenu(false); 
+                }
+            }}
             className="p-2 hover:bg-[rgba(112,214,255,0.08)] rounded-full text-slate-300 transition-colors relative"
+            title="Upload Video"
           >
-            <Video className="w-5 h-5" />
+            <Upload className="w-5 h-5" />
           </button>
-          
-          {showCreate && (
-            <div className="absolute top-12 right-0 w-48 bg-[#0a192f] border ice-border shadow-2xl rounded-xl z-50 overflow-hidden py-2" onClick={() => setShowCreate(false)}>
-              <button className="w-full text-left px-4 py-3 text-sm text-slate-200 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors">
-                Upload Video
-              </button>
-              <button className="w-full text-left px-4 py-3 text-sm text-slate-200 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors">
-                Go Live
-              </button>
-            </div>
-          )}
         </div>
 
         <div className="relative">
@@ -193,6 +194,15 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
           )}
         </div>
       </div>
+
+      {/* Upload Modal Overlay */}
+      <UploadModal 
+        isOpen={isUploadModalOpen} 
+        onClose={() => setIsUploadModalOpen(false)} 
+        onUploadSuccess={() => {
+           // Optionally refresh logic or toast
+        }}
+      />
     </nav>
   );
 }

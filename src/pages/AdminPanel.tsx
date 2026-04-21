@@ -174,22 +174,24 @@ export default function AdminPanel() {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
-                        {(usr.name || 'U').charAt(0).toUpperCase()}
+                        {((usr.firstName || usr.name) || 'U').charAt(0).toUpperCase()}
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-medium text-slate-200">{usr.name || 'Unknown'}</span>
+                        <span className="font-medium text-slate-200">
+                          {usr.firstName ? `${usr.firstName} ${usr.lastName || ''}`.trim() : (usr.name || 'Unknown')}
+                        </span>
                         <span className="text-xs text-slate-500">{usr.email || 'No email'}</span>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded text-xs border ${
-                      (usr.role || 'User') === 'Super Admin' ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' :
-                      (usr.role || 'User') === 'Moderator' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
-                      (usr.role || 'User') === 'Content Creator' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
+                      (usr.userRole || usr.role || 'User') === 'Super Admin' ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' :
+                      (usr.userRole || usr.role || 'User') === 'Moderator' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
+                      (usr.userRole || usr.role || 'User') === 'Content Creator' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
                       'bg-slate-500/10 border-slate-500/20 text-slate-400'
                     }`}>
-                      {usr.role || 'User'}
+                      {usr.userRole || usr.role || 'User'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-slate-400">{usr.joined || new Date(usr.$createdAt).toLocaleDateString()}</td>
