@@ -68,8 +68,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
           uploaderId: user.$id,
           uploaderName: user.name || 'Anonymous',
           uploaderAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
-          views: 0,
-          uploadDate: new Date().toISOString()
+          views: 0
         }
       );
 
