@@ -79,7 +79,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         ID.unique(), 
         {
           title: title,
-          description: description || (language === 'ru' ? 'Описание отсутствует.' : 'No description provided.'),
+          description: description || t('video_no_description'),
           videoUrl: videoUrl,
           thumbnailUrl: thumbnailUrl,
           uploaderId: user.$id,

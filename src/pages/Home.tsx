@@ -10,13 +10,26 @@ export default function Home() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   
-  const tagsEN = ["All", "Explore", "Gaming", "Music", "Tech", "Science", "Lifestyle", "Chill", "Programming", "ASMR"];
-  const tagsRU = ["Все", "Навигатор", "Игры", "Музыка", "Технологии", "Наука", "Стиль жизни", "Релакс", "Программирование", "ASMR"];
+  const baseCategories = [
+    { id: 'All', ru: 'Все', en: 'All' },
+    { id: 'Explore', ru: 'Навигатор', en: 'Explore' },
+    { id: 'Gaming', ru: 'Игры', en: 'Gaming' },
+    { id: 'Music', ru: 'Музыка', en: 'Music' },
+    { id: 'Tech', ru: 'Технологии', en: 'Tech' },
+    { id: 'Live', ru: 'Стримы', en: 'Live' },
+    { id: 'Nature', ru: 'Природа', en: 'Nature' },
+    { id: 'Programming', ru: 'Программирование', en: 'Programming' },
+  ];
   
-  const tags = language === 'ru' ? tagsRU : tagsEN;
+  const tags = baseCategories.map(c => language === 'ru' ? c.ru : c.en);
   
   const searchQuery = searchParams.get("search") || "";
-  const activeCategory = searchParams.get("category") || (language === 'ru' ? 'Все' : 'All');
+  const activeCategoryParam = searchParams.get("category") || 'All';
+  
+  // Find current label for active category
+  const activeCategoryLabel = baseCategories.find(c => c.id === activeCategoryParam)?.[language] || 
+                         baseCategories.find(c => c.ru === activeCategoryParam || c.en === activeCategoryParam)?.[language] ||
+                         (language === 'ru' ? 'Все' : 'All');
 
   const [dbVideos, setDbVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,14 +51,14 @@ export default function Home() {
                 channelAvatar: v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
                 views: v.views || 0,
                 uploadDate: t('video_recently'),
-                category: language === 'ru' ? 'Все' : 'All'
+                category: v.category || 'All'
             }));
             setDbVideos(formatted.reverse()); 
         } else {
              setDbVideos([]);
         }
       } catch (err) {
-         setError(language === 'ru' ? "Не удалось загрузить видео. Проверьте настройки Appwrite." : "Failed to load videos from Appwrite. Need correct Collections settings.");
+         setError(language === 'ru' ? "Не удалось загрузить видео. Проверьте настройки Appwrite." : "Failed to load videos.");
          setDbVideos([]); 
       } finally {
         setIsLoading(false);
@@ -54,18 +67,19 @@ export default function Home() {
     fetchVideos();
   }, [language]);
 
-  const handleTagClick = (tag: string) => {
-    if (tag === "All" || tag === "Все") {
+  const handleTagClick = (tagLabel: string) => {
+    const cat = baseCategories.find(c => c.ru === tagLabel || c.en === tagLabel);
+    if (!cat || cat.id === 'All') {
       navigate("/");
     } else {
-      navigate(`/?category=${tag}`);
+      navigate(`/?category=${cat.id}`);
     }
   };
 
   const filteredVideos = dbVideos.filter(video => {
     const matchesSearch = video.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           video.channelName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = activeCategory === "All" || activeCategory === "Все" || video.category === activeCategory;
+    const matchesCategory = activeCategoryParam === "All" || video.category === activeCategoryParam;
     return matchesSearch && matchesCategory;
   });
 
@@ -78,7 +92,7 @@ export default function Home() {
             key={tag}
             onClick={() => handleTagClick(tag)}
             className={`whitespace-nowrap px-4 py-1.5 rounded-lg text-sm transition-colors ${
-              tag === activeCategory 
+              tag === activeCategoryLabel 
                 ? "bg-blue-500 text-white font-medium shadow-[0_0_10px_rgba(59,130,246,0.5)]" 
                 : "bg-white/5 border ice-border text-slate-300 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff]"
             }`}
@@ -93,7 +107,7 @@ export default function Home() {
         {isLoading ? (
              <div className="flex justify-center flex-col gap-4 items-center h-64 text-slate-400">
                <Loader2 className="w-8 h-8 animate-spin text-[#70d6ff]" />
-               <span>{language === 'ru' ? 'Подключаемся к льдине...' : 'Connecting to Server...'}</span>
+               <span>{t('video_connecting')}</span>
              </div>
         ) : error && dbVideos.length === 0 ? (
              <div className="flex flex-col items-center justify-center p-12 text-center text-slate-400">
@@ -116,8 +130,8 @@ export default function Home() {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <p className="text-xl font-medium">{language === 'ru' ? 'Ничего не найдено' : 'No videos found'}</p>
-            <p className="text-sm mt-2 text-slate-500">{language === 'ru' ? 'Попробуйте другой запрос или категорию' : 'Try searching for something else or pick a different category.'}</p>
+            <p className="text-xl font-medium">{t('video_no_results')}</p>
+            <p className="text-sm mt-2 text-slate-500">{t('video_search_try_again')}</p>
           </div>
         )}
       </div>

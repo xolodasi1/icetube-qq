@@ -1,4 +1,4 @@
-import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert, Upload, Settings } from "lucide-react";
+import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert, Upload, Settings, LayoutDashboard } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../lib/AuthContext";
@@ -134,7 +134,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
           </button>
           
           {showNotification && (
-            <div className="absolute top-12 right-0 w-72 bg-[#0a192f] border ice-border shadow-2xl rounded-xl z-50 overflow-hidden group">
+            <div className="absolute top-12 -right-12 sm:right-0 w-[calc(100vw-32px)] sm:w-80 bg-[#0a192f] border ice-border shadow-2xl rounded-xl z-50 overflow-hidden">
               <div className="p-4 border-b ice-border">
                 <span className="font-semibold text-slate-100">Notifications</span>
               </div>
@@ -155,17 +155,24 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
               </button>
               
               {showUserMenu && (
-                <div className="absolute top-12 right-0 w-64 bg-[#0a192f] border ice-border shadow-2xl rounded-xl z-50 overflow-hidden" onClick={() => setShowUserMenu(false)}>
+                <div className="absolute top-12 -right-4 sm:right-0 w-[calc(100vw-32px)] sm:w-64 bg-[#0a192f] border ice-border shadow-2xl rounded-xl z-50 overflow-hidden" onClick={() => setShowUserMenu(false)}>
                   <div className="p-4 border-b ice-border flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#70d6ff] to-blue-600 flex items-center justify-center text-white font-bold">
                       {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                     </div>
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-slate-100 text-sm">{user.name || "User"}</span>
-                      <span className="text-xs text-slate-400 truncate w-36">{user.email}</span>
+                    <div className="flex flex-col overflow-hidden min-w-0">
+                      <span className="font-semibold text-slate-100 text-sm truncate">{user.name || "User"}</span>
+                      <span className="text-xs text-slate-400 truncate">{user.email}</span>
                     </div>
                   </div>
                   <div className="py-2 flex flex-col">
+                    <Link 
+                        to="/studio"
+                        onClick={() => setShowUserMenu(false)}
+                        className="w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-white/5 transition-colors flex items-center gap-2 border-b ice-border"
+                      >
+                        <LayoutDashboard className="w-4 h-4" /> {t('nav_studio')}
+                    </Link>
                     {user.email === 'xolodtop889@gmail.com' && (
                       <Link 
                         to="/admin"

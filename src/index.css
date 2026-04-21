@@ -12,6 +12,8 @@
     background: linear-gradient(135deg, #0a192f 0%, #05070a 100%);
     background-attachment: fixed;
     min-height: 100vh;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   body.light-mode {

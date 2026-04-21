@@ -6,6 +6,7 @@ import ComingSoon from "./pages/ComingSoon";
 import AdminPanel from "./pages/AdminPanel";
 import YourVideos from "./pages/YourVideos";
 import Settings from "./pages/Settings";
+import Studio from "./pages/Studio";
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/library" element={<ComingSoon />} />
           <Route path="/history" element={<ComingSoon />} />
           <Route path="/your-videos" element={<YourVideos />} />
+          <Route path="/studio" element={<Studio />} />
           <Route path="/watch-later" element={<ComingSoon />} />
           <Route path="/liked" element={<ComingSoon />} />
           <Route path="/admin" element={<AdminPanel />} />
