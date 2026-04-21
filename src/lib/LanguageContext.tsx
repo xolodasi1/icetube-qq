@@ -82,7 +82,10 @@ export const translations: Translations = {
     editor_avatar: 'Avatar URL',
     editor_save: 'Publish',
     editor_cancel: 'Cancel',
-    editor_success: 'Changes published successfully!'
+    editor_success: 'Changes published successfully!',
+    upload_type: 'Content Type',
+    upload_video: 'Video',
+    upload_shorts: 'Shorts'
   },
   ru: {
     nav_home: 'Главная',
@@ -157,7 +160,10 @@ export const translations: Translations = {
     editor_avatar: 'Ссылка на аватар',
     editor_save: 'Опубликовать',
     editor_cancel: 'Отмена',
-    editor_success: 'Изменения успешно опубликованы!'
+    editor_success: 'Изменения успешно опубликованы!',
+    upload_type: 'Тип контента',
+    upload_video: 'Видео',
+    upload_shorts: 'Shorts'
   }
 };
 

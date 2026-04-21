@@ -11,7 +11,7 @@ export function StudioSidebar({ isOpen, onClose }: { isOpen: boolean, onClose?: 
 
   const studioItems = [
     { icon: LayoutDashboard, label: t('studio_title'), path: "/studio" },
-    { icon: Film, label: t('studio_content'), path: "/studio" }, // Could lead to a sub-tab
+    { icon: Film, label: t('studio_content'), path: "/studio/content" },
     { icon: Wand2, label: t('studio_customize'), path: "/studio/editor" },
     { divider: true },
     { icon: Home, label: t('nav_home'), path: "/" },

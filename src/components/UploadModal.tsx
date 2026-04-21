@@ -6,6 +6,7 @@ import { databases } from '../lib/appwrite';
 import { ID } from 'appwrite';
 import { UploadCloud, X, Loader2, AlertCircle, PlayCircle, ChevronDown } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageContext';
+import clsx from 'clsx';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('All');
+  const [contentType, setContentType] = useState<'video' | 'shorts'>('video');
   
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -64,7 +66,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
 
     try {
       const videoUrl = await uploadVideoToCloudinary(file, (p) => setProgress(p));
-      const thumbnailUrl = videoUrl.replace(/\.[^/.]+$/, ".jpg");
+      const thumbnailUrl = contentType === 'shorts' ? null : videoUrl.replace(/\.[^/.]+$/, ".jpg");
 
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
       const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
@@ -86,7 +88,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
           uploaderName: user.name || 'Anonymous',
           uploaderAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
           views: 0,
-          category: category
+          category: category,
+          contentType: contentType
         }
       );
 
@@ -165,6 +168,32 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-slate-200">{t('upload_type')}</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setContentType('video')}
+                  className={clsx(
+                    "px-4 py-2 text-sm rounded-lg border transition-colors",
+                    contentType === 'video' ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"
+                  )}
+                >
+                  {t('upload_video')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setContentType('shorts')}
+                  className={clsx(
+                    "px-4 py-2 text-sm rounded-lg border transition-colors",
+                    contentType === 'shorts' ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"
+                  )}
+                >
+                  {t('upload_shorts')}
+                </button>
+              </div>
+            </div>
+
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-slate-200">{language === 'ru' ? 'Заголовок' : 'Title'}</label>
               <input 
