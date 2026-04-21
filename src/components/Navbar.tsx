@@ -1,11 +1,13 @@
-import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert, Upload } from "lucide-react";
+import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert, Upload, Settings } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../lib/AuthContext";
 import { UploadModal } from "./UploadModal";
+import { useLanguage } from "../lib/LanguageContext";
 
 export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
   const { user, login, logoutUser } = useAuth();
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,7 +53,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
             type="text" 
             value={searchQuery}
             onChange={handleSearchChange}
-            placeholder="Search the arctic..." 
+            placeholder={t('search_placeholder')} 
             className="w-full bg-white/5 border ice-border rounded-full py-2 px-4 text-sm focus:outline-none focus:border-blue-400/50 transition-colors text-slate-200"
           />
         </form>
@@ -89,7 +91,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
             type="text" 
             value={searchQuery}
             onChange={handleSearchChange}
-            placeholder="Search the arctic..." 
+            placeholder={t('search_placeholder')} 
             className="w-full bg-white/5 border ice-border rounded-full py-2 px-6 pl-10 text-sm focus:outline-none focus:border-blue-400/50 transition-colors placeholder:text-slate-500 text-slate-200"
           />
         </form>
@@ -116,7 +118,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
                 }
             }}
             className="p-2 hover:bg-[rgba(112,214,255,0.08)] rounded-full text-slate-300 transition-colors relative"
-            title="Upload Video"
+            title={t('nav_upload')}
           >
             <Upload className="w-5 h-5" />
           </button>
@@ -170,14 +172,21 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
                         onClick={() => setShowUserMenu(false)}
                         className="w-full text-left px-4 py-3 text-sm text-[#70d6ff] hover:bg-white/5 transition-colors flex items-center gap-2 border-b ice-border"
                       >
-                        <ShieldAlert className="w-4 h-4" /> Admin Panel
+                        <ShieldAlert className="w-4 h-4" /> {t('nav_admin')}
                       </Link>
                     )}
+                    <Link 
+                        to="/settings"
+                        onClick={() => setShowUserMenu(false)}
+                        className="w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-white/5 transition-colors flex items-center gap-2 border-b ice-border"
+                      >
+                        <Settings className="w-4 h-4" /> {t('nav_settings')}
+                    </Link>
                     <button 
                       onClick={logoutUser}
                       className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-white/5 transition-colors flex items-center gap-2"
                     >
-                      <LogOut className="w-4 h-4" /> Sign Out
+                      <LogOut className="w-4 h-4" /> {t('nav_sign_out')}
                     </button>
                   </div>
                 </div>
@@ -189,7 +198,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
               className="flex items-center gap-2 border border-[#70d6ff]/40 text-[#70d6ff] hover:bg-[#70d6ff]/10 px-3 sm:px-4 py-1.5 rounded-full transition-colors text-sm font-medium whitespace-nowrap"
             >
               <User className="w-4 h-4" />
-              <span className="hidden sm:inline">Sign in</span>
+              <span className="hidden sm:inline">{t('nav_sign_in')}</span>
             </button>
           )}
         </div>

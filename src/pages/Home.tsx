@@ -1,17 +1,22 @@
-import { mockVideos } from "../data";
 import { VideoCard } from "../components/VideoCard";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { databases } from "../lib/appwrite";
 import { Loader2, ServerCrash, Video } from "lucide-react";
+import { useLanguage } from "../lib/LanguageContext";
 
 export default function Home() {
+  const { t, language } = useLanguage();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const tags = ["All", "Explore", "Gaming", "Music", "Tech", "Science", "Lifestyle", "Chill", "Programming", "ASMR"];
+  
+  const tagsEN = ["All", "Explore", "Gaming", "Music", "Tech", "Science", "Lifestyle", "Chill", "Programming", "ASMR"];
+  const tagsRU = ["Все", "Навигатор", "Игры", "Музыка", "Технологии", "Наука", "Стиль жизни", "Релакс", "Программирование", "ASMR"];
+  
+  const tags = language === 'ru' ? tagsRU : tagsEN;
   
   const searchQuery = searchParams.get("search") || "";
-  const activeCategory = searchParams.get("category") || "All";
+  const activeCategory = searchParams.get("category") || (language === 'ru' ? 'Все' : 'All');
 
   const [dbVideos, setDbVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,25 +37,25 @@ export default function Home() {
                 channelName: v.uploaderName,
                 channelAvatar: v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
                 views: v.views || 0,
-                uploadDate: "Recently",
-                category: "All" 
+                uploadDate: t('video_recently'),
+                category: language === 'ru' ? 'Все' : 'All'
             }));
             setDbVideos(formatted.reverse()); 
         } else {
              setDbVideos([]);
         }
       } catch (err) {
-         setError("Failed to load videos from Appwrite. Need correct Collections settings.");
+         setError(language === 'ru' ? "Не удалось загрузить видео. Проверьте настройки Appwrite." : "Failed to load videos from Appwrite. Need correct Collections settings.");
          setDbVideos([]); 
       } finally {
         setIsLoading(false);
       }
     };
     fetchVideos();
-  }, []);
+  }, [language]);
 
   const handleTagClick = (tag: string) => {
-    if (tag === "All") {
+    if (tag === "All" || tag === "Все") {
       navigate("/");
     } else {
       navigate(`/?category=${tag}`);
@@ -60,7 +65,7 @@ export default function Home() {
   const filteredVideos = dbVideos.filter(video => {
     const matchesSearch = video.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           video.channelName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = activeCategory === "All" || video.category === activeCategory;
+    const matchesCategory = activeCategory === "All" || activeCategory === "Все" || video.category === activeCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -88,7 +93,7 @@ export default function Home() {
         {isLoading ? (
              <div className="flex justify-center flex-col gap-4 items-center h-64 text-slate-400">
                <Loader2 className="w-8 h-8 animate-spin text-[#70d6ff]" />
-               <span>Connecting to Server...</span>
+               <span>{language === 'ru' ? 'Подключаемся к льдине...' : 'Connecting to Server...'}</span>
              </div>
         ) : error && dbVideos.length === 0 ? (
              <div className="flex flex-col items-center justify-center p-12 text-center text-slate-400">
@@ -100,8 +105,8 @@ export default function Home() {
                 <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
                     <Video className="w-10 h-10 text-slate-500" />
                 </div>
-                <h2 className="text-2xl font-bold font-display text-white mb-2">No videos yet</h2>
-                <p className="text-slate-400">Be the first to upload a video using the button top right!</p>
+                <h2 className="text-2xl font-bold font-display text-white mb-2">{t('hero_no_videos')}</h2>
+                <p className="text-slate-400">{t('hero_upload_prompt')}</p>
             </div>
         ) : filteredVideos.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-2 sm:gap-y-8 gap-x-4 px-0 sm:px-0">
@@ -111,8 +116,8 @@ export default function Home() {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <p className="text-xl font-medium">No videos found</p>
-            <p className="text-sm mt-2 text-slate-500">Try searching for something else or pick a different category.</p>
+            <p className="text-xl font-medium">{language === 'ru' ? 'Ничего не найдено' : 'No videos found'}</p>
+            <p className="text-sm mt-2 text-slate-500">{language === 'ru' ? 'Попробуйте другой запрос или категорию' : 'Try searching for something else or pick a different category.'}</p>
           </div>
         )}
       </div>

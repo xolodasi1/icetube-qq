@@ -4,7 +4,8 @@ import { useAuth } from '../lib/AuthContext';
 import { uploadVideoToCloudinary } from '../lib/cloudinary';
 import { databases } from '../lib/appwrite';
 import { ID } from 'appwrite';
-import { UploadCloud, X, Loader2, AlertCircle, PlayCircle } from 'lucide-react';
+import { UploadCloud, X, Loader2, AlertCircle, PlayCircle, ChevronDown } from 'lucide-react';
+import { useLanguage } from '../lib/LanguageContext';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -14,10 +15,12 @@ interface UploadModalProps {
 
 export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUploadSuccess }) => {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('All');
   
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -27,17 +30,31 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
 
   if (!isOpen) return null;
 
+  const categories = [
+    { id: 'All', label: language === 'ru' ? 'Все' : 'All' },
+    { id: 'Music', label: language === 'ru' ? 'Музыка' : 'Music' },
+    { id: 'Gaming', label: language === 'ru' ? 'Игры' : 'Gaming' },
+    { id: 'Live', label: language === 'ru' ? 'Стримы' : 'Live' },
+    { id: 'Tech', label: language === 'ru' ? 'Технологии' : 'Tech' },
+    { id: 'Nature', label: language === 'ru' ? 'Природа' : 'Nature' }
+  ];
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
-      if (!title) {
-        setTitle(e.target.files[0].name.replace(/\.[^/.]+$/, ""));
+      const selectedFile = e.target.files[0];
+      if (selectedFile.size > 100 * 1024 * 1024) {
+        setError(language === 'ru' ? 'Файл слишком большой (макс. 100МБ)' : 'File too large (max 100MB)');
+        return;
       }
+      setFile(selectedFile);
+      if (!title) {
+        setTitle(selectedFile.name.replace(/\.[^/.]+$/, ""));
+      }
+      setError(null);
     }
   };
 
   const handleUpload = async (e: React.FormEvent) => {
-    // ... existing logic ...
     e.preventDefault();
     if (!file || !title || !user) return;
     
@@ -53,7 +70,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
       const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
       
       if (!dbId || !videosColId) {
-        throw new Error("Missing 'Videos' collection ID in Environment Variables!");
+        throw new Error(language === 'ru' ? "Отсутствует ID коллекции Videos в настройках!" : "Missing 'Videos' collection ID in Environment Variables!");
       }
 
       await databases.createDocument(
@@ -62,13 +79,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         ID.unique(), 
         {
           title: title,
-          description: description || 'No description provided.',
+          description: description || (language === 'ru' ? 'Описание отсутствует.' : 'No description provided.'),
           videoUrl: videoUrl,
           thumbnailUrl: thumbnailUrl,
           uploaderId: user.$id,
           uploaderName: user.name || 'Anonymous',
           uploaderAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
-          views: 0
+          views: 0,
+          category: category
         }
       );
 
@@ -78,8 +96,18 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
       onUploadSuccess?.();
       onClose();
     } catch (err: any) {
-      console.error('Upload flow error:', err);
-      setError(err.message || 'Something went wrong during upload');
+      console.error('UPLOAD ERROR:', err);
+      let msg = err.message || (language === 'ru' ? 'Что-то пошло не так при загрузке' : 'Something went wrong during upload');
+      
+      if (err.code === 404) {
+        msg = language === 'ru' ? "Коллекция не найдена. Проверьте VITE_APPWRITE_VIDEOS_COLLECTION_ID." : "Collection not found. Check your environment variables.";
+      } else if (err.code === 401) {
+        msg = language === 'ru' ? "Доступ запрещен. Проверьте права коллекции в Appwrite." : "Permission denied. Check collection settings in Appwrite.";
+      } else if (err.message?.includes('Network error')) {
+        msg = language === 'ru' ? "Ошибка сети. Видео может быть слишком тяжелым." : "Network error. Your video might be too large.";
+      }
+
+      setError(msg);
     } finally {
       setIsUploading(false);
     }
@@ -89,7 +117,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="bg-[#0f1115] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <h2 className="text-xl font-bold font-display text-white">Upload Video</h2>
+          <h2 className="text-xl font-bold font-display text-white">{language === 'ru' ? 'Загрузка видео' : 'Upload Video'}</h2>
           <button 
             onClick={onClose} 
             disabled={isUploading}
@@ -106,8 +134,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
               className="border-2 border-dashed border-white/20 hover:border-[#70d6ff]/50 bg-white/5 rounded-xl p-10 flex flex-col items-center justify-center cursor-pointer transition-colors"
             >
               <UploadCloud className="w-12 h-12 text-[#70d6ff] mb-4" />
-              <p className="text-slate-200 font-medium text-center">Click to select video</p>
-              <p className="text-slate-500 text-sm mt-2 text-center">MP4, WebM, or OGG up to 100MB</p>
+              <p className="text-slate-200 font-medium text-center">{language === 'ru' ? 'Нажмите для выбора видео' : 'Click to select video'}</p>
+              <p className="text-slate-500 text-sm mt-2 text-center">{language === 'ru' ? 'MP4, WebM до 100МБ' : 'MP4, WebM up to 100MB'}</p>
               <input 
                 ref={fileInputRef}
                 type="file" 
@@ -136,25 +164,46 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-slate-200">Title</label>
-            <input 
-              required
-              type="text" 
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Give your video a catchy title..."
-              disabled={isUploading}
-              className="bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#70d6ff]/50"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-slate-200">{language === 'ru' ? 'Заголовок' : 'Title'}</label>
+              <input 
+                required
+                type="text" 
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={language === 'ru' ? 'Название ролика...' : "Give your video a catchy title..."}
+                disabled={isUploading}
+                className="bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#70d6ff]/50 w-full"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-slate-200">{language === 'ru' ? 'Категория' : 'Category'}</label>
+              <div className="relative">
+                <select 
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  disabled={isUploading}
+                  className="appearance-none bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#70d6ff]/50 w-full cursor-pointer"
+                >
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id} className="bg-[#0f1115]">{cat.label}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <ChevronDown className="w-4 h-4" />
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-slate-200">Description</label>
+            <label className="text-sm font-medium text-slate-200">{language === 'ru' ? 'Описание' : 'Description'}</label>
             <textarea 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Tell viewers about your video..."
+              placeholder={language === 'ru' ? 'О чем это видео?' : "Tell viewers about your video..."}
               rows={3}
               disabled={isUploading}
               className="bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#70d6ff]/50 resize-none"
@@ -171,7 +220,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
           {isUploading && (
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-xs font-medium">
-                <span className="text-[#70d6ff]">Uploading to Cloudinary...</span>
+                <span className="text-[#70d6ff]">{language === 'ru' ? 'Загрузка в облако...' : 'Uploading to Cloudinary...'}</span>
                 <span className="text-white">{progress}%</span>
               </div>
               <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden">
@@ -190,7 +239,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
               disabled={isUploading}
               className="px-5 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/5 transition-colors disabled:opacity-50"
             >
-              Cancel
+              {language === 'ru' ? 'Отмена' : 'Cancel'}
             </button>
             <button 
               type="submit"
@@ -199,9 +248,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
             >
               {isUploading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Uploading...
+                  <Loader2 className="w-4 h-4 animate-spin" /> {language === 'ru' ? 'Выполняется...' : 'Uploading...'}
                 </>
-              ) : 'Publish Video'}
+              ) : (language === 'ru' ? 'Опубликовать' : 'Publish Video')}
             </button>
           </div>
         </form>

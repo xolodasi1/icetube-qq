@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Video } from "../data";
 import clsx from "clsx";
+import { useLanguage } from "../lib/LanguageContext";
 
 interface VideoCardProps {
   video: Video;
@@ -9,7 +10,13 @@ interface VideoCardProps {
 }
 
 export function VideoCard({ video, layout = "grid" }: VideoCardProps) {
+  const { t, language } = useLanguage();
   const formatViews = (views: number) => {
+    if (language === 'ru') {
+      if (views >= 1000000) return (views / 1000000).toFixed(1) + " млн";
+      if (views >= 1000) return (views / 1000).toFixed(1) + " тыс.";
+      return views.toString();
+    }
     if (views >= 1000000) return (views / 1000000).toFixed(1) + "M";
     if (views >= 1000) return (views / 1000).toFixed(1) + "K";
     return views.toString();
@@ -50,7 +57,7 @@ export function VideoCard({ video, layout = "grid" }: VideoCardProps) {
           <div className="text-slate-500 text-xs sm:text-sm flex flex-col gap-0.5">
             <span className="group-hover:text-slate-300 transition-colors truncate">{video.channelName}</span>
             <div className="flex items-center gap-1 text-xs text-slate-500">
-              <span>{formatViews(video.views)} views</span>
+              <span>{formatViews(video.views)} {t('video_views')}</span>
               <span>•</span>
               <span>{video.uploadDate}</span>
             </div>

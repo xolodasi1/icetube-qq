@@ -13,14 +13,60 @@
     background-attachment: fixed;
     min-height: 100vh;
   }
+
+  body.light-mode {
+    background-color: #f8fafc;
+    background: linear-gradient(135deg, #f1f5f9 0%, #ffffff 100%);
+    color: #1e293b;
+  }
 }
 
 .ice-gradient {
   background: linear-gradient(135deg, #0a192f 0%, #05070a 100%);
 }
 
+body.light-mode .ice-gradient {
+  background: linear-gradient(135deg, #f1f5f9 0%, #ffffff 100%);
+}
+
 .ice-border {
   border-color: rgba(112, 214, 255, 0.15);
+}
+
+body.light-mode .ice-border {
+  border-color: rgba(59, 130, 246, 0.1);
+}
+
+body.light-mode .text-white {
+  color: #0f172a !important;
+}
+
+body.light-mode .text-slate-400 {
+  color: #64748b !important;
+}
+
+body.light-mode .text-slate-300 {
+  color: #475569 !important;
+}
+
+body.light-mode .bg-white\/5 {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-mode .bg-black\/20 {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-mode .bg-\[\#0f1115\] {
+  background-color: #ffffff !important;
+}
+
+body.light-mode .bg-\[\#0a192f\] {
+  background-color: #f1f5f9 !important;
+}
+
+body.light-mode .bg-\[\#05070a\]\/95 {
+  background-color: rgba(248, 250, 252, 0.95) !important;
 }
 
 .accent-ice {
