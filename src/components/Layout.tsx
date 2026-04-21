@@ -1,12 +1,15 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
+import { StudioSidebar } from "./StudioSidebar";
 import { BottomNav } from "./BottomNav";
 import { useLocation } from "react-router-dom";
 
 export function Layout({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
+
+  const isStudioView = location.pathname.startsWith('/studio') || location.pathname.startsWith('/admin');
 
   // On mobile, close sidebar when changing routes
   useEffect(() => {
@@ -27,7 +30,11 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-transparent ice-gradient flex flex-col">
       <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <div className="flex flex-1 overflow-hidden pt-16 relative">
-        <Sidebar isOpen={sidebarOpen} />
+        {isStudioView ? (
+          <StudioSidebar isOpen={sidebarOpen} onClose={() => window.innerWidth < 1024 && setSidebarOpen(false)} />
+        ) : (
+          <Sidebar isOpen={sidebarOpen} />
+        )}
         {/* Click-away overlay for mobile */}
         {sidebarOpen && (
           <div 

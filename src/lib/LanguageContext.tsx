@@ -68,7 +68,21 @@ export const translations: Translations = {
     comment_save: 'Save',
     comment_cancel: 'Cancel',
     comment_placeholder: 'Add a comment...',
-    comment_reply_placeholder: 'Add a reply...'
+    comment_reply_placeholder: 'Add a reply...',
+    studio_video_header: 'Video',
+    studio_date_header: 'Date',
+    studio_views_header: 'Views',
+    studio_no_videos: 'No videos found. Upload your first clip to start tracking!',
+    studio_back_home: 'Back to Home',
+    studio_customize: 'Customization',
+    editor_title: 'Channel customization',
+    editor_basic_info: 'Basic info',
+    editor_name: 'Name',
+    editor_description: 'Description',
+    editor_avatar: 'Avatar URL',
+    editor_save: 'Publish',
+    editor_cancel: 'Cancel',
+    editor_success: 'Changes published successfully!'
   },
   ru: {
     nav_home: 'Главная',
@@ -129,7 +143,21 @@ export const translations: Translations = {
     comment_save: 'Сохранить',
     comment_cancel: 'Отмена',
     comment_placeholder: 'Оставьте комментарий...',
-    comment_reply_placeholder: 'Напишите ответ...'
+    comment_reply_placeholder: 'Напишите ответ...',
+    studio_video_header: 'Видео',
+    studio_date_header: 'Дата',
+    studio_views_header: 'Просмотры',
+    studio_no_videos: 'Видео не найдено. Загрузите свой первый ролик!',
+    studio_back_home: 'На главную',
+    studio_customize: 'Настройка канала',
+    editor_title: 'Настройка канала',
+    editor_basic_info: 'Основные сведения',
+    editor_name: 'Название',
+    editor_description: 'Описание',
+    editor_avatar: 'Ссылка на аватар',
+    editor_save: 'Опубликовать',
+    editor_cancel: 'Отмена',
+    editor_success: 'Изменения успешно опубликованы!'
   }
 };
 

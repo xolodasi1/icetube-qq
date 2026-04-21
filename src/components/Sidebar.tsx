@@ -1,4 +1,4 @@
-import { Home, Compass, Flame, PlaySquare, Clock, ThumbsUp, History, Film, Settings, LayoutDashboard } from "lucide-react";
+import { Home, Compass, Flame, PlaySquare, Clock, ThumbsUp, History, Settings } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import clsx from "clsx";
 import { useLanguage } from "../lib/LanguageContext";
@@ -12,8 +12,6 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
     { icon: Compass, label: t('nav_explore'), path: "/?category=Explore" },
     { icon: Flame, label: t('nav_trending'), path: "/?category=Trending" },
     { divider: true },
-    { icon: LayoutDashboard, label: t('nav_studio'), path: "/studio" },
-    { icon: Film, label: t('nav_your_videos'), path: "/your-videos" },
     { icon: PlaySquare, label: t('nav_library'), path: "/library" },
     { icon: History, label: t('nav_history'), path: "/history" },
     { icon: Clock, label: t('nav_watch_later'), path: "/watch-later" },

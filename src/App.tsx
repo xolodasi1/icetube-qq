@@ -7,6 +7,7 @@ import AdminPanel from "./pages/AdminPanel";
 import YourVideos from "./pages/YourVideos";
 import Settings from "./pages/Settings";
 import Studio from "./pages/Studio";
+import ChannelEditor from "./pages/ChannelEditor";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/history" element={<ComingSoon />} />
           <Route path="/your-videos" element={<YourVideos />} />
           <Route path="/studio" element={<Studio />} />
+          <Route path="/studio/editor" element={<ChannelEditor />} />
           <Route path="/watch-later" element={<ComingSoon />} />
           <Route path="/liked" element={<ComingSoon />} />
           <Route path="/admin" element={<AdminPanel />} />

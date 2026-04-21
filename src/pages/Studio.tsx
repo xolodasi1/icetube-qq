@@ -2,50 +2,52 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { databases } from '../lib/appwrite';
 import { useLanguage } from '../lib/LanguageContext';
-import { Loader2, LayoutDashboard, Film, TrendingUp, MoreVertical, Edit2, Trash2, AlertCircle } from 'lucide-react';
-import { Query } from 'appwrite';
+import { Loader2, LayoutDashboard, Film, TrendingUp, MoreVertical, Edit2, Trash2, AlertCircle, Upload } from 'lucide-react';
+import { Query, ID } from 'appwrite';
+import { UploadModal } from '../components/UploadModal';
 
 export default function Studio() {
   const { user } = useAuth();
   const { t, language } = useLanguage();
   const [videos, setVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [stats, setStats] = useState({ totalViews: 0, totalVideos: 0 });
 
+  const fetchStats = async () => {
+    if (!user) return;
+    try {
+      setIsLoading(true);
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+      if (!dbId || !colId) return;
+
+      const response = await databases.listDocuments(dbId, colId, [
+        Query.equal('uploaderId', user.$id)
+      ]);
+
+      const userVids = response.documents.map(v => ({
+        id: v.$id,
+        title: v.title,
+        thumbnailUrl: v.thumbnailUrl,
+        views: v.views || 0,
+        uploadDate: new Date(v.$createdAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'),
+        status: 'Published'
+      }));
+
+      setVideos(userVids.reverse());
+      setStats({
+        totalVideos: response.total,
+        totalViews: userVids.reduce((acc, curr) => acc + curr.views, 0)
+      });
+    } catch (err) {
+      console.error("Studio fetch failed:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchStats = async () => {
-      if (!user) return;
-      try {
-        setIsLoading(true);
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
-        if (!dbId || !colId) return;
-
-        const response = await databases.listDocuments(dbId, colId, [
-          Query.equal('uploaderId', user.$id)
-        ]);
-
-        const userVids = response.documents.map(v => ({
-          id: v.$id,
-          title: v.title,
-          thumbnailUrl: v.thumbnailUrl,
-          views: v.views || 0,
-          uploadDate: new Date(v.$createdAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'),
-          status: 'Published'
-        }));
-
-        setVideos(userVids.reverse());
-        setStats({
-          totalVideos: response.total,
-          totalViews: userVids.reduce((acc, curr) => acc + curr.views, 0)
-        });
-      } catch (err) {
-        console.error("Studio fetch failed:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchStats();
   }, [user, language]);
 

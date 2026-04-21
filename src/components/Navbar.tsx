@@ -1,8 +1,7 @@
-import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert, Upload, Settings, LayoutDashboard } from "lucide-react";
+import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert, Settings, LayoutDashboard } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../lib/AuthContext";
-import { UploadModal } from "./UploadModal";
 import { useLanguage } from "../lib/LanguageContext";
 
 export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
@@ -11,11 +10,9 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   useEffect(() => {
     setSearchQuery(searchParams.get("search") || "");
@@ -107,26 +104,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
         
         <div className="relative">
           <button 
-            onClick={() => { 
-                if (!user) {
-                  login();
-                } else {
-                  setIsUploadModalOpen(true);
-                  setShowCreate(false);
-                  setShowNotification(false);
-                  setShowUserMenu(false); 
-                }
-            }}
-            className="p-2 hover:bg-[rgba(112,214,255,0.08)] rounded-full text-slate-300 transition-colors relative"
-            title={t('nav_upload')}
-          >
-            <Upload className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="relative">
-          <button 
-            onClick={() => { setShowNotification(!showNotification); setShowCreate(false); setShowUserMenu(false); }}
+            onClick={() => { setShowNotification(!showNotification); setShowUserMenu(false); }}
             className="p-2 hover:bg-[rgba(112,214,255,0.08)] rounded-full text-slate-300 transition-colors relative"
           >
             <Bell className="w-5 h-5" />
@@ -148,7 +126,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
           {user ? (
             <>
               <button 
-                onClick={() => { setShowUserMenu(!showUserMenu); setShowCreate(false); setShowNotification(false); }}
+                onClick={() => { setShowUserMenu(!showUserMenu); setShowNotification(false); }}
                 className="w-8 h-8 rounded-full bg-gradient-to-br from-[#70d6ff] to-blue-600 border border-white/20 flex items-center justify-center transition-colors text-white font-bold text-sm"
               >
                 {user.name ? user.name.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
@@ -210,15 +188,6 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
           )}
         </div>
       </div>
-
-      {/* Upload Modal Overlay */}
-      <UploadModal 
-        isOpen={isUploadModalOpen} 
-        onClose={() => setIsUploadModalOpen(false)} 
-        onUploadSuccess={() => {
-           // Optionally refresh logic or toast
-        }}
-      />
     </nav>
   );
 }
