@@ -91,8 +91,7 @@ export default function ChannelEditor() {
         userId: user.$id,
         name: formData.name,
         description: formData.description,
-        avatar: formData.avatar,
-        updatedAt: new Date().toISOString()
+        avatar: formData.avatar
       };
 
       if (dbDocId) {
