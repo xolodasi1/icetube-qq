@@ -16,6 +16,7 @@ export interface Video {
 export const mockVideos: Video[] = [
   {
     id: "1",
+    uploaderId: "mock-user-1",
     title: "Exploring the Deep Freeze: Antarctica Documentary",
     thumbnailUrl: "https://picsum.photos/seed/ice1/640/360?grayscale&blur=2",
     videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4",
@@ -29,6 +30,7 @@ export const mockVideos: Video[] = [
   },
   {
     id: "2",
+    uploaderId: "mock-user-2",
     title: "Cold Plunge Routine for Beginners",
     thumbnailUrl: "https://picsum.photos/seed/ice2/640/360?grayscale&blur=1",
     videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4",
@@ -42,6 +44,7 @@ export const mockVideos: Video[] = [
   },
   {
     id: "3",
+    uploaderId: "mock-user-3",
     title: "Cyberpunk City in the Snow - Ambience 4K",
     thumbnailUrl: "https://picsum.photos/seed/cyber/640/360?blur=1",
     videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4",
@@ -55,6 +58,7 @@ export const mockVideos: Video[] = [
   },
   {
     id: "4",
+    uploaderId: "mock-user-4",
     title: "Top 10 Ice Hotels in the World",
     thumbnailUrl: "https://picsum.photos/seed/icehotel/640/360",
     videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4",
@@ -68,6 +72,7 @@ export const mockVideos: Video[] = [
   },
   {
     id: "5",
+    uploaderId: "mock-user-5",
     title: "Making Liquid Nitrogen Ice Cream",
     thumbnailUrl: "https://picsum.photos/seed/nitrogen/640/360",
     videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4",
@@ -81,6 +86,7 @@ export const mockVideos: Video[] = [
   },
   {
     id: "6",
+    uploaderId: "mock-user-6",
     title: "Glacier Hiking in Iceland - 4K POV",
     thumbnailUrl: "https://picsum.photos/seed/glacier/640/360?grayscale",
     videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4",
@@ -94,6 +100,7 @@ export const mockVideos: Video[] = [
   },
   {
     id: "7",
+    uploaderId: "mock-user-7",
     title: "Coding a React App while freezing",
     thumbnailUrl: "https://picsum.photos/seed/code/640/360",
     videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4",
@@ -107,6 +114,7 @@ export const mockVideos: Video[] = [
   },
   {
     id: "8",
+    uploaderId: "mock-user-8",
     title: "The Sound of Ice Cracking",
     thumbnailUrl: "https://picsum.photos/seed/crack/640/360",
     videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4",

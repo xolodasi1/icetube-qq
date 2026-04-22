@@ -1,9 +1,9 @@
 import { useParams, Link } from "react-router-dom";
-import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X } from "lucide-react";
 import { VideoCard } from "../components/VideoCard";
 import React, { useState, useEffect } from "react";
-import { databases } from "../lib/appwrite";
-import { Query, ID, Permission, Role } from "appwrite";
+import { databases, Permission, Role } from "../lib/appwrite";
+import { Query, ID } from "appwrite";
 import { useAuth } from "../lib/AuthContext";
 import { useLanguage } from "../lib/LanguageContext";
 
@@ -30,6 +30,58 @@ export default function Watch() {
   const [isSubbing, setIsSubbing] = useState(false);
   const [isCommenting, setIsCommenting] = useState(false);
   const [isSnowflaking, setIsSnowflaking] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+  const [isReporting, setIsReporting] = useState(false);
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy link:", err);
+    }
+  };
+
+  const handleSendReport = async (reasonId: string) => {
+    if (!user || !video || isReporting) return;
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const reportsCol = import.meta.env.VITE_APPWRITE_REPORTS_COLLECTION_ID;
+    
+    if (!dbId || !reportsCol) {
+      alert(language === 'ru' ? 'Ошибка: Идентификатор коллекции жалоб не настроен.' : 'Error: Reports collection ID not configured.');
+      return;
+    }
+
+    try {
+      setIsReporting(true);
+      await databases.createDocument(dbId, reportsCol, ID.unique(), {
+        videoId: video.id,
+        videoTitle: video.title,
+        reporterId: user.$id,
+        reporterName: profile?.name || user.name || 'User',
+        reason: reasonId,
+        timestamp: new Date().toISOString()
+      }, [
+        Permission.read(Role.user('xolodtop889@gmail.com')),
+        Permission.write(Role.user(user.$id))
+      ]);
+      
+      alert(t('admin_report_success'));
+      setShowReportModal(false);
+    } catch (err: any) {
+      console.error("Reporting failed:", err);
+      if (err.message?.includes('Collection not found')) {
+        alert(language === 'ru' ? 'Ошибка: Коллекция "Reports" не создана в Appwrite.' : 'Error: "Reports" collection not found in Appwrite.');
+      } else {
+        alert(t('admin_report_fail') + " " + err.message);
+      }
+    } finally {
+      setIsReporting(false);
+    }
+  };
 
   const fetchInteractions = async (videoId: string, uploaderId: string) => {
     try {
@@ -605,16 +657,89 @@ export default function Watch() {
                 <span>{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(snowflakesCount)}</span>
               </button>
               
-              <button className="flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] text-slate-300 px-4 py-2 rounded-full transition-colors text-sm shrink-0">
+              <button 
+                onClick={handleShare}
+                className="flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] text-slate-300 px-4 py-2 rounded-full transition-colors text-sm shrink-0"
+              >
                 <Share2 className="w-4 h-4" />
-                <span>{t('video_share')}</span>
+                <span>{isCopied ? (language === 'ru' ? 'Ссылка скопирована!' : 'Link copied!') : t('video_share')}</span>
               </button>
               
-              <button className="flex items-center justify-center w-9 h-9 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] text-slate-300 rounded-full transition-colors shrink-0">
-                <MoreHorizontal className="w-5 h-5" />
-              </button>
+              <div className="relative">
+                <button 
+                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                  className="flex items-center justify-center w-9 h-9 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] text-slate-300 rounded-full transition-colors shrink-0"
+                >
+                  <MoreHorizontal className="w-5 h-5" />
+                </button>
+
+                {showMoreMenu && (
+                  <div className="absolute top-11 right-0 w-48 bg-[#0a192f]/95 backdrop-blur-xl border ice-border rounded-xl shadow-2xl z-50 py-2 overflow-hidden">
+                    <button 
+                      onClick={() => {
+                        window.open(video.videoUrl, '_blank');
+                        setShowMoreMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/5 hover:text-[#70d6ff] transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>{language === 'ru' ? 'Скачать видео' : 'Download video'}</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setShowMoreMenu(false);
+                        setShowReportModal(true);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/5 hover:text-red-400 transition-colors"
+                    >
+                      <ShieldAlert className="w-4 h-4" />
+                      <span>{language === 'ru' ? 'Пожаловаться' : 'Report'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+          
+          {/* Report Modal */}
+          {showReportModal && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+              <div className="bg-[#0a192f] border ice-border w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="p-4 border-b ice-border flex justify-between items-center">
+                  <h3 className="text-white font-bold">{language === 'ru' ? 'Пожаловаться на видео' : 'Report Video'}</h3>
+                  <button onClick={() => setShowReportModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="p-2 flex flex-col gap-1">
+                  {[
+                    { id: 'inappropriate', label: t('report_reason_inappropriate') },
+                    { id: 'spam', label: t('report_reason_spam') },
+                    { id: 'hate', label: t('report_reason_hate') },
+                    { id: 'violence', label: t('report_reason_violence') }
+                  ].map((reason) => (
+                    <button 
+                      key={reason.id}
+                      onClick={() => handleSendReport(reason.id)}
+                      disabled={isReporting}
+                      className="w-full text-left px-4 py-3 text-slate-300 hover:bg-white/5 hover:text-red-400 rounded-xl transition-colors flex items-center justify-between group"
+                    >
+                      <span>{reason.label}</span>
+                      <ShieldAlert className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  ))}
+                </div>
+                <div className="p-4 bg-black/20 flex justify-end">
+                   <button 
+                    onClick={() => setShowReportModal(false)} 
+                    className="text-sm text-slate-400 hover:text-slate-200 transition-colors"
+                   >
+                     {t('comment_cancel')}
+                   </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-4 bg-white/5 border ice-border p-4 rounded-xl text-sm mx-4 sm:mx-0">

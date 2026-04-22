@@ -44,6 +44,7 @@ export default function Home() {
             const response = await databases.listDocuments(dbId, colId);
             const formatted = response.documents.map(v => ({
                 id: v.$id,
+                uploaderId: v.uploaderId,
                 title: v.title,
                 thumbnailUrl: v.thumbnailUrl,
                 videoUrl: v.videoUrl,

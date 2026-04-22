@@ -1,36 +1,70 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { databases } from '../lib/appwrite';
-import { ShieldCheck, ShieldAlert, Users, Video, Activity, MoreHorizontal, Ban } from 'lucide-react';
-import { Navigate } from 'react-router-dom';
+import { ShieldCheck, ShieldAlert, Users, Video, Activity, MoreHorizontal, Ban, Trash2, Clock, Eye, AlertTriangle } from 'lucide-react';
+import { Navigate, Link } from 'react-router-dom';
+import { useLanguage } from '../lib/LanguageContext';
 
 export default function AdminPanel() {
   const { user, isLoading } = useAuth();
+  const { t, language } = useLanguage();
   const [dbUsers, setDbUsers] = useState<any[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
   const [isDbLoading, setIsDbLoading] = useState(true);
+  const [isReportsLoading, setIsReportsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchAppwriteUsers = async () => {
-      try {
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const colId = import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
-        
-        if (!dbId || !colId) {
-          setIsDbLoading(false);
-          return;
-        }
+    const fetchData = async () => {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const usersColId = import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+      const reportsColId = import.meta.env.VITE_APPWRITE_REPORTS_COLLECTION_ID;
 
-        const response = await databases.listDocuments(dbId, colId);
-        setDbUsers(response.documents);
-      } catch (error) {
-        console.warn("Could not fetch Users from Appwrite DB (check IDs and Permissions). Falling back to mock data.");
-      } finally {
+      if (!dbId) {
         setIsDbLoading(false);
+        setIsReportsLoading(false);
+        return;
+      }
+
+      // Fetch Users
+      if (usersColId) {
+        try {
+          const response = await databases.listDocuments(dbId, usersColId);
+          setDbUsers(response.documents);
+        } catch (error) {
+          console.warn("Could not fetch Users");
+        } finally {
+          setIsDbLoading(false);
+        }
+      }
+
+      // Fetch Reports
+      if (reportsColId) {
+        try {
+          const response = await databases.listDocuments(dbId, reportsColId);
+          setReports(response.documents);
+        } catch (error) {
+          console.warn("Could not fetch Reports. Make sure collection exists.");
+        } finally {
+          setIsReportsLoading(false);
+        }
       }
     };
 
-    fetchAppwriteUsers();
+    fetchData();
   }, []);
+
+  const handleDeleteReport = async (reportId: string) => {
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const reportsColId = import.meta.env.VITE_APPWRITE_REPORTS_COLLECTION_ID;
+    if (!dbId || !reportsColId) return;
+
+    try {
+      await databases.deleteDocument(dbId, reportsColId, reportId);
+      setReports(reports.filter(r => r.$id !== reportId));
+    } catch (err) {
+      console.error("Delete report failed:", err);
+    }
+  };
 
   if (isLoading) {
     return <div className="flex p-10 justify-center text-slate-400">Verifying access...</div>;
@@ -142,6 +176,93 @@ export default function AdminPanel() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Reports Section */}
+      <div className="bg-white/5 border ice-border rounded-xl overflow-hidden mt-4">
+        <div className="p-5 border-b ice-border flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="w-5 h-5 text-red-400" />
+            <h2 className="text-lg font-bold text-white">{t('admin_reports')}</h2>
+          </div>
+          <span className="px-3 py-1 bg-red-500/10 text-red-400 text-xs rounded-full border border-red-500/20 font-bold">
+            {reports.length}
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          {isReportsLoading ? (
+            <div className="p-10 flex flex-col items-center justify-center gap-3 text-slate-400">
+               <Activity className="w-8 h-8 animate-pulse text-blue-400" />
+               <span className="text-sm">Scanning for violations...</span>
+            </div>
+          ) : reports.length === 0 ? (
+            <div className="p-12 flex flex-col items-center justify-center gap-3 text-slate-500">
+               <ShieldCheck className="w-10 h-10 opacity-20" />
+               <p>{t('admin_no_reports')}</p>
+            </div>
+          ) : (
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-black/20 text-slate-400">
+                <tr>
+                  <th className="px-6 py-4 font-medium">{t('admin_video')}</th>
+                  <th className="px-6 py-4 font-medium">{t('admin_reason')}</th>
+                  <th className="px-6 py-4 font-medium">{t('admin_reporter')}</th>
+                  <th className="px-6 py-4 font-medium truncate">{t('studio_date_header')}</th>
+                  <th className="px-6 py-4 font-medium text-right">{t('admin_actions')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[rgba(112,214,255,0.05)] text-slate-300">
+                {reports.map((report) => (
+                  <tr key={report.$id} className="hover:bg-red-500/5 transition-colors group">
+                    <td className="px-6 py-4 max-w-xs">
+                      <div className="flex flex-col">
+                        <Link to={`/watch/${report.videoId}`} className="font-medium text-slate-200 hover:text-[#70d6ff] truncate">
+                          {report.videoTitle || 'Untitled Video'}
+                        </Link>
+                        <span className="text-[10px] text-slate-600 font-mono">ID: {report.videoId}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="flex items-center gap-2 text-red-400 font-medium">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        {t(`report_reason_${report.reason}`) || report.reason}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-slate-300">{report.reporterName}</span>
+                        <span className="text-[10px] text-slate-600 font-mono">UID: {report.reporterId}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-slate-500 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3 h-3" />
+                        {new Date(report.timestamp || report.$createdAt).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US')}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Link 
+                          to={`/watch/${report.videoId}`}
+                          className="p-2 hover:bg-blue-500/10 text-blue-400 rounded-lg transition-colors border border-transparent hover:border-blue-500/20"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                        <button 
+                          onClick={() => handleDeleteReport(report.$id)}
+                          className="p-2 hover:bg-red-500/10 text-red-400 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 

@@ -34,6 +34,7 @@ export default function YourVideos() {
         .filter((v: any) => v.uploaderId === user.$id)
         .map((v: any) => ({
           id: v.$id,
+          uploaderId: v.uploaderId,
           title: v.title,
           thumbnailUrl: v.thumbnailUrl,
           videoUrl: v.videoUrl,

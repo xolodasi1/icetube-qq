@@ -96,7 +96,19 @@ export const translations: Translations = {
     channel_videos: 'videos',
     channel_videos_tab: 'Videos',
     channel_your_channel: 'Your Channel',
-    channel_no_videos: 'This channel has no videos.'
+    channel_no_videos: 'This channel has no videos.',
+    admin_reports: 'Security Reports',
+    admin_video: 'Video',
+    admin_reason: 'Reason',
+    admin_reporter: 'Reporter',
+    admin_actions: 'Actions',
+    admin_report_success: 'Report submitted successfully.',
+    admin_report_fail: 'Failed to submit report.',
+    admin_no_reports: 'No reports found.',
+    report_reason_inappropriate: 'Inappropriate content',
+    report_reason_spam: 'Spam or misleading',
+    report_reason_hate: 'Hate speech',
+    report_reason_violence: 'Violence or harm'
   },
   ru: {
     nav_home: 'Главная',
@@ -185,7 +197,19 @@ export const translations: Translations = {
     channel_videos: 'видео',
     channel_videos_tab: 'Видео',
     channel_your_channel: 'Ваш канал',
-    channel_no_videos: 'На этом канале нет видео.'
+    channel_no_videos: 'На этом канале нет видео.',
+    admin_reports: 'Жалобы',
+    admin_video: 'Видео',
+    admin_reason: 'Причина',
+    admin_reporter: 'Отправитель',
+    admin_actions: 'Действия',
+    admin_report_success: 'Жалоба успешно отправлена.',
+    admin_report_fail: 'Не удалось отправить жалобу.',
+    admin_no_reports: 'Жалоб пока нет.',
+    report_reason_inappropriate: 'Непристойный контент',
+    report_reason_spam: 'Спам или обман',
+    report_reason_hate: 'Враждебные высказывания',
+    report_reason_violence: 'Насилие или вред'
   }
 };
 
