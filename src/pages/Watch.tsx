@@ -69,6 +69,9 @@ export default function Watch() {
           ts: new Date(c.$createdAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'),
           text: c.text,
           likes: c.likes || 0,
+          likedBy: c.likedBy || [],
+          dislikedBy: c.dislikedBy || [],
+          parentId: c.parentId || null,
           authorAvatar: c.authorAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.authorName)}`
         })));
       } else {
@@ -227,7 +230,10 @@ export default function Watch() {
           authorName: authorName,
           authorAvatar: authorAvatar,
           text: newComment,
-          likes: 0
+          likes: 0,
+          likedBy: [],
+          dislikedBy: [],
+          parentId: null
         },
         [
           Permission.read(Role.any()),
@@ -244,6 +250,9 @@ export default function Watch() {
           ts: t('video_recently'),
           text: res.text,
           likes: 0,
+          likedBy: [],
+          dislikedBy: [],
+          parentId: null,
           authorAvatar: res.authorAvatar
         },
         ...comments
@@ -253,7 +262,9 @@ export default function Watch() {
       console.error("Comment submission failed:", err);
       // Basic check for missing attributes in Appwrite
       if (err.message?.includes('attribute') && err.message?.includes('not found')) {
-        alert(language === 'ru' ? 'Ошибка: в коллекции Appwrite не хватает полей (videoId, authorId, authorName, authorAvatar, text, likes)' : 'Error: Appwrite collection missing attributes (videoId, authorId, authorName, authorAvatar, text, likes)');
+        alert(language === 'ru' ? 'Ошибка: в коллекции Comments не хватает полей (likedBy: String Array, dislikedBy: String Array, parentId: String)' : 'Error: Appwrite collection missing attributes (likedBy: String Array, dislikedBy: String Array, parentId: String)');
+      } else {
+        alert("Error: " + err.message);
       }
     } finally {
       setIsCommenting(false);
@@ -262,9 +273,6 @@ export default function Watch() {
 
   const handleCommentLike = async (commentId: string, isLike: boolean) => {
     if (!user || isCommenting) return;
-    // For now we just update locally and attempt update in DB
-    // Ideally we need a separate collection for comment likes to be strictly correct
-    // But for a simple version we can just increment/decrement the 'likes' attribute on the comment
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const commsCol = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
     if (!dbId || !commsCol) return;
@@ -273,15 +281,109 @@ export default function Watch() {
       const comment = comments.find(c => c.id === commentId);
       if (!comment) return;
 
-      const newLikes = isLike ? (comment.likes + 1) : Math.max(0, comment.likes - 1);
+      let newLikedBy = [...(comment.likedBy || [])];
+      let newDislikedBy = [...(comment.dislikedBy || [])];
+
+      if (isLike) {
+        if (newLikedBy.includes(user.$id)) {
+          newLikedBy = newLikedBy.filter(id => id !== user.$id); // Remove like
+        } else {
+          newLikedBy.push(user.$id);
+          newDislikedBy = newDislikedBy.filter(id => id !== user.$id); // Remove dislike
+        }
+      } else {
+        if (newDislikedBy.includes(user.$id)) {
+          newDislikedBy = newDislikedBy.filter(id => id !== user.$id); // Remove dislike
+        } else {
+          newDislikedBy.push(user.$id);
+          newLikedBy = newLikedBy.filter(id => id !== user.$id); // Remove like
+        }
+      }
+
+      const newLikes = newLikedBy.length - newDislikedBy.length;
       
-      setComments(comments.map(c => c.id === commentId ? { ...c, likes: newLikes } : c));
+      setComments(comments.map(c => c.id === commentId ? { 
+        ...c, 
+        likes: newLikes,
+        likedBy: newLikedBy,
+        dislikedBy: newDislikedBy 
+      } : c));
       
       await databases.updateDocument(dbId, commsCol, commentId, {
-        likes: newLikes
+        likes: newLikes,
+        likedBy: newLikedBy,
+        dislikedBy: newDislikedBy
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Comment interaction failed:", err);
+      if (err.message?.includes('attribute') && err.message?.includes('not found')) {
+        alert(language === 'ru' ? 'Вам нужно добавить атрибуты likedBy и dislikedBy (String, Array) в коллекцию Comments в Appwrite.' : 'You need to add likedBy and dislikedBy (String, Array) missing attributes to Appwrite Comments.');
+      } else {
+        alert("Permission Error: Please give 'Any' resource Role update permission on Comments in Appwrite Document Security if needed, or check logs.");
+      }
+    }
+  };
+
+  const handleAddReply = async (parentId: string) => {
+    if (!replyText.trim() || !user || isCommenting) return;
+    
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const commsCol = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
+    if (!dbId || !commsCol) return;
+
+    try {
+      setIsCommenting(true);
+      const authorName = profile?.name || user.name || 'User';
+      const authorAvatar = profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}`;
+
+      const res = await databases.createDocument(
+        dbId, 
+        commsCol, 
+        ID.unique(), 
+        {
+          videoId: id,
+          authorId: user.$id,
+          authorName: authorName,
+          authorAvatar: authorAvatar,
+          text: replyText,
+          likes: 0,
+          likedBy: [],
+          dislikedBy: [],
+          parentId: parentId
+        },
+        [
+          Permission.read(Role.any()),
+          Permission.update(Role.user(user.$id)),
+          Permission.delete(Role.user(user.$id))
+        ]
+      );
+
+      setComments([
+        ...comments,
+        {
+          id: res.$id,
+          authorId: res.authorId,
+          author: res.authorName,
+          ts: t('video_recently'),
+          text: res.text,
+          likes: 0,
+          likedBy: [],
+          dislikedBy: [],
+          parentId: parentId,
+          authorAvatar: res.authorAvatar
+        }
+      ]);
+      setReplyText("");
+      setReplyingToId(null);
+    } catch (err: any) {
+      console.error("Reply failed:", err);
+      if (err.message?.includes('attribute') && err.message?.includes('not found')) {
+        alert(language === 'ru' ? 'Ошибка: в коллекции Comments нет поля parentId (String)' : 'Error: Appwrite collection missing attribute parentId (String)');
+      } else {
+        alert("Error: " + err.message);
+      }
+    } finally {
+      setIsCommenting(false);
     }
   };
 
@@ -446,102 +548,172 @@ export default function Watch() {
           )}
 
           <div className="mt-8 flex flex-col gap-6">
-            {comments.map((comment) => (
-              <div key={comment.id} className="flex gap-4 group">
-                <img 
-                  src={comment.authorAvatar} 
-                  className="w-10 h-10 rounded-full shrink-0 object-cover bg-slate-700" 
-                  alt={comment.author} 
-                  referrerPolicy="no-referrer"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs mb-1">
-                      <span className="font-medium text-slate-200">@{comment.author}</span>
-                      <span className="text-slate-500">{comment.ts}</span>
+            {comments.filter(c => !c.parentId).map((comment) => (
+              <div key={comment.id} className="flex gap-4 group flex-col">
+                <div className="flex gap-4 group">
+                  <img 
+                    src={comment.authorAvatar} 
+                    className="w-10 h-10 rounded-full shrink-0 object-cover bg-slate-700" 
+                    alt={comment.author} 
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs mb-1">
+                        <span className="font-medium text-slate-200">@{comment.author}</span>
+                        <span className="text-slate-500">{comment.ts}</span>
+                      </div>
+                      {user && user.$id === comment.authorId && (
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                           <button onClick={() => { setEditingCommentId(comment.id); setEditingText(comment.text); }} className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-[#70d6ff] transition-colors">
+                              <Edit2 className="w-3.5 h-3.5" />
+                           </button>
+                           <button onClick={() => handleDeleteComment(comment.id)} className="p-1 hover:bg-red-500/10 rounded text-slate-400 hover:text-red-400 transition-colors">
+                              <Trash2 className="w-3.5 h-3.5" />
+                           </button>
+                        </div>
+                      )}
                     </div>
-                    {user && user.$id === comment.authorId && (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                         <button onClick={() => { setEditingCommentId(comment.id); setEditingText(comment.text); }} className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-[#70d6ff] transition-colors">
-                            <Edit2 className="w-3.5 h-3.5" />
-                         </button>
-                         <button onClick={() => handleDeleteComment(comment.id)} className="p-1 hover:bg-red-500/10 rounded text-slate-400 hover:text-red-400 transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" />
-                         </button>
+                    
+                    {editingCommentId === comment.id ? (
+                      <div className="mt-1 flex flex-col gap-2">
+                         <input 
+                           type="text" 
+                           value={editingText} 
+                           onChange={(e) => setEditingText(e.target.value)}
+                           className="w-full bg-white/5 border-b ice-border focus:border-[#70d6ff]/50 outline-none text-sm text-slate-200 p-1"
+                           autoFocus
+                         />
+                         <div className="flex justify-end gap-2">
+                            <button onClick={() => setEditingCommentId(null)} className="text-xs text-slate-400 hover:text-white px-2 py-1">{t('comment_cancel')}</button>
+                            <button onClick={() => handleUpdateComment(comment.id)} className="text-xs bg-[#70d6ff]/20 text-[#70d6ff] px-3 py-1 rounded hover:bg-[#70d6ff]/30 transition-colors font-medium">{t('comment_save')}</button>
+                         </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-300 mb-2">{comment.text}</p>
+                    )}
+                    
+                    <div className="flex items-center gap-4 text-slate-400">
+                      <button 
+                        onClick={() => handleCommentLike(comment.id, true)} 
+                        className={`flex items-center gap-1.5 transition-colors ${comment.likedBy?.includes(user?.$id) ? 'text-[#70d6ff]' : 'hover:text-[#70d6ff]'}`}
+                      >
+                        <ThumbsUp className={`w-4 h-4 ${comment.likedBy?.includes(user?.$id) ? 'fill-current' : ''}`} /> 
+                        <span className="text-xs">{comment.likes > 0 && comment.likes}</span>
+                      </button>
+                      <button 
+                        onClick={() => handleCommentLike(comment.id, false)} 
+                        className={`flex items-center gap-1.5 transition-colors ${comment.dislikedBy?.includes(user?.$id) ? 'text-red-400' : 'hover:text-red-400'}`}
+                      >
+                        <ThumbsDown className={`w-4 h-4 ${comment.dislikedBy?.includes(user?.$id) ? 'fill-current' : ''}`} />
+                      </button>
+                      {user && (
+                        <button 
+                          onClick={() => {
+                            setReplyingToId(replyingToId === comment.id ? null : comment.id);
+                            setReplyText("");
+                          }}
+                          className="text-xs font-semibold hover:text-white transition-colors uppercase tracking-wider"
+                        >
+                          {t('comment_reply')}
+                        </button>
+                      )}
+                    </div>
+                    
+                    {replyingToId === comment.id && !editingCommentId && (
+                      <div className="mt-3 flex gap-3 animate-in slide-in-from-top-1 duration-200">
+                         <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-800 shrink-0 flex items-center justify-center text-[10px] font-bold">
+                           {profile?.avatar ? (
+                             <img src={profile.avatar} alt="You" className="w-full h-full object-cover" />
+                           ) : (
+                             (profile?.name || user?.name || 'U').charAt(0).toUpperCase()
+                           )}
+                         </div>
+                         <div className="flex-1 flex flex-col gap-2">
+                            <input 
+                              type="text" 
+                              autoFocus
+                              placeholder={t('comment_reply_placeholder')}
+                              value={replyText}
+                              onChange={(e) => setReplyText(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleAddReply(comment.id);
+                              }}
+                              className="w-full bg-transparent border-b ice-border focus:border-[#70d6ff]/50 outline-none text-sm text-slate-200 py-1"
+                            />
+                            <div className="flex justify-end gap-2">
+                              <button onClick={() => setReplyingToId(null)} className="text-xs text-slate-400 hover:text-white px-2 py-1">{t('comment_cancel')}</button>
+                              <button onClick={() => handleAddReply(comment.id)} disabled={isCommenting} className="text-xs bg-white text-black px-3 py-1 rounded-full font-medium hover:bg-slate-200 transition-colors disabled:opacity-50">{t('comment_reply')}</button>
+                            </div>
+                         </div>
                       </div>
                     )}
                   </div>
-                  
-                  {editingCommentId === comment.id ? (
-                    <div className="mt-1 flex flex-col gap-2">
-                       <input 
-                         type="text" 
-                         value={editingText} 
-                         onChange={(e) => setEditingText(e.target.value)}
-                         className="w-full bg-white/5 border-b ice-border focus:border-[#70d6ff]/50 outline-none text-sm text-slate-200 p-1"
-                         autoFocus
-                       />
-                       <div className="flex justify-end gap-2">
-                          <button onClick={() => setEditingCommentId(null)} className="text-xs text-slate-400 hover:text-white px-2 py-1">{t('comment_cancel')}</button>
-                          <button onClick={() => handleUpdateComment(comment.id)} className="text-xs bg-[#70d6ff]/20 text-[#70d6ff] px-3 py-1 rounded hover:bg-[#70d6ff]/30 transition-colors font-medium">{t('comment_save')}</button>
-                       </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-300 mb-2">{comment.text}</p>
-                  )}
-                  
-                  <div className="flex items-center gap-4 text-slate-400">
-                    <button 
-                      onClick={() => handleCommentLike(comment.id, true)} 
-                      className="flex items-center gap-1.5 hover:text-[#70d6ff] transition-colors"
-                    >
-                      <ThumbsUp className="w-4 h-4" /> 
-                      <span className="text-xs">{comment.likes > 0 && comment.likes}</span>
-                    </button>
-                    <button 
-                      onClick={() => handleCommentLike(comment.id, false)} 
-                      className="flex items-center gap-1.5 hover:text-red-400 transition-colors"
-                    >
-                      <ThumbsDown className="w-4 h-4" />
-                    </button>
-                    {user && user.$id !== comment.authorId && (
-                      <button 
-                        onClick={() => {
-                          setReplyingToId(replyingToId === comment.id ? null : comment.id);
-                          setReplyText("");
-                        }}
-                        className="text-xs font-semibold hover:text-white transition-colors uppercase tracking-wider"
-                      >
-                        {t('comment_reply')}
-                      </button>
-                    )}
-                  </div>
-                  
-                  {replyingToId === comment.id && !editingCommentId && (
-                    <div className="mt-3 flex gap-3 animate-in slide-in-from-top-1 duration-200">
-                       <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-800 shrink-0 flex items-center justify-center text-[10px] font-bold">
-                         {profile?.avatar ? (
-                           <img src={profile.avatar} alt="You" className="w-full h-full object-cover" />
-                         ) : (
-                           (profile?.name || user?.name || 'U').charAt(0).toUpperCase()
-                         )}
-                       </div>
-                       <div className="flex-1 flex flex-col gap-2">
-                          <input 
-                            type="text" 
-                            autoFocus
-                            placeholder={t('comment_reply_placeholder')}
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            className="w-full bg-transparent border-b ice-border focus:border-[#70d6ff]/50 outline-none text-sm text-slate-200 py-1"
-                          />
-                          <div className="flex justify-end gap-2">
-                            <button onClick={() => setReplyingToId(null)} className="text-xs text-slate-400 hover:text-white px-2 py-1">{t('comment_cancel')}</button>
-                            <button className="text-xs bg-white text-black px-3 py-1 rounded-full font-medium hover:bg-slate-200 transition-colors">{t('comment_reply')}</button>
+                </div>
+                {/* Replies */}
+                <div className="ml-14 flex flex-col gap-4 mt-2">
+                  {comments.filter(reply => reply.parentId === comment.id).reverse().map(reply => (
+                    <div key={reply.id} className="flex gap-3 group">
+                      <img 
+                        src={reply.authorAvatar} 
+                        className="w-8 h-8 rounded-full shrink-0 object-cover bg-slate-700" 
+                        alt={reply.author} 
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs mb-1">
+                            <span className="font-medium text-slate-200 border bg-white/10 px-2 py-0.5 rounded-full">@{reply.author}</span>
+                            <span className="text-slate-500 text-[10px]">{reply.ts}</span>
                           </div>
-                       </div>
+                          {user && user.$id === reply.authorId && (
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                               <button onClick={() => { setEditingCommentId(reply.id); setEditingText(reply.text); }} className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-[#70d6ff] transition-colors">
+                                  <Edit2 className="w-3 h-3" />
+                               </button>
+                               <button onClick={() => handleDeleteComment(reply.id)} className="p-1 hover:bg-red-500/10 rounded text-slate-400 hover:text-red-400 transition-colors">
+                                  <Trash2 className="w-3 h-3" />
+                               </button>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {editingCommentId === reply.id ? (
+                          <div className="mt-1 flex flex-col gap-2">
+                             <input 
+                               type="text" 
+                               value={editingText} 
+                               onChange={(e) => setEditingText(e.target.value)}
+                               className="w-full bg-white/5 border-b ice-border focus:border-[#70d6ff]/50 outline-none text-sm text-slate-200 p-1"
+                               autoFocus
+                             />
+                             <div className="flex justify-end gap-2">
+                                <button onClick={() => setEditingCommentId(null)} className="text-xs text-slate-400 hover:text-white px-2 py-1">{t('comment_cancel')}</button>
+                                <button onClick={() => handleUpdateComment(reply.id)} className="text-xs bg-[#70d6ff]/20 text-[#70d6ff] px-3 py-1 rounded hover:bg-[#70d6ff]/30 transition-colors font-medium">{t('comment_save')}</button>
+                             </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-slate-300 mb-2">{reply.text}</p>
+                        )}
+                        
+                        <div className="flex items-center gap-4 text-slate-400">
+                          <button 
+                            onClick={() => handleCommentLike(reply.id, true)} 
+                            className={`flex items-center gap-1.5 transition-colors ${reply.likedBy?.includes(user?.$id) ? 'text-[#70d6ff]' : 'hover:text-[#70d6ff]'}`}
+                          >
+                            <ThumbsUp className={`w-3.5 h-3.5 ${reply.likedBy?.includes(user?.$id) ? 'fill-current' : ''}`} /> 
+                            <span className="text-xs">{reply.likes > 0 && reply.likes}</span>
+                          </button>
+                          <button 
+                            onClick={() => handleCommentLike(reply.id, false)} 
+                            className={`flex items-center gap-1.5 transition-colors ${reply.dislikedBy?.includes(user?.$id) ? 'text-red-400' : 'hover:text-red-400'}`}
+                          >
+                            <ThumbsDown className={`w-3.5 h-3.5 ${reply.dislikedBy?.includes(user?.$id) ? 'fill-current' : ''}`} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
             ))}
