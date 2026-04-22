@@ -17,8 +17,10 @@ export default function ChannelEditor() {
 
   const [formData, setFormData] = useState({
     name: '',
+    handle: '',
     description: '',
-    avatar: ''
+    avatar: '',
+    bannerUrl: ''
   });
 
   const [dbDocId, setDbDocId] = useState<string | null>(null);
@@ -68,15 +70,19 @@ export default function ChannelEditor() {
           setDbDocId(doc.$id);
           setFormData({
             name: doc.name || doc.displayName || user.name || '',
+            handle: doc.handle || '',
             description: doc.description || doc.bio || '',
-            avatar: doc.avatar || doc.photoUrl || ''
+            avatar: doc.avatar || doc.photoUrl || '',
+            bannerUrl: doc.bannerUrl || ''
           });
         } else {
           // No doc yet, use account info
           setFormData({
             name: user.name || '',
+            handle: '',
             description: '',
-            avatar: ''
+            avatar: '',
+            bannerUrl: ''
           });
         }
       } catch (err) {
@@ -108,8 +114,10 @@ export default function ChannelEditor() {
       const payload = {
         userId: user.$id,
         name: formData.name,
+        handle: formData.handle,
         description: formData.description,
-        avatar: formData.avatar
+        avatar: formData.avatar,
+        bannerUrl: formData.bannerUrl
       };
 
       try {
@@ -273,6 +281,23 @@ export default function ChannelEditor() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                  <User className="w-4 h-4 text-[#70d6ff]" />
+                  {t('editor_handle')}
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">@</span>
+                  <input
+                    type="text"
+                    value={formData.handle}
+                    onChange={(e) => setFormData({...formData, handle: e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase()})}
+                    className="w-full bg-black/40 border ice-border rounded-xl pl-8 pr-4 py-3 text-white focus:outline-none focus:border-[#70d6ff] transition-colors"
+                    placeholder="handle"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
                   <ImageIcon className="w-4 h-4 text-[#70d6ff]" />
                   {t('editor_avatar')}
                 </label>
@@ -282,6 +307,20 @@ export default function ChannelEditor() {
                   onChange={(e) => setFormData({...formData, avatar: e.target.value})}
                   className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#70d6ff] transition-colors"
                   placeholder="https://example.com/avatar.jpg"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-[#70d6ff]" />
+                  {t('editor_banner')}
+                </label>
+                <input
+                  type="url"
+                  value={formData.bannerUrl}
+                  onChange={(e) => setFormData({...formData, bannerUrl: e.target.value})}
+                  className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#70d6ff] transition-colors"
+                  placeholder="https://example.com/banner.jpg"
                 />
               </div>
             </div>

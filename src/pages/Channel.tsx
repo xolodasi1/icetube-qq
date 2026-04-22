@@ -156,9 +156,23 @@ export default function Channel() {
 
   const avatarSrc = profile.avatar || profile.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || profile.displayName || "U")}&background=random`;
   const channelName = profile.name || profile.displayName || "Unknown Channel";
+  const channelHandle = profile.handle ? `@${profile.handle}` : `@${channelName.replace(/\s+/g, '').toLowerCase() || "user"}`;
+  const bannerUrl = profile.bannerUrl;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Banner */}
+      {bannerUrl && (
+        <div className="w-full h-48 md:h-64 lg:h-80 w-full mb-8 rounded-2xl overflow-hidden bg-slate-800 relative">
+          <img 
+            src={bannerUrl} 
+            alt="Channel Banner" 
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+          />
+        </div>
+      )}
+
       {/* Channel Header */}
       <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-12 border-b border-white/10 pb-8">
         <div className="w-32 h-32 md:w-40 md:h-40 shrink-0">
@@ -173,7 +187,7 @@ export default function Channel() {
         <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left">
           <h1 className="text-4xl font-bold font-display text-white mb-2">{channelName}</h1>
           <div className="flex items-center gap-2 text-slate-400 mb-4">
-            <span className="font-medium text-slate-300">@{channelName.replace(/\s+/g, '').toLowerCase() || "user"}</span>
+            <span className="font-medium text-slate-300">{channelHandle}</span>
             <span>•</span>
             <span>{new Intl.NumberFormat().format(subsCount)} {t('channel_subscribers')}</span>
             <span>•</span>
