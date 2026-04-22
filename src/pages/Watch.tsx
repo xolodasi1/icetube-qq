@@ -344,9 +344,11 @@ export default function Watch() {
           
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
             <div className="flex items-center gap-4">
-              <img src={video.channelAvatar} alt={video.channelName} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-cold-border" />
+              <Link to={`/channel/${video.uploaderId}`} className="shrink-0 hover:opacity-80 transition-opacity">
+                <img src={video.channelAvatar} alt={video.channelName} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-cold-border" referrerPolicy="no-referrer" />
+              </Link>
               <div className="flex flex-col">
-                <span className="font-medium text-slate-100">{video.channelName}</span>
+                <Link to={`/channel/${video.uploaderId}`} className="font-medium text-slate-100 hover:text-[#70d6ff] transition-colors">{video.channelName}</Link>
                 <span className="text-xs text-slate-400">{subsCount} {t('video_subscribers')}</span>
               </div>
               <button 

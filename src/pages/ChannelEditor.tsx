@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { uploadImageToCloudinary } from '../lib/cloudinary';
 import { useAuth } from '../lib/AuthContext';
-import { databases } from '../lib/appwrite';
+import { databases, account } from '../lib/appwrite';
 import { useLanguage } from '../lib/LanguageContext';
 import { Wand2, Save, X, Loader2, Image as ImageIcon, User, AlignLeft, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Query } from 'appwrite';
@@ -120,6 +120,9 @@ export default function ChannelEditor() {
         await databases.createDocument(dbId, colId, 'unique()', payload);
       }
 
+      // Update name in Appwrite Account
+      await account.updateName(formData.name);
+
       // Update all videos by this user to reflect new profile info
       const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
       if (videosColId) {
@@ -131,6 +134,21 @@ export default function ChannelEditor() {
           await databases.updateDocument(dbId, videosColId, video.$id, {
             uploaderName: formData.name,
             uploaderAvatar: formData.avatar
+          });
+        }
+      }
+
+      // Update all comments by this user
+      const commentsColId = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
+      if (commentsColId) {
+        const comments = await databases.listDocuments(dbId, commentsColId, [
+          Query.equal('authorId', user.$id)
+        ]);
+        
+        for (const comment of comments.documents) {
+          await databases.updateDocument(dbId, commentsColId, comment.$id, {
+            authorName: formData.name,
+            authorAvatar: formData.avatar
           });
         }
       }

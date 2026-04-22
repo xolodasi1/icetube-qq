@@ -25,8 +25,8 @@ export function VideoCard({ video, layout = "grid" }: VideoCardProps) {
   const isList = layout === "list";
 
   return (
-    <Link to={`/watch/${video.id}`} className={clsx("group flex block", isList ? "flex-row gap-3 w-full" : "video-card flex-col")}>
-      <div className={clsx("shrink-0 video-thumb", isList ? "w-40 sm:w-48 rounded-xl overflow-hidden" : "w-full")}>
+    <div className={clsx("group flex block", isList ? "flex-row gap-3 w-full" : "video-card flex-col")}>
+      <Link to={`/watch/${video.id}`} className={clsx("shrink-0 video-thumb", isList ? "w-40 sm:w-48 rounded-xl overflow-hidden" : "w-full")}>
         <img 
           src={video.thumbnailUrl} 
           alt={video.title} 
@@ -37,33 +37,35 @@ export function VideoCard({ video, layout = "grid" }: VideoCardProps) {
         <div className="duration-badge z-30">
           {video.duration}
         </div>
-      </div>
+      </Link>
       
       <div className={clsx("flex gap-3 items-start", isList ? "mt-0 pl-1 pr-4 sm:px-2 py-4 sm:py-1" : "p-4 px-4 sm:px-0 sm:py-4")}>
         {!isList && (
-          <div className="shrink-0">
+          <Link to={`/channel/${video.uploaderId}`} className="shrink-0 z-20">
             <img 
               src={video.channelAvatar} 
               alt={video.channelName} 
-              className="w-9 h-9 rounded-full object-cover bg-slate-700"
+              className="w-9 h-9 rounded-full object-cover bg-slate-700 hover:ring-2 hover:ring-[#70d6ff] transition-all"
               referrerPolicy="no-referrer"
             />
-          </div>
+          </Link>
         )}
         <div className="flex flex-col overflow-hidden">
-          <h3 className={clsx("text-slate-200 font-bold line-clamp-2 group-hover:text-[#70d6ff] transition-colors leading-tight mb-1", isList ? "text-sm sm:text-base" : "text-sm")}>
+          <Link to={`/watch/${video.id}`} className={clsx("text-slate-200 font-bold line-clamp-2 group-hover:text-[#70d6ff] transition-colors leading-tight mb-1", isList ? "text-sm sm:text-base" : "text-sm")}>
             {video.title}
-          </h3>
+          </Link>
           <div className="text-slate-500 text-xs sm:text-sm flex flex-col gap-0.5">
-            <span className="group-hover:text-slate-300 transition-colors truncate">{video.channelName}</span>
-            <div className="flex items-center gap-1 text-xs text-slate-500">
+            <Link to={`/channel/${video.uploaderId}`} className="hover:text-slate-300 transition-colors truncate">
+              {video.channelName}
+            </Link>
+            <Link to={`/watch/${video.id}`} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-400 focus:outline-none">
               <span>{formatViews(video.views)} {t('video_views')}</span>
               <span>•</span>
               <span>{video.uploadDate}</span>
-            </div>
+            </Link>
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

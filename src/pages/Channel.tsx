@@ -1,0 +1,232 @@
+import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import { databases } from "../lib/appwrite";
+import { Query } from "appwrite";
+import { Loader2, User, AlertCircle, Video } from "lucide-react";
+import { useLanguage } from "../lib/LanguageContext";
+import { useAuth } from "../lib/AuthContext";
+import { VideoCard } from "../components/VideoCard";
+
+export default function Channel() {
+  const { id } = useParams();
+  const { t, language } = useLanguage();
+  const { user } = useAuth();
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [profile, setProfile] = useState<any>(null);
+  const [videos, setVideos] = useState<any[]>([]);
+  const [subsCount, setSubsCount] = useState(0);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isSubbing, setIsSubbing] = useState(false);
+
+  useEffect(() => {
+    const fetchChannelData = async () => {
+      if (!id) return;
+      setIsLoading(true);
+
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const usersColId = import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+      const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+      const subsColId = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
+
+      if (!dbId || !usersColId || !videosColId) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Fetch Profile
+        const profileRes = await databases.listDocuments(dbId, usersColId, [
+          Query.equal("userId", id)
+        ]);
+
+        let channelProfile = profileRes.documents.length > 0 ? profileRes.documents[0] : null;
+
+        // Fetch Videos
+        const videosRes = await databases.listDocuments(dbId, videosColId, [
+          Query.equal("uploaderId", id),
+          Query.orderDesc("$createdAt")
+        ]);
+
+        const formattedVideos = videosRes.documents.map(v => ({
+          id: v.$id,
+          uploaderId: v.uploaderId,
+          title: v.title,
+          thumbnailUrl: v.thumbnailUrl,
+          videoUrl: v.videoUrl,
+          channelName: v.uploaderName,
+          channelAvatar: v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
+          views: v.views || 0,
+          uploadDate: t('video_recently'),
+          duration: "10:00"
+        }));
+
+        setVideos(formattedVideos);
+
+        // Define fallback profile if no user doc was created yet but videos exist
+        if (!channelProfile && formattedVideos.length > 0) {
+           channelProfile = {
+             name: formattedVideos[0].channelName,
+             avatar: formattedVideos[0].channelAvatar,
+             description: ""
+           };
+        } else if (!channelProfile) {
+           channelProfile = {
+             name: "Unknown Channel",
+             avatar: "",
+             description: ""
+           };
+        }
+
+        setProfile(channelProfile);
+
+        // Fetch Subs
+        if (subsColId) {
+          const subsRes = await databases.listDocuments(dbId, subsColId, [
+             Query.equal("channelId", id)
+          ]);
+          setSubsCount(subsRes.total);
+
+          if (user) {
+            const mySub = subsRes.documents.find((doc: any) => doc.subscriberId === user.$id);
+            setIsSubscribed(!!mySub);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load channel data:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchChannelData();
+  }, [id, user, language, t]);
+
+  const handleSubscribe = async () => {
+    if (!user || isSubbing || !id) return;
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const subsCol = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
+    if (!dbId || !subsCol) return;
+
+    try {
+      setIsSubbing(true);
+      if (isSubscribed) {
+        const res = await databases.listDocuments(dbId, subsCol, [
+          Query.equal('channelId', id),
+          Query.equal('subscriberId', user.$id)
+        ]);
+        if (res.total > 0) {
+          await databases.deleteDocument(dbId, subsCol, res.documents[0].$id);
+          setIsSubscribed(false);
+          setSubsCount(prev => prev - 1);
+        }
+      } else {
+        await databases.createDocument(dbId, subsCol, "unique()", {
+          channelId: id,
+          subscriberId: user.$id
+        });
+        setIsSubscribed(true);
+        setSubsCount(prev => prev + 1);
+      }
+    } catch (err) {
+      console.error("Subscribe failed:", err);
+    } finally {
+      setIsSubbing(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 text-slate-400 h-[70vh]">
+        <Loader2 className="w-10 h-10 animate-spin text-[#70d6ff] mb-4" />
+        <p>Loading channel...</p>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 text-slate-400 h-[70vh]">
+        <AlertCircle className="w-12 h-12 text-slate-500 mb-2" />
+        <h1 className="text-2xl font-bold text-white mb-2">Channel Not Found</h1>
+        <p>This channel doesn't exist or hasn't uploaded any videos yet.</p>
+      </div>
+    );
+  }
+
+  const avatarSrc = profile.avatar || profile.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || profile.displayName || "U")}&background=random`;
+  const channelName = profile.name || profile.displayName || "Unknown Channel";
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Channel Header */}
+      <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-12 border-b border-white/10 pb-8">
+        <div className="w-32 h-32 md:w-40 md:h-40 shrink-0">
+          <img 
+            src={avatarSrc} 
+            alt={channelName} 
+            className="w-full h-full rounded-full object-cover bg-slate-800 border-2 border-[#70d6ff]/20 shadow-[0_0_20px_rgba(112,214,255,0.1)]"
+            referrerPolicy="no-referrer"
+          />
+        </div>
+        
+        <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left">
+          <h1 className="text-4xl font-bold font-display text-white mb-2">{channelName}</h1>
+          <div className="flex items-center gap-2 text-slate-400 mb-4">
+            <span className="font-medium text-slate-300">@{channelName.replace(/\s+/g, '').toLowerCase() || "user"}</span>
+            <span>•</span>
+            <span>{new Intl.NumberFormat().format(subsCount)} subscribers</span>
+            <span>•</span>
+            <span>{videos.length} videos</span>
+          </div>
+
+          <p className="text-slate-300 max-w-2xl mb-6 line-clamp-3">
+            {profile.description || profile.bio || ""}
+          </p>
+
+          {user && user.$id !== id && (
+            <button 
+              disabled={isSubbing}
+              onClick={handleSubscribe}
+              className={`font-bold px-6 py-2.5 rounded-full transition-colors flex items-center justify-center gap-2 ${
+                 isSubscribed ? 'bg-white/10 text-slate-200 hover:bg-white/20 border border-white/10' : 'bg-[#70d6ff] text-black hover:bg-[#5bc0e6]'
+              }`}
+            >
+              {isSubscribed ? 'Subscribed' : 'Subscribe'}
+            </button>
+          )}
+
+          {user && user.$id === id && (
+            <button 
+              disabled
+              className="bg-white/10 text-slate-300 px-6 py-2.5 rounded-full border border-white/10 cursor-default"
+            >
+              Your Channel
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Videos Section */}
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+          <Video className="w-6 h-6 text-[#70d6ff]" />
+          Videos
+        </h2>
+
+        {videos.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/5 border border-white/10 rounded-2xl">
+            <Video className="w-12 h-12 text-slate-500 mb-4" />
+            <p className="text-lg">This channel has no videos.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-8 gap-x-4">
+            {videos.map(video => (
+              <VideoCard key={video.id} video={video} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

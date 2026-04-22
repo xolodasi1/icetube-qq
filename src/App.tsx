@@ -3,6 +3,7 @@ import { Layout } from "./components/Layout";
 import Home from "./pages/Home";
 import Watch from "./pages/Watch";
 import ComingSoon from "./pages/ComingSoon";
+import Channel from "./pages/Channel";
 import AdminPanel from "./pages/AdminPanel";
 import YourVideos from "./pages/YourVideos";
 import Settings from "./pages/Settings";
@@ -17,6 +18,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/watch/:id" element={<Watch />} />
+          <Route path="/channel/:id" element={<Channel />} />
           <Route path="/library" element={<ComingSoon />} />
           <Route path="/history" element={<ComingSoon />} />
           <Route path="/your-videos" element={<YourVideos />} />
