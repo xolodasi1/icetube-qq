@@ -20,6 +20,7 @@ export default function Watch() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [likeState, setLikeState] = useState<'none' | 'liked' | 'disliked'>('none');
   const [likesCount, setLikesCount] = useState(0); 
+  const [dislikesCount, setDislikesCount] = useState(0);
   const [subsCount, setSubsCount] = useState("0");
   const [newComment, setNewComment] = useState("");
   const [comments, setComments] = useState<any[]>([]);
@@ -40,7 +41,9 @@ export default function Watch() {
       if (likesCol) {
         const likesRes = await databases.listDocuments(dbId, likesCol, [Query.equal('videoId', videoId)]);
         const totalLikes = likesRes.documents.filter((d: any) => d.type !== 'dislike').length;
+        const totalDislikes = likesRes.documents.filter((d: any) => d.type === 'dislike').length;
         setLikesCount(totalLikes);
+        setDislikesCount(totalDislikes);
         if (user) {
           const myLike = likesRes.documents.find(doc => doc.userId === user.$id);
           if (myLike) {
@@ -161,14 +164,20 @@ export default function Watch() {
           await databases.deleteDocument(dbId, likesCol, existingDoc.$id);
           setLikeState('none');
           if (isLike) setLikesCount(prev => prev - 1);
+          else setDislikesCount(prev => prev - 1);
         } else {
           // Switch interaction
           await databases.updateDocument(dbId, likesCol, existingDoc.$id, {
             type: actionType
           });
           setLikeState(actionType as 'liked' | 'disliked');
-          if (isLike) setLikesCount(prev => prev + 1);
-          else setLikesCount(prev => prev - 1);
+          if (isLike) {
+            setLikesCount(prev => prev + 1);
+            setDislikesCount(prev => prev - 1);
+          } else {
+            setLikesCount(prev => prev - 1);
+            setDislikesCount(prev => prev + 1);
+          }
         }
       } else {
         // Create new
@@ -179,13 +188,14 @@ export default function Watch() {
         });
         setLikeState(actionType as 'liked' | 'disliked');
         if (isLike) setLikesCount(prev => prev + 1);
+        else setDislikesCount(prev => prev + 1);
       }
     } catch (err: any) {
       console.error("Like failed:", err);
-      if (err.message?.includes('attribute') && err.message?.includes('not found')) {
-        alert(language === 'ru' ? 'Вам нужно добавить атрибут type (String) в коллекцию Likes в базе данных Appwrite, чтобы заработали дизлайки по видео.' : 'You need to add a "type" (String) attribute to the Likes collection in Appwrite for video dislikes to work.');
+      if (err.message?.toLowerCase().includes('attribute') || err.message?.toLowerCase().includes('invalid document structure')) {
+        alert(language === 'ru' ? 'Вам нужно добавить атрибут type (String, размер 10) в коллекцию Likes в базе данных Appwrite, чтобы заработали дизлайки по видео.' : 'You need to add a "type" (String, size 10) attribute to the Likes collection in Appwrite for video dislikes to work.');
       } else {
-        alert("Error: " + err.message);
+        alert("Ошибка: " + err.message);
       }
     } finally {
       setIsLiking(false);
@@ -527,9 +537,10 @@ export default function Watch() {
                 <button 
                   disabled={isLiking || !user}
                   onClick={() => handleLike(false)}
-                  className={`px-4 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors text-sm ${likeState === 'disliked' ? 'text-red-400' : ''}`}
+                  className={`px-4 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors text-sm flex items-center gap-2 ${likeState === 'disliked' ? 'text-red-400' : ''}`}
                 >
                   <ThumbsDown className={`w-4 h-4 ${likeState === 'disliked' ? 'fill-current text-red-400' : ''}`} />
+                  {dislikesCount > 0 && <span>{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(dislikesCount)}</span>}
                 </button>
               </div>
               
