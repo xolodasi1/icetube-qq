@@ -237,7 +237,7 @@ export default function Watch() {
         },
         [
           Permission.read(Role.any()),
-          Permission.update(Role.user(user.$id)),
+          Permission.update(Role.users()),
           Permission.delete(Role.user(user.$id))
         ]
       );
@@ -318,8 +318,14 @@ export default function Watch() {
       console.error("Comment interaction failed:", err);
       if (err.message?.includes('attribute') && err.message?.includes('not found')) {
         alert(language === 'ru' ? 'Вам нужно добавить атрибуты likedBy и dislikedBy (String, Array) в коллекцию Comments в Appwrite.' : 'You need to add likedBy and dislikedBy (String, Array) missing attributes to Appwrite Comments.');
+      } else if (err.message?.includes('Missing or insufficient permissions')) {
+        if (language === 'ru') {
+          alert("Ошибка прав доступа!\nЧтобы лайки заработали для СТАРЫХ комментариев, зайдите в Appwrite -> Databases -> IcetubeDB -> Comments -> Settings.\nВ разделе 'Permissions' добавьте роль 'Users' и дайте ей права 'Update'.");
+        } else {
+          alert("Permission Error!\nTo make likes work for OLD comments, go to Appwrite -> Databases -> IcetubeDB -> Comments -> Settings.\nUnder 'Permissions', add 'Users' and grant 'Update' permission.");
+        }
       } else {
-        alert("Permission Error: Please give 'Any' resource Role update permission on Comments in Appwrite Document Security if needed, or check logs.");
+        alert("Error: " + err.message);
       }
     }
   };
@@ -353,7 +359,7 @@ export default function Watch() {
         },
         [
           Permission.read(Role.any()),
-          Permission.update(Role.user(user.$id)),
+          Permission.update(Role.users()),
           Permission.delete(Role.user(user.$id))
         ]
       );
@@ -560,7 +566,9 @@ export default function Watch() {
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-xs mb-1">
-                        <span className="font-medium text-slate-200">@{comment.author}</span>
+                        <span className="font-medium text-slate-200">
+                          @{(user && user.$id === comment.authorId && profile?.name) ? profile.name : comment.author}
+                        </span>
                         <span className="text-slate-500">{comment.ts}</span>
                       </div>
                       {user && user.$id === comment.authorId && (
@@ -663,7 +671,9 @@ export default function Watch() {
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 text-xs mb-1">
-                            <span className="font-medium text-slate-200 border bg-white/10 px-2 py-0.5 rounded-full">@{reply.author}</span>
+                            <span className="font-medium text-slate-200 border bg-white/10 px-2 py-0.5 rounded-full">
+                              @{(user && user.$id === reply.authorId && profile?.name) ? profile.name : reply.author}
+                            </span>
                             <span className="text-slate-500 text-[10px]">{reply.ts}</span>
                           </div>
                           {user && user.$id === reply.authorId && (

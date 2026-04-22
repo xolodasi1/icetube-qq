@@ -46,9 +46,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 if (res.documents.length > 0) {
                     const doc = res.documents[0];
                     setProfile({
-                        name: doc.name || '',
-                        avatar: doc.avatar || '',
-                        description: doc.description || ''
+                        name: doc.name || doc.displayName || '',
+                        avatar: doc.avatar || doc.photoUrl || '',
+                        description: doc.description || doc.bio || ''
                     });
                 }
             }
