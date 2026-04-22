@@ -5,7 +5,7 @@ import { useAuth } from "../lib/AuthContext";
 import { useLanguage } from "../lib/LanguageContext";
 
 export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
-  const { user, login, logoutUser } = useAuth();
+  const { user, profile, login, logoutUser } = useAuth();
   const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -127,19 +127,27 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
             <>
               <button 
                 onClick={() => { setShowUserMenu(!showUserMenu); setShowNotification(false); }}
-                className="w-8 h-8 rounded-full bg-gradient-to-br from-[#70d6ff] to-blue-600 border border-white/20 flex items-center justify-center transition-colors text-white font-bold text-sm"
+                className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-[#70d6ff] to-blue-600 border border-white/20 flex items-center justify-center transition-colors text-white font-bold text-sm shrink-0 hover:ring-2 hover:ring-[#70d6ff]/50"
               >
-                {user.name ? user.name.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
+                {profile?.avatar ? (
+                  <img src={profile.avatar} className="w-full h-full object-cover" alt="Profile" />
+                ) : (
+                  (profile?.name || user.name) ? (profile?.name || user.name).charAt(0).toUpperCase() : <User className="w-4 h-4" />
+                )}
               </button>
               
               {showUserMenu && (
                 <div className="absolute top-12 -right-4 sm:right-0 w-[calc(100vw-32px)] sm:w-64 bg-[#0a192f] border ice-border shadow-2xl rounded-xl z-50 overflow-hidden" onClick={() => setShowUserMenu(false)}>
                   <div className="p-4 border-b ice-border flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#70d6ff] to-blue-600 flex items-center justify-center text-white font-bold">
-                      {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-[#70d6ff] to-blue-600 flex items-center justify-center shrink-0 text-white font-bold">
+                       {profile?.avatar ? (
+                         <img src={profile.avatar} className="w-full h-full object-cover" alt="Profile" />
+                       ) : (
+                         (profile?.name || user.name) ? (profile?.name || user.name).charAt(0).toUpperCase() : 'U'
+                       )}
                     </div>
                     <div className="flex flex-col overflow-hidden min-w-0">
-                      <span className="font-semibold text-slate-100 text-sm truncate">{user.name || "User"}</span>
+                      <span className="font-semibold text-slate-100 text-sm truncate">{profile?.name || user.name || "User"}</span>
                       <span className="text-xs text-slate-400 truncate">{user.email}</span>
                     </div>
                   </div>

@@ -9,7 +9,7 @@ import { useLanguage } from "../lib/LanguageContext";
 
 export default function Watch() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { t, language } = useLanguage();
   
   const [video, setVideo] = useState<any | null>(null);
@@ -214,11 +214,14 @@ export default function Watch() {
 
     try {
       setIsCommenting(true);
+      const authorName = profile?.name || user.name || 'User';
+      const authorAvatar = profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}`;
+
       const res = await databases.createDocument(dbId, commsCol, ID.unique(), {
         videoId: id,
         authorId: user.$id,
-        authorName: user.name,
-        authorAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}`,
+        authorName: authorName,
+        authorAvatar: authorAvatar,
         text: newComment,
         likes: 0
       });
@@ -406,8 +409,12 @@ export default function Watch() {
           
           {user ? (
             <form onSubmit={handleAddComment} className="flex gap-4">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#70d6ff] to-blue-600 flex items-center justify-center text-white font-bold shrink-0">
-                {user.name?.charAt(0).toUpperCase()}
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-[#70d6ff] to-blue-600 flex items-center justify-center text-white font-bold shrink-0">
+                {profile?.avatar ? (
+                  <img src={profile.avatar} alt="You" className="w-full h-full object-cover" />
+                ) : (
+                  (profile?.name || user.name || 'U').charAt(0).toUpperCase()
+                )}
               </div>
               <div className="flex-1">
                 <input 
@@ -500,8 +507,12 @@ export default function Watch() {
                   
                   {replyingToId === comment.id && !editingCommentId && (
                     <div className="mt-3 flex gap-3 animate-in slide-in-from-top-1 duration-200">
-                       <div className="w-8 h-8 rounded-full bg-slate-800 shrink-0 flex items-center justify-center text-[10px] font-bold">
-                         {user?.name?.charAt(0).toUpperCase()}
+                       <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-800 shrink-0 flex items-center justify-center text-[10px] font-bold">
+                         {profile?.avatar ? (
+                           <img src={profile.avatar} alt="You" className="w-full h-full object-cover" />
+                         ) : (
+                           (profile?.name || user?.name || 'U').charAt(0).toUpperCase()
+                         )}
                        </div>
                        <div className="flex-1 flex flex-col gap-2">
                           <input 

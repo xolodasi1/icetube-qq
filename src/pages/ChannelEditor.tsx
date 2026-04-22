@@ -7,7 +7,7 @@ import { Wand2, Save, X, Loader2, Image as ImageIcon, User, AlignLeft, AlertCirc
 import { Query } from 'appwrite';
 
 export default function ChannelEditor() {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -170,6 +170,7 @@ export default function ChannelEditor() {
         }
       }
 
+      await refreshProfile();
       setSuccess(true);
       setTimeout(() => setSuccess(false), 5000);
     } catch (err: any) {
