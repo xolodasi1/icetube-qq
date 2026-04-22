@@ -40,7 +40,7 @@ export default function Channel() {
           Query.equal("userId", id)
         ]);
 
-        let channelProfile = profileRes.documents.length > 0 ? profileRes.documents[0] : null;
+        let channelProfile = (profileRes.documents.length > 0 ? profileRes.documents[0] : null) as any;
 
         // Fetch Videos
         const videosRes = await databases.listDocuments(dbId, videosColId, [

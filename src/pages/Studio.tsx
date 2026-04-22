@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { databases } from '../lib/appwrite';
 import { useLanguage } from '../lib/LanguageContext';
-import { Loader2, LayoutDashboard, Film, TrendingUp, MoreVertical, Edit2, Trash2, AlertCircle, Upload } from 'lucide-react';
+import { Loader2, LayoutDashboard, Film, TrendingUp, MoreVertical, Edit2, Trash2, AlertCircle, Upload, Wand2 } from 'lucide-react';
 import { Query, ID } from 'appwrite';
 import { UploadModal } from '../components/UploadModal';
+import { Link } from 'react-router-dom';
 
 export default function Studio() {
   const { user } = useAuth();
@@ -79,6 +80,22 @@ export default function Studio() {
             {t('nav_studio')}
           </h1>
           <p className="text-slate-400 mt-1">{t('studio_analytics')}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/studio/editor"
+            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-5 py-2.5 rounded-xl font-medium transition-all border ice-border"
+          >
+            <Wand2 className="w-4 h-4 text-[#70d6ff]" />
+            <span>{t('studio_customize')}</span>
+          </Link>
+          <button
+            onClick={() => setIsUploadModalOpen(true)}
+            className="flex items-center gap-2 bg-[#70d6ff] hover:bg-[#70d6ff]/90 text-[#05070a] px-5 py-2.5 rounded-xl font-bold transition-all shadow-[0_0_15px_rgba(112,214,255,0.2)]"
+          >
+            <Upload className="w-4 h-4" />
+            <span>{t('your_vids_upload_btn')}</span>
+          </button>
         </div>
       </div>
 

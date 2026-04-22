@@ -1,5 +1,6 @@
 export interface Video {
   id: string;
+  uploaderId?: string;
   title: string;
   thumbnailUrl: string;
   videoUrl: string;

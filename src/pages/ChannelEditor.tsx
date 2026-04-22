@@ -8,7 +8,7 @@ import { Query } from 'appwrite';
 
 export default function ChannelEditor() {
   const { user, refreshProfile } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -70,8 +70,10 @@ export default function ChannelEditor() {
           // Fallback to basic info from account if collection is not set
           setFormData({
             name: user.name || '',
+            handle: '',
             description: '',
-            avatar: ''
+            avatar: '',
+            bannerUrl: ''
           });
           setIsLoading(false);
           return;
@@ -102,8 +104,9 @@ export default function ChannelEditor() {
             bannerUrl: ''
           });
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to fetch profile:", err);
+        setError(language === 'ru' ? "Не удалось загрузить профиль. Проверьте консоль или настройки Appwrite." : "Failed to load profile. Check console or Appwrite settings.");
       } finally {
         setIsLoading(false);
       }
