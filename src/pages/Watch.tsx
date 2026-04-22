@@ -3,7 +3,7 @@ import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, 
 import { VideoCard } from "../components/VideoCard";
 import React, { useState, useEffect } from "react";
 import { databases } from "../lib/appwrite";
-import { Query, ID } from "appwrite";
+import { Query, ID, Permission, Role } from "appwrite";
 import { useAuth } from "../lib/AuthContext";
 import { useLanguage } from "../lib/LanguageContext";
 
@@ -217,14 +217,24 @@ export default function Watch() {
       const authorName = profile?.name || user.name || 'User';
       const authorAvatar = profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}`;
 
-      const res = await databases.createDocument(dbId, commsCol, ID.unique(), {
-        videoId: id,
-        authorId: user.$id,
-        authorName: authorName,
-        authorAvatar: authorAvatar,
-        text: newComment,
-        likes: 0
-      });
+      const res = await databases.createDocument(
+        dbId, 
+        commsCol, 
+        ID.unique(), 
+        {
+          videoId: id,
+          authorId: user.$id,
+          authorName: authorName,
+          authorAvatar: authorAvatar,
+          text: newComment,
+          likes: 0
+        },
+        [
+          Permission.read(Role.any()),
+          Permission.update(Role.user(user.$id)),
+          Permission.delete(Role.user(user.$id))
+        ]
+      );
 
       setComments([
         {
@@ -288,8 +298,9 @@ export default function Watch() {
       });
       setComments(comments.map(c => c.id === commentId ? { ...c, text: editingText } : c));
       setEditingCommentId(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Update failed:", err);
+      alert((language === 'ru' ? "Ошибка редактирования: " : "Edit Error: ") + err.message);
     } finally {
       setIsCommenting(false);
     }
@@ -304,8 +315,9 @@ export default function Watch() {
     try {
       await databases.deleteDocument(dbId, commsCol, commentId);
       setComments(comments.filter(c => c.id !== commentId));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Delete failed:", err);
+      alert((language === 'ru' ? "Ошибка удаления: " : "Delete Error: ") + err.message);
     }
   };
 
