@@ -39,10 +39,13 @@ export default function Watch() {
       // Fetch Likes Count & User Like State
       if (likesCol) {
         const likesRes = await databases.listDocuments(dbId, likesCol, [Query.equal('videoId', videoId)]);
-        setLikesCount(likesRes.total);
+        const totalLikes = likesRes.documents.filter((d: any) => d.type !== 'dislike').length;
+        setLikesCount(totalLikes);
         if (user) {
           const myLike = likesRes.documents.find(doc => doc.userId === user.$id);
-          if (myLike) setLikeState('liked');
+          if (myLike) {
+            setLikeState(myLike.type === 'dislike' ? 'disliked' : 'liked');
+          }
         }
       }
 
@@ -134,7 +137,7 @@ export default function Watch() {
     fetchVideoData();
   }, [id, user, language]);
 
-  const handleLike = async () => {
+  const handleLike = async (isLike: boolean) => {
     if (!user || isLiking) return;
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const likesCol = import.meta.env.VITE_APPWRITE_LIKES_COLLECTION_ID;
@@ -142,26 +145,48 @@ export default function Watch() {
 
     try {
       setIsLiking(true);
-      if (likeState === 'liked') {
-        const res = await databases.listDocuments(dbId, likesCol, [
-          Query.equal('videoId', id!),
-          Query.equal('userId', user.$id)
-        ]);
-        if (res.total > 0) {
-          await databases.deleteDocument(dbId, likesCol, res.documents[0].$id);
+      const actionType = isLike ? 'like' : 'dislike';
+      
+      const res = await databases.listDocuments(dbId, likesCol, [
+        Query.equal('videoId', id!),
+        Query.equal('userId', user.$id)
+      ]);
+      
+      if (res.total > 0) {
+        const existingDoc = res.documents[0];
+        const existingType = existingDoc.type || 'like';
+
+        if (existingType === actionType) {
+          // Remove interaction
+          await databases.deleteDocument(dbId, likesCol, existingDoc.$id);
           setLikeState('none');
-          setLikesCount(prev => prev - 1);
+          if (isLike) setLikesCount(prev => prev - 1);
+        } else {
+          // Switch interaction
+          await databases.updateDocument(dbId, likesCol, existingDoc.$id, {
+            type: actionType
+          });
+          setLikeState(actionType as 'liked' | 'disliked');
+          if (isLike) setLikesCount(prev => prev + 1);
+          else setLikesCount(prev => prev - 1);
         }
       } else {
+        // Create new
         await databases.createDocument(dbId, likesCol, ID.unique(), {
           videoId: id,
-          userId: user.$id
+          userId: user.$id,
+          type: actionType
         });
-        setLikeState('liked');
-        setLikesCount(prev => prev + 1);
+        setLikeState(actionType as 'liked' | 'disliked');
+        if (isLike) setLikesCount(prev => prev + 1);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Like failed:", err);
+      if (err.message?.includes('attribute') && err.message?.includes('not found')) {
+        alert(language === 'ru' ? 'Вам нужно добавить атрибут type (String) в коллекцию Likes в базе данных Appwrite, чтобы заработали дизлайки по видео.' : 'You need to add a "type" (String) attribute to the Likes collection in Appwrite for video dislikes to work.');
+      } else {
+        alert("Error: " + err.message);
+      }
     } finally {
       setIsLiking(false);
     }
@@ -260,9 +285,11 @@ export default function Watch() {
       setNewComment("");
     } catch (err: any) {
       console.error("Comment submission failed:", err);
-      // Basic check for missing attributes in Appwrite
-      if (err.message?.includes('attribute') && err.message?.includes('not found')) {
-        alert(language === 'ru' ? 'Ошибка: в коллекции Comments не хватает полей (likedBy: String Array, dislikedBy: String Array, parentId: String)' : 'Error: Appwrite collection missing attributes (likedBy: String Array, dislikedBy: String Array, parentId: String)');
+      
+      if (err.message?.includes('likedBy') && err.message?.includes('invalid type')) {
+        alert(language === 'ru' ? '🛑 ОШИБКА: Вы создали поле likedBy как обычную Строку (String), а нужен МАССИВ (Array)!\n\n1. Зайдите в Appwrite -> Databases -> IcetubeDB -> Comments -> Attributes\n2. Удалите текущие поля likedBy и dislikedBy.\n3. Создайте их заново (Create Attribute -> String), но ОБЯЗАТЕЛЬНО выберите тип ARRAY (массив размер 255), а не просто строку.' : 'ERROR: likedBy must be an Array. Delete it in Appwrite and recreate as String Array.');
+      } else if (err.message?.includes('attribute') && err.message?.includes('not found')) {
+        alert(language === 'ru' ? 'Ошибка: в коллекции Comments не хватает полей. Добавьте: likedBy (String Array), dislikedBy (String Array), parentId (String)' : 'Error: Appwrite collection missing attributes (likedBy: String Array, dislikedBy: String Array, parentId: String)');
       } else {
         alert("Error: " + err.message);
       }
@@ -316,7 +343,9 @@ export default function Watch() {
       });
     } catch (err: any) {
       console.error("Comment interaction failed:", err);
-      if (err.message?.includes('attribute') && err.message?.includes('not found')) {
+      if (err.message?.includes('likedBy') && err.message?.includes('invalid type')) {
+        alert(language === 'ru' ? '🛑 ОШИБКА: Вы создали поле likedBy как обычную Строку (String), а нужен МАССИВ (Array)!\n\n1. Зайдите в Appwrite -> Databases -> IcetubeDB -> Comments -> Attributes\n2. Удалите текущие поля likedBy и dislikedBy.\n3. Создайте их заново (Create Attribute -> String), но ОБЯЗАТЕЛЬНО выберите тип ARRAY (массив размер 255), а не просто строку.' : 'ERROR: likedBy must be an Array. Delete it in Appwrite and recreate as String Array.');
+      } else if (err.message?.includes('attribute') && err.message?.includes('not found')) {
         alert(language === 'ru' ? 'Вам нужно добавить атрибуты likedBy и dislikedBy (String, Array) в коллекцию Comments в Appwrite.' : 'You need to add likedBy and dislikedBy (String, Array) missing attributes to Appwrite Comments.');
       } else if (err.message?.includes('Missing or insufficient permissions')) {
         if (language === 'ru') {
@@ -383,7 +412,9 @@ export default function Watch() {
       setReplyingToId(null);
     } catch (err: any) {
       console.error("Reply failed:", err);
-      if (err.message?.includes('attribute') && err.message?.includes('not found')) {
+      if (err.message?.includes('likedBy') && err.message?.includes('invalid type')) {
+        alert(language === 'ru' ? '🛑 ОШИБКА: Вы создали поле likedBy как обычную Строку (String), а нужен МАССИВ (Array)!\n\n1. Зайдите в Appwrite -> Databases -> IcetubeDB -> Comments -> Attributes\n2. Удалите текущие поля likedBy и dislikedBy.\n3. Создайте их заново (Create Attribute -> String), но ОБЯЗАТЕЛЬНО выберите тип ARRAY (массив размер 255), а не просто строку.' : 'ERROR: likedBy must be an Array. Delete it in Appwrite and recreate as String Array.');
+      } else if (err.message?.includes('attribute') && err.message?.includes('not found')) {
         alert(language === 'ru' ? 'Ошибка: в коллекции Comments нет поля parentId (String)' : 'Error: Appwrite collection missing attribute parentId (String)');
       } else {
         alert("Error: " + err.message);
@@ -487,16 +518,18 @@ export default function Watch() {
               <div className="flex items-center bg-white/5 border ice-border rounded-full overflow-hidden shrink-0 cursor-pointer text-slate-300">
                 <button 
                   disabled={isLiking || !user}
-                  onClick={handleLike}
+                  onClick={() => handleLike(true)}
                   className={`flex items-center gap-2 px-4 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors border-r ice-border text-sm ${likeState === 'liked' ? 'text-[#70d6ff]' : ''}`}
                 >
                   <ThumbsUp className={`w-4 h-4 ${likeState === 'liked' ? 'fill-current' : ''}`} />
                   <span>{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(likesCount)}</span>
                 </button>
                 <button 
-                  className={`px-4 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors text-sm`}
+                  disabled={isLiking || !user}
+                  onClick={() => handleLike(false)}
+                  className={`px-4 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors text-sm ${likeState === 'disliked' ? 'text-red-400' : ''}`}
                 >
-                  <ThumbsDown className="w-4 h-4" />
+                  <ThumbsDown className={`w-4 h-4 ${likeState === 'disliked' ? 'fill-current text-red-400' : ''}`} />
                 </button>
               </div>
               
@@ -607,13 +640,14 @@ export default function Watch() {
                         className={`flex items-center gap-1.5 transition-colors ${comment.likedBy?.includes(user?.$id) ? 'text-[#70d6ff]' : 'hover:text-[#70d6ff]'}`}
                       >
                         <ThumbsUp className={`w-4 h-4 ${comment.likedBy?.includes(user?.$id) ? 'fill-current' : ''}`} /> 
-                        <span className="text-xs">{comment.likes > 0 && comment.likes}</span>
+                        <span className="text-xs">{(comment.likedBy?.length || 0) > 0 && comment.likedBy.length}</span>
                       </button>
                       <button 
                         onClick={() => handleCommentLike(comment.id, false)} 
                         className={`flex items-center gap-1.5 transition-colors ${comment.dislikedBy?.includes(user?.$id) ? 'text-red-400' : 'hover:text-red-400'}`}
                       >
                         <ThumbsDown className={`w-4 h-4 ${comment.dislikedBy?.includes(user?.$id) ? 'fill-current' : ''}`} />
+                        <span className="text-xs">{(comment.dislikedBy?.length || 0) > 0 && comment.dislikedBy.length}</span>
                       </button>
                       {user && (
                         <button 
@@ -712,13 +746,14 @@ export default function Watch() {
                             className={`flex items-center gap-1.5 transition-colors ${reply.likedBy?.includes(user?.$id) ? 'text-[#70d6ff]' : 'hover:text-[#70d6ff]'}`}
                           >
                             <ThumbsUp className={`w-3.5 h-3.5 ${reply.likedBy?.includes(user?.$id) ? 'fill-current' : ''}`} /> 
-                            <span className="text-xs">{reply.likes > 0 && reply.likes}</span>
+                            <span className="text-xs">{(reply.likedBy?.length || 0) > 0 && reply.likedBy.length}</span>
                           </button>
                           <button 
                             onClick={() => handleCommentLike(reply.id, false)} 
                             className={`flex items-center gap-1.5 transition-colors ${reply.dislikedBy?.includes(user?.$id) ? 'text-red-400' : 'hover:text-red-400'}`}
                           >
                             <ThumbsDown className={`w-3.5 h-3.5 ${reply.dislikedBy?.includes(user?.$id) ? 'fill-current' : ''}`} />
+                            <span className="text-xs">{(reply.dislikedBy?.length || 0) > 0 && reply.dislikedBy.length}</span>
                           </button>
                         </div>
                       </div>

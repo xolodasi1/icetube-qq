@@ -85,7 +85,15 @@ export const translations: Translations = {
     editor_success: 'Changes published successfully!',
     upload_type: 'Content Type',
     upload_video: 'Video',
-    upload_shorts: 'Shorts'
+    upload_shorts: 'Shorts',
+    channel_loading: 'Loading channel...',
+    channel_not_found: 'Channel Not Found',
+    channel_not_found_desc: 'This channel doesn\'t exist or hasn\'t uploaded any videos yet.',
+    channel_subscribers: 'subscribers',
+    channel_videos: 'videos',
+    channel_videos_tab: 'Videos',
+    channel_your_channel: 'Your Channel',
+    channel_no_videos: 'This channel has no videos.'
   },
   ru: {
     nav_home: 'Главная',
@@ -163,7 +171,15 @@ export const translations: Translations = {
     editor_success: 'Изменения успешно опубликованы!',
     upload_type: 'Тип контента',
     upload_video: 'Видео',
-    upload_shorts: 'Shorts'
+    upload_shorts: 'Shorts',
+    channel_loading: 'Загрузка канала...',
+    channel_not_found: 'Канал не найден',
+    channel_not_found_desc: 'Этот канал не существует или еще не загрузил видео.',
+    channel_subscribers: 'подписчиков',
+    channel_videos: 'видео',
+    channel_videos_tab: 'Видео',
+    channel_your_channel: 'Ваш канал',
+    channel_no_videos: 'На этом канале нет видео.'
   }
 };
 

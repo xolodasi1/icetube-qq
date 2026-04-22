@@ -139,7 +139,7 @@ export default function Channel() {
     return (
       <div className="flex flex-col items-center justify-center p-20 text-slate-400 h-[70vh]">
         <Loader2 className="w-10 h-10 animate-spin text-[#70d6ff] mb-4" />
-        <p>Loading channel...</p>
+        <p>{t('channel_loading')}</p>
       </div>
     );
   }
@@ -148,8 +148,8 @@ export default function Channel() {
     return (
       <div className="flex flex-col items-center justify-center p-20 text-slate-400 h-[70vh]">
         <AlertCircle className="w-12 h-12 text-slate-500 mb-2" />
-        <h1 className="text-2xl font-bold text-white mb-2">Channel Not Found</h1>
-        <p>This channel doesn't exist or hasn't uploaded any videos yet.</p>
+        <h1 className="text-2xl font-bold text-white mb-2">{t('channel_not_found')}</h1>
+        <p>{t('channel_not_found_desc')}</p>
       </div>
     );
   }
@@ -175,9 +175,9 @@ export default function Channel() {
           <div className="flex items-center gap-2 text-slate-400 mb-4">
             <span className="font-medium text-slate-300">@{channelName.replace(/\s+/g, '').toLowerCase() || "user"}</span>
             <span>•</span>
-            <span>{new Intl.NumberFormat().format(subsCount)} subscribers</span>
+            <span>{new Intl.NumberFormat().format(subsCount)} {t('channel_subscribers')}</span>
             <span>•</span>
-            <span>{videos.length} videos</span>
+            <span>{videos.length} {t('channel_videos')}</span>
           </div>
 
           <p className="text-slate-300 max-w-2xl mb-6 line-clamp-3">
@@ -192,7 +192,7 @@ export default function Channel() {
                  isSubscribed ? 'bg-white/10 text-slate-200 hover:bg-white/20 border border-white/10' : 'bg-[#70d6ff] text-black hover:bg-[#5bc0e6]'
               }`}
             >
-              {isSubscribed ? 'Subscribed' : 'Subscribe'}
+              {isSubscribed ? t('video_subscribed') : t('video_subscribe')}
             </button>
           )}
 
@@ -201,7 +201,7 @@ export default function Channel() {
               disabled
               className="bg-white/10 text-slate-300 px-6 py-2.5 rounded-full border border-white/10 cursor-default"
             >
-              Your Channel
+              {t('channel_your_channel')}
             </button>
           )}
         </div>
@@ -211,13 +211,13 @@ export default function Channel() {
       <div>
         <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
           <Video className="w-6 h-6 text-[#70d6ff]" />
-          Videos
+          {t('channel_videos_tab')}
         </h2>
 
         {videos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/5 border border-white/10 rounded-2xl">
             <Video className="w-12 h-12 text-slate-500 mb-4" />
-            <p className="text-lg">This channel has no videos.</p>
+            <p className="text-lg">{t('channel_no_videos')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-8 gap-x-4">
