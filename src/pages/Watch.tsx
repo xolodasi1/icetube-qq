@@ -34,6 +34,19 @@ export default function Watch() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
+  const moreMenuRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    };
+    if (showMoreMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMoreMenu]);
 
   const handleShare = async () => {
     try {
@@ -627,7 +640,7 @@ export default function Watch() {
               </button>
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
+            <div className={`flex items-center gap-2 pb-2 sm:pb-0 hide-scrollbar ${showMoreMenu ? 'overflow-visible' : 'overflow-x-auto'}`}>
               <div className="flex items-center bg-white/5 border ice-border rounded-full overflow-hidden shrink-0 cursor-pointer text-slate-300">
                 <button 
                   disabled={isLiking || !user}
@@ -665,16 +678,19 @@ export default function Watch() {
                 <span>{isCopied ? (language === 'ru' ? 'Ссылка скопирована!' : 'Link copied!') : t('video_share')}</span>
               </button>
               
-              <div className="relative">
+              <div className="relative" ref={moreMenuRef}>
                 <button 
-                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMoreMenu(!showMoreMenu);
+                  }}
                   className="flex items-center justify-center w-9 h-9 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] text-slate-300 rounded-full transition-colors shrink-0"
                 >
                   <MoreHorizontal className="w-5 h-5" />
                 </button>
 
                 {showMoreMenu && (
-                  <div className="absolute top-11 right-0 w-48 bg-[#0a192f]/95 backdrop-blur-xl border ice-border rounded-xl shadow-2xl z-50 py-2 overflow-hidden">
+                  <div className="absolute top-11 right-0 w-48 bg-[#0a192f] backdrop-blur-2xl border ice-border rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] z-[100] py-2 overflow-hidden ring-1 ring-white/10">
                     <button 
                       onClick={() => {
                         window.open(video.videoUrl, '_blank');
