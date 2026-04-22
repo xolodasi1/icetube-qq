@@ -77,10 +77,7 @@ export default function Watch() {
         reporterName: profile?.name || user.name || 'User',
         reason: reasonId,
         timestamp: new Date().toISOString()
-      }, [
-        Permission.read(Role.user('xolodtop889@gmail.com')),
-        Permission.write(Role.user(user.$id))
-      ]);
+      });
       
       alert(t('admin_report_success'));
       setShowReportModal(false);
