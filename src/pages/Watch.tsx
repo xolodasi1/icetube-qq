@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2 } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake } from "lucide-react";
 import { VideoCard } from "../components/VideoCard";
 import React, { useState, useEffect } from "react";
 import { databases } from "../lib/appwrite";
@@ -19,14 +19,17 @@ export default function Watch() {
   // Real Interaction State
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [likeState, setLikeState] = useState<'none' | 'liked' | 'disliked'>('none');
+  const [hasSnowflaked, setHasSnowflaked] = useState(false);
   const [likesCount, setLikesCount] = useState(0); 
   const [dislikesCount, setDislikesCount] = useState(0);
+  const [snowflakesCount, setSnowflakesCount] = useState(0);
   const [subsCount, setSubsCount] = useState("0");
   const [newComment, setNewComment] = useState("");
   const [comments, setComments] = useState<any[]>([]);
   const [isLiking, setIsLiking] = useState(false);
   const [isSubbing, setIsSubbing] = useState(false);
   const [isCommenting, setIsCommenting] = useState(false);
+  const [isSnowflaking, setIsSnowflaking] = useState(false);
 
   const fetchInteractions = async (videoId: string, uploaderId: string) => {
     try {
@@ -40,15 +43,22 @@ export default function Watch() {
       // Fetch Likes Count & User Like State
       if (likesCol) {
         const likesRes = await databases.listDocuments(dbId, likesCol, [Query.equal('videoId', videoId)]);
-        const totalLikes = likesRes.documents.filter((d: any) => d.type !== 'dislike').length;
+        const totalLikes = likesRes.documents.filter((d: any) => d.type === 'like' || !d.type).length;
         const totalDislikes = likesRes.documents.filter((d: any) => d.type === 'dislike').length;
+        const totalSnowflakes = likesRes.documents.filter((d: any) => d.type === 'snowflake').length;
+        
         setLikesCount(totalLikes);
         setDislikesCount(totalDislikes);
+        setSnowflakesCount(totalSnowflakes);
+        
         if (user) {
-          const myLike = likesRes.documents.find(doc => doc.userId === user.$id);
+          const myLike = likesRes.documents.find(doc => doc.userId === user.$id && (doc.type === 'like' || doc.type === 'dislike' || !doc.type));
           if (myLike) {
             setLikeState(myLike.type === 'dislike' ? 'disliked' : 'liked');
           }
+          
+          const mySnowflake = likesRes.documents.find(doc => doc.userId === user.$id && doc.type === 'snowflake');
+          setHasSnowflaked(!!mySnowflake);
         }
       }
 
@@ -199,6 +209,47 @@ export default function Watch() {
       }
     } finally {
       setIsLiking(false);
+    }
+  };
+
+  const handleSnowflake = async () => {
+    if (!user || isSnowflaking || !video) return;
+    
+    // Restriction: Author cannot flake their own video
+    if (user.$id === video.uploaderId) {
+      alert(language === 'ru' ? 'Вы не можете ставить снежинки на своё видео!' : 'You cannot snowflake your own video!');
+      return;
+    }
+
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const likesCol = import.meta.env.VITE_APPWRITE_LIKES_COLLECTION_ID;
+    if (!dbId || !likesCol) return;
+
+    try {
+      setIsSnowflaking(true);
+      const res = await databases.listDocuments(dbId, likesCol, [
+        Query.equal('videoId', id!),
+        Query.equal('userId', user.$id),
+        Query.equal('type', 'snowflake')
+      ]);
+
+      if (res.total > 0) {
+        await databases.deleteDocument(dbId, likesCol, res.documents[0].$id);
+        setHasSnowflaked(false);
+        setSnowflakesCount(prev => prev - 1);
+      } else {
+        await databases.createDocument(dbId, likesCol, ID.unique(), {
+          videoId: id,
+          userId: user.$id,
+          type: 'snowflake'
+        });
+        setHasSnowflaked(true);
+        setSnowflakesCount(prev => prev + 1);
+      }
+    } catch (err: any) {
+      console.error("Snowflake failed:", err);
+    } finally {
+      setIsSnowflaking(false);
     }
   };
 
@@ -543,6 +594,16 @@ export default function Watch() {
                   {dislikesCount > 0 && <span>{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(dislikesCount)}</span>}
                 </button>
               </div>
+
+              <button 
+                disabled={isSnowflaking || !user}
+                onClick={handleSnowflake}
+                className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[#70d6ff]/10 text-slate-300 px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${hasSnowflaked ? 'text-[#70d6ff] border-[#70d6ff]/30 shadow-[0_0_10px_rgba(112,214,255,0.1)]' : ''}`}
+                title={t('video_snowflakes')}
+              >
+                <Snowflake className={`w-4 h-4 ${hasSnowflaked ? 'text-[#70d6ff] animate-pulse' : ''}`} />
+                <span>{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(snowflakesCount)}</span>
+              </button>
               
               <button className="flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] text-slate-300 px-4 py-2 rounded-full transition-colors text-sm shrink-0">
                 <Share2 className="w-4 h-4" />

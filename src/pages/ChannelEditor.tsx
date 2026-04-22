@@ -3,7 +3,7 @@ import { uploadImageToCloudinary } from '../lib/cloudinary';
 import { useAuth } from '../lib/AuthContext';
 import { databases, account } from '../lib/appwrite';
 import { useLanguage } from '../lib/LanguageContext';
-import { Wand2, Save, X, Loader2, Image as ImageIcon, User, AlignLeft, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Wand2, Save, X, Loader2, Image as ImageIcon, User, AlignLeft, AlertCircle, CheckCircle2, Upload } from 'lucide-react';
 import { Query } from 'appwrite';
 
 export default function ChannelEditor() {
@@ -12,6 +12,7 @@ export default function ChannelEditor() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isBannerUploading, setIsBannerUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -38,6 +39,22 @@ export default function ChannelEditor() {
         setError(err.message || 'Failed to upload image');
     } finally {
         setIsUploading(false);
+    }
+  };
+
+  const handleBannerChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsBannerUploading(true);
+    setError(null);
+    try {
+        const url = await uploadImageToCloudinary(file);
+        setFormData(prev => ({ ...prev, bannerUrl: url }));
+    } catch (err: any) {
+        setError(err.message || 'Failed to upload banner');
+    } finally {
+        setIsBannerUploading(false);
     }
   };
 
@@ -311,17 +328,32 @@ export default function ChannelEditor() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-[#70d6ff]" />
-                  {t('editor_banner')}
-                </label>
-                <input
-                  type="url"
-                  value={formData.bannerUrl}
-                  onChange={(e) => setFormData({...formData, bannerUrl: e.target.value})}
-                  className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#70d6ff] transition-colors"
-                  placeholder="https://example.com/banner.jpg"
-                />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-[#70d6ff]" />
+                    {t('editor_banner')}
+                  </label>
+                  <label className="cursor-pointer text-xs flex items-center justify-center gap-1.5 bg-[#70d6ff]/10 hover:bg-[#70d6ff]/20 text-[#70d6ff] px-3 py-1.5 rounded-lg transition-colors border border-[#70d6ff]/20">
+                    {isBannerUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                    <span>{language === 'ru' ? 'Загрузить файл' : 'Upload file'}</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleBannerChange} disabled={isBannerUploading} />
+                  </label>
+                </div>
+                <div className="relative group overflow-hidden rounded-xl bg-black/40 border ice-border">
+                  <input
+                    type="url"
+                    value={formData.bannerUrl}
+                    onChange={(e) => setFormData({...formData, bannerUrl: e.target.value})}
+                    className="w-full bg-transparent px-4 py-3 text-white focus:outline-none focus:bg-white/5 transition-colors relative z-10"
+                    placeholder="https://example.com/banner.jpg"
+                  />
+                  {formData.bannerUrl && (
+                    <div className="w-full h-24 border-t border-white/10 relative">
+                      <img src={formData.bannerUrl} alt="Banner Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <div className="absolute inset-0 bg-black/20 pointer-events-none"></div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
