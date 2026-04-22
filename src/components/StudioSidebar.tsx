@@ -19,7 +19,8 @@ export function StudioSidebar({ isOpen, onClose }: { isOpen: boolean, onClose?: 
 
   // If admin, show admin panel
   if (user?.email === 'xolodtop889@gmail.com') {
-    studioItems.splice(2, 0, { icon: ShieldAlert, label: t('nav_admin'), path: "/admin" });
+    studioItems.push({ divider: true } as any);
+    studioItems.push({ icon: ShieldAlert, label: t('nav_admin'), path: "/admin" } as any);
   }
 
   return (

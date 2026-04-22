@@ -6,7 +6,7 @@ import { useLanguage } from "../lib/LanguageContext";
 
 export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
   const { user, profile, login, logoutUser } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
@@ -153,21 +153,19 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
                   </div>
                   <div className="py-2 flex flex-col">
                     <Link 
+                        to={`/channel/${user.$id}`}
+                        onClick={() => setShowUserMenu(false)}
+                        className="w-full text-left px-4 py-3 text-sm text-[#70d6ff] hover:bg-white/5 transition-colors flex items-center gap-2 border-b ice-border font-medium"
+                      >
+                        <User className="w-4 h-4" /> {language === 'ru' ? 'Ваш канал' : 'Your Channel'}
+                    </Link>
+                    <Link 
                         to="/studio"
                         onClick={() => setShowUserMenu(false)}
                         className="w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-white/5 transition-colors flex items-center gap-2 border-b ice-border"
                       >
                         <LayoutDashboard className="w-4 h-4" /> {t('nav_studio')}
                     </Link>
-                    {user.email === 'xolodtop889@gmail.com' && (
-                      <Link 
-                        to="/admin"
-                        onClick={() => setShowUserMenu(false)}
-                        className="w-full text-left px-4 py-3 text-sm text-[#70d6ff] hover:bg-white/5 transition-colors flex items-center gap-2 border-b ice-border"
-                      >
-                        <ShieldAlert className="w-4 h-4" /> {t('nav_admin')}
-                      </Link>
-                    )}
                     <Link 
                         to="/settings"
                         onClick={() => setShowUserMenu(false)}
