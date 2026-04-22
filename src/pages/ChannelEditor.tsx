@@ -112,44 +112,61 @@ export default function ChannelEditor() {
         avatar: formData.avatar
       };
 
-      if (dbDocId) {
-        // Update existing
-        await databases.updateDocument(dbId, colId, dbDocId, payload);
-      } else {
-        // Create new
-        await databases.createDocument(dbId, colId, 'unique()', payload);
+      try {
+        if (dbDocId) {
+          // Update existing
+          await databases.updateDocument(dbId, colId, dbDocId, payload);
+        } else {
+          // Create new
+          await databases.createDocument(dbId, colId, 'unique()', payload);
+        }
+      } catch (err: any) {
+        throw new Error(`Profile (Users Collection) Error: ${err.message}`);
       }
 
       // Update name in Appwrite Account
-      await account.updateName(formData.name);
+      try {
+        await account.updateName(formData.name);
+      } catch (err) {
+        console.warn('Could not update account name (this is normal for OAuth users):', err);
+      }
 
       // Update all videos by this user to reflect new profile info
       const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
       if (videosColId) {
-        const videos = await databases.listDocuments(dbId, videosColId, [
-          Query.equal('uploaderId', user.$id)
-        ]);
-        
-        for (const video of videos.documents) {
-          await databases.updateDocument(dbId, videosColId, video.$id, {
-            uploaderName: formData.name,
-            uploaderAvatar: formData.avatar
-          });
+        try {
+          const videos = await databases.listDocuments(dbId, videosColId, [
+            Query.equal('uploaderId', user.$id)
+          ]);
+          
+          for (const video of videos.documents) {
+            await databases.updateDocument(dbId, videosColId, video.$id, {
+              uploaderName: formData.name,
+              uploaderAvatar: formData.avatar
+            });
+          }
+        } catch (err: any) {
+           throw new Error(`Videos Collection Error: ${err.message}`);
         }
       }
 
       // Update all comments by this user
       const commentsColId = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
       if (commentsColId) {
-        const comments = await databases.listDocuments(dbId, commentsColId, [
-          Query.equal('authorId', user.$id)
-        ]);
-        
-        for (const comment of comments.documents) {
-          await databases.updateDocument(dbId, commentsColId, comment.$id, {
-            authorName: formData.name,
-            authorAvatar: formData.avatar
-          });
+        try {
+          const comments = await databases.listDocuments(dbId, commentsColId, [
+            Query.equal('authorId', user.$id)
+          ]);
+          
+          for (const comment of comments.documents) {
+            await databases.updateDocument(dbId, commentsColId, comment.$id, {
+              authorName: formData.name,
+              authorAvatar: formData.avatar
+            });
+          }
+        } catch (err: any) {
+          console.warn("Could not copy profile to comments, they might not have update permissions:", err.message);
+          // throw new Error(`Comments Collection Error: ${err.message}`);
         }
       }
 
