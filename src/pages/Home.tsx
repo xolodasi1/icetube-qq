@@ -12,13 +12,18 @@ export default function Home() {
   
   const baseCategories = [
     { id: 'All', ru: 'Все', en: 'All' },
-    { id: 'Explore', ru: 'Навигатор', en: 'Explore' },
-    { id: 'Gaming', ru: 'Игры', en: 'Gaming' },
     { id: 'Music', ru: 'Музыка', en: 'Music' },
-    { id: 'Tech', ru: 'Технологии', en: 'Tech' },
-    { id: 'Live', ru: 'Стримы', en: 'Live' },
-    { id: 'Nature', ru: 'Природа', en: 'Nature' },
-    { id: 'Programming', ru: 'Программирование', en: 'Programming' },
+    { id: 'Gaming', ru: 'Видеоигры', en: 'Gaming' },
+    { id: 'Jams', ru: 'Джемы', en: 'Jams' },
+    { id: 'Live', ru: 'Сейчас в эфире', en: 'Live' },
+    { id: 'MinecraftMods', ru: 'Модификации Minecraft', en: 'Minecraft Mods' },
+    { id: 'Minecraft', ru: 'Minecraft', en: 'Minecraft' },
+    { id: 'Animation', ru: 'Анимация', en: 'Animation' },
+    { id: 'Action', ru: 'Экшен и приключения', en: 'Action & Adventure' },
+    { id: 'Rap', ru: 'Рэп', en: 'Rap' },
+    { id: 'Platformers', ru: 'Платформеры', en: 'Platformers' },
+    { id: 'Crafts', ru: 'Ремесла', en: 'Crafts' },
+    { id: 'Recent', ru: 'Недавно опубликованные', en: 'Recently uploaded' },
   ];
   
   const tags = baseCategories.map(c => language === 'ru' ? c.ru : c.en);

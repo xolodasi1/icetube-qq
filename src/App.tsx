@@ -10,6 +10,8 @@ import Settings from "./pages/Settings";
 import Studio from "./pages/Studio";
 import Content from "./pages/Content";
 import ChannelEditor from "./pages/ChannelEditor";
+import Shorts from "./pages/Shorts";
+import Subscriptions from "./pages/Subscriptions";
 
 export default function App() {
   return (
@@ -17,8 +19,12 @@ export default function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/shorts" element={<Shorts />} />
           <Route path="/watch/:id" element={<Watch />} />
           <Route path="/channel/:id" element={<Channel />} />
+          <Route path="/subscriptions" element={<Subscriptions />} />
+          <Route path="/playlists" element={<ComingSoon />} />
+          <Route path="/downloads" element={<ComingSoon />} />
           <Route path="/library" element={<ComingSoon />} />
           <Route path="/history" element={<ComingSoon />} />
           <Route path="/your-videos" element={<YourVideos />} />

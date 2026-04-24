@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter } from "lucide-react";
 import { VideoCard } from "../components/VideoCard";
 import React, { useState, useEffect } from "react";
 import { databases, Permission, Role } from "../lib/appwrite";
@@ -34,6 +34,8 @@ export default function Watch() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isDescExpanded, setIsDescExpanded] = useState(false);
   const moreMenuRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -674,6 +676,14 @@ export default function Watch() {
                 <Share2 className="w-4 h-4" />
                 <span>{isCopied ? (language === 'ru' ? 'Ссылка скопирована!' : 'Link copied!') : t('video_share')}</span>
               </button>
+
+              <button 
+                onClick={() => setIsSaved(!isSaved)}
+                className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${isSaved ? 'text-[#70d6ff] border-[#70d6ff]/30' : 'text-slate-300 hover:text-[#70d6ff]'}`}
+              >
+                <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
+                <span>{isSaved ? t('video_saved') : t('video_save')}</span>
+              </button>
               
               <div className="relative" ref={moreMenuRef}>
                 <button 
@@ -755,19 +765,48 @@ export default function Watch() {
           )}
         </div>
 
-        <div className="mt-4 bg-white/5 border ice-border p-4 rounded-xl text-sm mx-4 sm:mx-0">
-          <div className="font-medium text-slate-200 mb-2">
-            {new Intl.NumberFormat().format(video.views)} {t('video_views')} • {video.uploadDate}
+        <div 
+          onClick={() => !isDescExpanded && setIsDescExpanded(true)}
+          className={`mt-4 bg-white/5 hover:bg-white/10 transition-colors border ice-border p-4 rounded-xl text-sm mx-4 sm:mx-0 ${!isDescExpanded ? 'cursor-pointer' : ''}`}
+        >
+          <div className="font-medium text-white mb-2">
+            <span className="mr-2 font-bold">
+              {new Intl.NumberFormat().format(video.views)} {t('video_views_time').split('•')[0]}
+            </span>
+            <span className="font-bold">• {video.uploadDate}</span>
           </div>
-          <p className="text-slate-300 whitespace-pre-wrap">{video.description}</p>
+          <div className={`text-slate-300 font-medium whitespace-pre-wrap ${!isDescExpanded ? 'line-clamp-2' : ''}`}>
+             {video.description || (language === 'ru' ? 'Нет описания' : 'No description provided.')}
+          </div>
+          
+          {!isDescExpanded && video.description && video.description.length > 100 && (
+            <button className="text-slate-400 font-bold mt-2 hover:text-white transition-colors">
+              {t('video_more')}
+            </button>
+          )}
+          
+          {isDescExpanded && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsDescExpanded(false);
+              }}
+              className="text-slate-400 font-bold mt-6 hover:text-white transition-colors block"
+            >
+              {t('video_less')}
+            </button>
+          )}
         </div>
 
         <div className="mt-8 mb-10 px-4 sm:px-0">
-          <div className="flex items-center gap-4 mb-6">
-            <h2 className="text-xl font-bold flex items-center gap-2 border-b-2 border-ice-500 pb-1 inline-flex text-white">
-              <MessageSquare className="w-5 h-5 text-ice-400" />
+          <div className="flex items-center gap-6 mb-6">
+            <h2 className="text-xl font-bold flex items-center gap-2 pb-1 inline-flex text-white">
               {comments.length} {t('video_comments')}
             </h2>
+            <button className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors font-medium text-sm">
+              <ListFilter className="w-5 h-5" />
+              {t('comment_sort')}
+            </button>
           </div>
           
           {user ? (
@@ -841,7 +880,12 @@ export default function Watch() {
                          </div>
                       </div>
                     ) : (
-                      <p className="text-sm text-slate-300 mb-2">{comment.text}</p>
+                      <div className="mt-1 flex flex-col items-start gap-1">
+                        <p className="text-sm text-slate-200">{comment.text}</p>
+                        <button className="text-xs text-slate-400 font-medium hover:text-white transition-colors mt-0.5">
+                          {t('comment_translate')}
+                        </button>
+                      </div>
                     )}
                     
                     <div className="flex items-center gap-4 text-slate-400">
