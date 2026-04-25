@@ -95,12 +95,17 @@ export default function Content() {
                   <tr key={vid.id} className="hover:bg-white/[0.03] transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <img 
-                          src={vid.thumbnailUrl} 
-                          className="w-20 h-12 object-cover rounded-lg border ice-border shrink-0" 
-                          alt={vid.title}
-                          referrerPolicy="no-referrer"
-                        />
+                        <div className="w-20 h-12 rounded-lg border ice-border shrink-0 overflow-hidden bg-slate-800">
+                          <img 
+                            src={vid.thumbnailUrl || '/placeholder-thumb.jpg'} 
+                            className="w-full h-full object-cover" 
+                            alt={vid.title}
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://via.placeholder.com/160x90/0f1115/70d6ff?text=${vid.title.substring(0,1)}`;
+                            }}
+                          />
+                        </div>
                         <span className="text-white font-medium truncate max-w-[200px] sm:max-w-[300px]">{vid.title}</span>
                       </div>
                     </td>

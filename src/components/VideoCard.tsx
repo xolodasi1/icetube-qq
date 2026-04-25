@@ -35,6 +35,9 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
           alt={video.title} 
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           referrerPolicy="no-referrer"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = `https://via.placeholder.com/1080x1920/0f1115/70d6ff?text=${video.title.substring(0,1)}`;
+          }}
         />
         <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col gap-1">
           <h3 className="text-white font-bold line-clamp-2 text-sm drop-shadow-md">{video.title}</h3>
@@ -55,6 +58,9 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
           alt={video.title} 
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 relative z-10 opacity-95"
           referrerPolicy="no-referrer"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = `https://via.placeholder.com/640x360/0f1115/70d6ff?text=${video.title.substring(0,1)}`;
+          }}
         />
         <div className="absolute inset-0 bg-blue-900/10 z-20 pointer-events-none"></div>
         <div className="duration-badge z-30">

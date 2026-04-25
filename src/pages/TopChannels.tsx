@@ -161,17 +161,17 @@ export default function TopChannels() {
 
   return (
     <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 lg:px-8 py-6 mb-20 sm:mb-6 relative mt-16 sm:mt-0">
-      <header className="flex flex-col gap-3 mb-10 sm:mb-12">
+      <header className="flex flex-col gap-3 mb-8 sm:mb-12">
         <div className="flex items-center gap-4">
-           <div className="p-3 bg-[#70d6ff]/10 rounded-2xl border border-[#70d6ff]/20">
+           <div className="p-3 bg-white/5 rounded-2xl border ice-border">
              <Trophy className="w-7 h-7 sm:w-9 sm:h-9 text-[#70d6ff]" />
            </div>
            <div>
              <h1 className="text-2xl sm:text-4xl font-black text-white font-display uppercase tracking-tighter italic">
                {t('top_channels_title')}
              </h1>
-             <p className="text-slate-400 text-xs sm:text-sm max-w-2xl mt-1 font-medium opacity-80">
-               {language === 'ru' ? 'Рейтинг самых успешных авторов нашей платформы на текущий момент.' : 'Rankings of the most successful creators on our platform right now.'}
+             <p className="text-slate-400 text-[10px] sm:text-sm max-w-2xl mt-0.5 font-medium opacity-80">
+               {language === 'ru' ? 'Рейтинг самых успешных авторов нашей платформы' : 'Rankings of the most successful creators'}
              </p>
            </div>
         </div>
@@ -186,12 +186,22 @@ export default function TopChannels() {
           <p className="text-slate-400 font-bold mt-6 tracking-widest uppercase text-xs">{language === 'ru' ? 'Анализируем данные...' : 'Analyzing leaderboard data...'}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 sm:gap-6">
-           <Leaderboard title={t('top_channels_by_subs')} icon={Users} data={topBySubs} type="subs" />
-           <Leaderboard title={t('top_channels_by_views')} icon={Eye} data={topByViews} type="views" />
-           <Leaderboard title={t('top_channels_by_likes')} icon={ThumbsUp} data={topByLikes} type="likes" />
-           <Leaderboard title={t('top_channels_by_videos')} icon={Video} data={topByVideos} type="videos" />
-           <Leaderboard title={t('top_channels_by_snowflakes')} icon={Snowflake} data={topBySnowflakes} type="snowflakes" />
+        <div className="flex flex-col md:grid md:grid-cols-2 lg:grid-cols-3 xl:flex xl:flex-row gap-6 sm:gap-8 overflow-x-auto pb-10 xl:pb-6 scrollbar-hide snap-x snap-mandatory px-0 -mx-4 sm:mx-0 sm:px-0">
+           <div className="flex flex-col gap-8 min-w-[280px] w-full xl:min-w-[320px] xl:max-w-[400px] xl:flex-1 snap-center px-4 sm:px-0">
+             <Leaderboard title={t('top_channels_by_subs')} icon={Users} data={topBySubs} type="subs" />
+           </div>
+           <div className="flex flex-col gap-8 min-w-[280px] w-full xl:min-w-[320px] xl:max-w-[400px] xl:flex-1 snap-center px-4 sm:px-0">
+             <Leaderboard title={t('top_channels_by_views')} icon={Eye} data={topByViews} type="views" />
+           </div>
+           <div className="flex flex-col gap-8 min-w-[280px] w-full xl:min-w-[320px] xl:max-w-[400px] xl:flex-1 snap-center px-4 sm:px-0">
+             <Leaderboard title={t('top_channels_by_likes')} icon={ThumbsUp} data={topByLikes} type="likes" />
+           </div>
+           <div className="flex flex-col gap-8 min-w-[280px] w-full xl:min-w-[320px] xl:max-w-[400px] xl:flex-1 snap-center px-4 sm:px-0">
+             <Leaderboard title={t('top_channels_by_videos')} icon={Video} data={topByVideos} type="videos" />
+           </div>
+           <div className="flex flex-col gap-8 min-w-[280px] w-full xl:min-w-[320px] xl:max-w-[400px] xl:flex-1 snap-center px-4 sm:px-0">
+             <Leaderboard title={t('top_channels_by_snowflakes')} icon={Snowflake} data={topBySnowflakes} type="snowflakes" />
+           </div>
         </div>
       )}
     </div>

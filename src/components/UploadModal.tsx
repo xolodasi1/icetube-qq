@@ -66,7 +66,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
 
     try {
       const videoUrl = await uploadVideoToCloudinary(file, (p) => setProgress(p));
-      const thumbnailUrl = contentType === 'shorts' ? null : videoUrl.replace(/\.[^/.]+$/, ".jpg");
+      const thumbnailUrl = videoUrl.replace(/\.[^/.]+$/, ".jpg");
 
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
       const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
@@ -89,7 +89,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
           uploaderAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
           views: 0,
           // category: category.trim() || 'All', // Removed to fix 'Unknown attribute' error in some Appwrite setups
-          contentType: contentType
+          // contentType: contentType // Removed to fix 'Unknown attribute' error
         }
       );
 
