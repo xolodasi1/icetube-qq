@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock } from "lucide-react";
 import { VideoCard } from "../components/VideoCard";
 import React, { useState, useEffect } from "react";
 import { databases, Permission, Role } from "../lib/appwrite";
@@ -35,6 +35,7 @@ export default function Watch() {
   const [isCopied, setIsCopied] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isWatchLater, setIsWatchLater] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [playlists, setPlaylists] = useState<any[]>([]);
@@ -72,6 +73,9 @@ export default function Watch() {
       try {
         const saved = JSON.parse(localStorage.getItem('saved_videos') || '[]');
         setIsSaved(saved.some((v: any) => v.id === video.id));
+        
+        const watchLater = JSON.parse(localStorage.getItem('watch_later') || '[]');
+        setIsWatchLater(watchLater.some((v: any) => v.id === video.id));
       } catch(e) {}
     }
   }, [video]);
@@ -167,6 +171,33 @@ export default function Watch() {
       localStorage.setItem('saved_videos', JSON.stringify(saved));
     } catch(err) {
       console.error("Failed to save video:", err);
+    }
+  };
+
+  const handleToggleWatchLater = () => {
+    if (!video) return;
+    try {
+      let watchLater = JSON.parse(localStorage.getItem('watch_later') || '[]');
+      if (isWatchLater) {
+        watchLater = watchLater.filter((v: any) => v.id !== video.id);
+        setIsWatchLater(false);
+      } else {
+        watchLater.unshift({
+          id: video.id,
+          title: video.title,
+          thumbnailUrl: video.thumbnailUrl,
+          channelName: video.channelName,
+          channelAvatar: video.channelAvatar,
+          uploaderId: video.uploaderId,
+          views: video.views,
+          uploadDate: video.uploadDate,
+          timestamp: Date.now()
+        });
+        setIsWatchLater(true);
+      }
+      localStorage.setItem('watch_later', JSON.stringify(watchLater));
+    } catch(err) {
+      console.error("Failed to update watch later:", err);
     }
   };
 
@@ -878,9 +909,19 @@ export default function Watch() {
               <button 
                 onClick={handleSave}
                 className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${isSaved ? 'text-[#70d6ff] border-[#70d6ff]/30' : 'text-slate-300 hover:text-[#70d6ff]'}`}
+                title={t('video_save')}
               >
                 <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
                 <span>{isSaved ? t('video_saved') : t('video_save')}</span>
+              </button>
+
+              <button 
+                onClick={handleToggleWatchLater}
+                className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${isWatchLater ? 'text-[#70d6ff] border-[#70d6ff]/30' : 'text-slate-300 hover:text-[#70d6ff]'}`}
+                title={t('video_watch_later')}
+              >
+                <Clock className={`w-4 h-4 ${isWatchLater ? 'fill-current' : ''}`} />
+                <span>{isWatchLater ? t('video_added_to_watch_later') : t('video_watch_later')}</span>
               </button>
 
               <button 

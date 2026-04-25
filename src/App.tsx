@@ -9,6 +9,7 @@ import YourVideos from "./pages/YourVideos";
 import Settings from "./pages/Settings";
 import Favorites from "./pages/Favorites";
 import Playlists from "./pages/Playlists";
+import WatchLater from "./pages/WatchLater";
 import Studio from "./pages/Studio";
 import Content from "./pages/Content";
 import ChannelEditor from "./pages/ChannelEditor";
@@ -36,7 +37,7 @@ export default function App() {
           <Route path="/studio" element={<Studio />} />
           <Route path="/studio/content" element={<Content />} />
           <Route path="/studio/editor" element={<ChannelEditor />} />
-          <Route path="/watch-later" element={<ComingSoon />} />
+          <Route path="/watch-later" element={<WatchLater />} />
           <Route path="/liked" element={<ComingSoon />} />
           <Route path="/clips" element={<ComingSoon />} />
           <Route path="/music" element={<ComingSoon />} />
