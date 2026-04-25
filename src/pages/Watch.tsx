@@ -898,7 +898,15 @@ export default function Watch() {
             <div className="flex items-center gap-4 w-full sm:w-fit justify-between sm:justify-start">
               <div className="flex items-center gap-3">
                 <Link to={`/channel/${video.uploaderId}`} className="shrink-0 hover:opacity-80 transition-opacity">
-                  <img src={video.channelAvatar} alt={video.channelName} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full border border-cold-border" referrerPolicy="no-referrer" />
+                  <img 
+                    src={video.channelAvatar} 
+                    alt={video.channelName} 
+                    className="w-10 h-10 sm:w-11 sm:h-11 rounded-full border border-cold-border" 
+                    referrerPolicy="no-referrer" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(video.channelName || 'User')}&background=random`;
+                    }}
+                  />
                 </Link>
                 <div className="flex flex-col">
                   <Link to={`/channel/${video.uploaderId}`} className="font-bold text-slate-100 hover:text-white transition-colors flex items-center gap-1">
@@ -1274,6 +1282,9 @@ export default function Watch() {
                       className="w-10 h-10 rounded-full object-cover bg-slate-700" 
                       alt={comment.author} 
                       referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.author || 'User')}&background=random`;
+                      }}
                     />
                   </Link>
                   <div className="flex-1">
@@ -1387,6 +1398,9 @@ export default function Watch() {
                           className="w-8 h-8 rounded-full object-cover bg-slate-700" 
                           alt={reply.author} 
                           referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(reply.author || 'User')}&background=random`;
+                          }}
                         />
                       </Link>
                       <div className="flex-1">

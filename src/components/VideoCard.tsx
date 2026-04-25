@@ -76,6 +76,9 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
               alt={video.channelName} 
               className="w-9 h-9 rounded-full object-cover bg-slate-700 hover:ring-2 hover:ring-[#70d6ff] transition-all"
               referrerPolicy="no-referrer"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(video.channelName || 'User')}&background=random`;
+              }}
             />
           </Link>
         )}

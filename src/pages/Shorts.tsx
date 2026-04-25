@@ -276,6 +276,7 @@ export default function Shorts() {
         <video 
           key={current.$id}
           src={current.videoUrl} 
+          poster={current.thumbnailUrl}
           loop 
           autoPlay 
           playsInline
@@ -324,7 +325,14 @@ export default function Shorts() {
             </div>
 
             <button className="w-10 h-10 rounded-lg overflow-hidden border-2 border-[#70d6ff]/30 shadow-lg mt-2 animate-pulse">
-                <img src={uploaderAvatar} alt="audio" className="w-full h-full object-cover" />
+                <img 
+                  src={uploaderAvatar} 
+                  alt="audio" 
+                  className="w-full h-full object-cover" 
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`;
+                  }}
+                />
             </button>
         </div>
 
@@ -332,7 +340,14 @@ export default function Shorts() {
         <div className="absolute bottom-0 left-0 right-16 p-4 pt-10 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col gap-2 z-10">
           <div className="flex items-center gap-2">
             <Link to={`/channel/${current.uploaderId}`} className="shrink-0">
-              <img src={uploaderAvatar} alt={current.uploaderName || 'User'} className="w-9 h-9 rounded-full border border-white/20 shadow-md" />
+              <img 
+                src={uploaderAvatar} 
+                alt={current.uploaderName || 'User'} 
+                className="w-9 h-9 rounded-full border border-white/20 shadow-md" 
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`;
+                }}
+              />
             </Link>
             <Link to={`/channel/${current.uploaderId}`} className="text-white font-bold text-sm truncate drop-shadow-md hover:underline decoration-[#70d6ff]">@{current.uploaderName || 'user'}</Link>
             <button 
@@ -419,7 +434,14 @@ export default function Shorts() {
                 ) : (
                   comments.map(c => (
                     <div key={c.id} className="flex gap-3 animate-in fade-in slide-in-from-left-4 duration-500">
-                       <img src={c.authorAvatar} alt="author" className="w-9 h-9 rounded-full shrink-0 shadow-lg border border-white/10" />
+                     <img 
+                       src={c.authorAvatar} 
+                       alt="author" 
+                       className="w-9 h-9 rounded-full shrink-0 shadow-lg border border-white/10" 
+                       onError={(e) => {
+                         (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author || 'User')}&background=random`;
+                       }}
+                     />
                        <div className="flex flex-col gap-1 min-w-0">
                           <div className="flex items-center gap-2">
                              <span className="text-xs font-bold text-white">@{c.author}</span>

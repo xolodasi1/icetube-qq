@@ -130,7 +130,14 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
                 className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-[#70d6ff] to-blue-600 border border-white/20 flex items-center justify-center transition-colors text-white font-bold text-sm shrink-0 hover:ring-2 hover:ring-[#70d6ff]/50"
               >
                 {profile?.avatar ? (
-                  <img src={profile.avatar} className="w-full h-full object-cover" alt="Profile" />
+                  <img 
+                    src={profile.avatar} 
+                    className="w-full h-full object-cover" 
+                    alt="Profile" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.name || user?.name || 'User')}&background=random`;
+                    }}
+                  />
                 ) : (
                   (profile?.name || user.name) ? (profile?.name || user.name).charAt(0).toUpperCase() : <User className="w-4 h-4" />
                 )}
@@ -141,7 +148,14 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
                   <div className="p-4 border-b ice-border flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-[#70d6ff] to-blue-600 flex items-center justify-center shrink-0 text-white font-bold">
                        {profile?.avatar ? (
-                         <img src={profile.avatar} className="w-full h-full object-cover" alt="Profile" />
+                         <img 
+                            src={profile.avatar} 
+                            className="w-full h-full object-cover" 
+                            alt="Profile" 
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.name || user?.name || 'User')}&background=random`;
+                            }}
+                          />
                        ) : (
                          (profile?.name || user.name) ? (profile?.name || user.name).charAt(0).toUpperCase() : 'U'
                        )}

@@ -66,7 +66,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
 
     try {
       const videoUrl = await uploadVideoToCloudinary(file, (p) => setProgress(p));
-      const thumbnailUrl = videoUrl.replace(/\.[^/.]+$/, ".jpg");
+      const thumbnailUrl = videoUrl.replace(/\.[^/.]+$/, ".jpg").replace("/video/upload/", "/video/upload/so_1/");
 
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
       const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
