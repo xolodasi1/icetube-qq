@@ -38,7 +38,7 @@ export function Layout({ children }: { children: ReactNode }) {
         {/* Click-away overlay for mobile */}
         {sidebarOpen && (
           <div 
-            className="fixed inset-0 bg-black/50 z-30 sm:hidden"
+            className="fixed inset-0 bg-black/60 z-[55] lg:hidden backdrop-blur-sm"
             onClick={() => setSidebarOpen(false)}
           />
         )}

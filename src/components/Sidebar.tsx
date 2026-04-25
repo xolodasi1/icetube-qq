@@ -88,7 +88,7 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
 
   return (
     <aside className={clsx(
-      "fixed left-0 top-16 bottom-0 w-64 bg-[#05070a]/95 backdrop-blur-3xl border-r ice-border overflow-y-auto px-4 py-4 z-50 sm:z-40 custom-scrollbar transition-transform duration-300",
+      "fixed left-0 top-16 bottom-0 w-64 bg-[#05070a]/95 backdrop-blur-3xl border-r ice-border overflow-y-auto px-4 pt-4 pb-[120px] sm:pb-4 z-[60] lg:z-40 custom-scrollbar transition-transform duration-300",
       isOpen ? "translate-x-0" : "-translate-x-full"
     )}>
       <div className="flex flex-col px-1">

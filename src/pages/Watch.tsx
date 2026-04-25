@@ -681,11 +681,11 @@ export default function Watch() {
 
       {/* Primary Video Section */}
       <div className="flex-1 lg:w-[70%]">
-        <div className="w-full aspect-video bg-black sm:rounded-xl overflow-hidden sm:border ice-border sm:shadow-2xl relative">
+        <div className="w-full relative pt-[56.25%] bg-black sm:rounded-xl overflow-hidden sm:border ice-border sm:shadow-2xl">
           <video 
             autoPlay 
             controls 
-            className="w-full h-full object-contain"
+            className="absolute top-0 left-0 w-full h-full object-contain"
             poster={video.thumbnailUrl}
             src={video.videoUrl} 
             onTimeUpdate={handleTimeUpdate}
@@ -741,7 +741,7 @@ export default function Watch() {
               </button>
             </div>
 
-            <div className={`flex items-center gap-2 pb-2 sm:pb-0 hide-scrollbar overflow-x-auto overflow-y-visible`}>
+            <div className={`flex sm:flex-wrap items-center gap-2 pb-2 sm:pb-0 hide-scrollbar ${showMoreMenu ? 'overflow-visible' : 'overflow-x-auto sm:overflow-visible'}`}>
               <div className="flex items-center bg-white/5 border ice-border rounded-full overflow-hidden shrink-0 cursor-pointer text-slate-300">
                 <button 
                   disabled={isLiking || !user}
@@ -894,9 +894,10 @@ export default function Watch() {
           )}
         </div>
 
+        {/* Desktop Description Box */}
         <div 
           onClick={() => !isDescExpanded && setIsDescExpanded(true)}
-          className={`mt-4 bg-white/5 hover:bg-white/10 transition-colors border ice-border p-4 rounded-xl text-sm mx-4 sm:mx-0 ${!isDescExpanded ? 'cursor-pointer hidden sm:block' : 'block'}`}
+          className={`mt-4 bg-white/5 hover:bg-white/10 transition-colors border ice-border p-4 rounded-xl text-sm mx-4 sm:mx-0 ${!isDescExpanded ? 'cursor-pointer hidden sm:block' : 'hidden sm:block'}`}
         >
           <div className="font-medium text-white mb-2">
             <span className="mr-2 font-bold">
@@ -927,7 +928,43 @@ export default function Watch() {
           )}
         </div>
 
-        <div className="mt-8 mb-10 px-4 sm:px-0">
+        {/* Mobile Description Bottom Sheet Overlay */}
+        {isDescExpanded && (
+          <div className="fixed inset-0 z-[100] sm:hidden bg-black/60 backdrop-blur-sm" onClick={() => setIsDescExpanded(false)}>
+            <div 
+              className="absolute bottom-0 left-0 right-0 max-h-[80vh] min-h-[50vh] bg-[#0f1115] rounded-t-2xl overflow-hidden flex flex-col shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-white/10"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-white/5 shrink-0 bg-[#0f1115] z-10">
+                <h3 className="font-bold text-white text-lg">{language === 'ru' ? 'Описание' : 'Description'}</h3>
+                <button onClick={() => setIsDescExpanded(false)} className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors bg-white/5">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto w-full">
+                <div className="flex gap-6 mb-6 pb-6 border-b border-white/5 hide-scrollbar overflow-x-auto">
+                  <div className="flex flex-col items-center">
+                    <span className="font-bold text-white text-xl">{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(likesCount)}</span>
+                    <span className="text-xs text-slate-400 font-medium mt-1">{language === 'ru' ? 'Отметки "Нравится"' : 'Likes'}</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="font-bold text-white text-xl">{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(video.views)}</span>
+                    <span className="text-xs text-slate-400 font-medium mt-1">{language === 'ru' ? 'Просмотры' : 'Views'}</span>
+                  </div>
+                  <div className="flex flex-col items-center whitespace-nowrap">
+                    <span className="font-bold text-white text-xl">{video.uploadDate}</span>
+                    <span className="text-xs text-slate-400 font-medium mt-1">{t('video_upload_date') || 'Date'}</span>
+                  </div>
+                </div>
+                <div className="whitespace-pre-wrap text-sm text-slate-200 pb-20 leading-relaxed">
+                  {video.description || (language === 'ru' ? 'Нет описания' : 'No description provided.')}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-8 mb-10 px-4 sm:px-0" id="comments-section">
           <div className="flex items-center gap-6 mb-6">
             <h2 className="text-xl font-bold flex items-center gap-2 pb-1 inline-flex text-white">
               {comments.length} {t('video_comments')}
