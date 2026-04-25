@@ -36,7 +36,21 @@ export default function Watch() {
   const [isReporting, setIsReporting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
+  const [activeSuggestionFilter, setActiveSuggestionFilter] = useState<'all' | 'category' | 'author'>('all');
+  const [showNextFloating, setShowNextFloating] = useState(true);
+  
   const moreMenuRef = React.useRef<HTMLDivElement>(null);
+
+  const filteredSuggestedVideos = React.useMemo(() => {
+    if (activeSuggestionFilter === 'all') return suggestedVideos;
+    if (activeSuggestionFilter === 'category' && video) {
+      return suggestedVideos.filter(v => v.category === video.category);
+    }
+    if (activeSuggestionFilter === 'author' && video) {
+      return suggestedVideos.filter(v => v.uploaderId === video.uploaderId);
+    }
+    return suggestedVideos;
+  }, [suggestedVideos, activeSuggestionFilter, video]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -644,20 +658,6 @@ export default function Watch() {
       } catch(err) {}
     }
   };
-
-  const [activeSuggestionFilter, setActiveSuggestionFilter] = useState<'all' | 'category' | 'author'>('all');
-  const [showNextFloating, setShowNextFloating] = useState(true);
-
-  const filteredSuggestedVideos = React.useMemo(() => {
-    if (activeSuggestionFilter === 'all') return suggestedVideos;
-    if (activeSuggestionFilter === 'category' && video) {
-      return suggestedVideos.filter(v => v.category === video.category);
-    }
-    if (activeSuggestionFilter === 'author' && video) {
-      return suggestedVideos.filter(v => v.uploaderId === video.uploaderId);
-    }
-    return suggestedVideos;
-  }, [suggestedVideos, activeSuggestionFilter, video]);
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 max-w-[1600px] mx-auto relative pb-16 lg:pb-0">
