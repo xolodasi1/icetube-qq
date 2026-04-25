@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../lib/LanguageContext';
-import { Users, Eye, ThumbsUp, Trophy, Loader2, Video } from 'lucide-react';
+import { Users, Eye, ThumbsUp, Trophy, Loader2, Video, Snowflake } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { databases } from '../lib/appwrite';
 import { Query } from 'appwrite';
@@ -13,6 +13,7 @@ interface ChannelStats {
   totalViews: number;
   totalLikes: number;
   videoCount: number;
+  snowflakes: number;
 }
 
 export default function TopChannels() {
@@ -21,6 +22,7 @@ export default function TopChannels() {
   const [topByViews, setTopByViews] = useState<ChannelStats[]>([]);
   const [topByLikes, setTopByLikes] = useState<ChannelStats[]>([]);
   const [topByVideos, setTopByVideos] = useState<ChannelStats[]>([]);
+  const [topBySnowflakes, setTopBySnowflakes] = useState<ChannelStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -51,16 +53,17 @@ export default function TopChannels() {
               subscribers: 0,
               totalViews: 0,
               totalLikes: 0,
-              videoCount: 0
+              videoCount: 0,
+              snowflakes: 0
             };
           }
           channelMap[v.uploaderId].totalViews += (v.views || 0);
           channelMap[v.uploaderId].videoCount += 1;
         });
 
-        // Try to fetch actual profiles to get freshest names
+        // Try to fetch actual profiles to get freshest names and snowflakes
         try {
-          const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID;
+          const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
           if (profilesCol) {
             const uploaderIds = Object.keys(channelMap);
             if (uploaderIds.length > 0) {
@@ -71,6 +74,7 @@ export default function TopChannels() {
                 if (channelMap[p.userId]) {
                   channelMap[p.userId].name = p.name || channelMap[p.userId].name;
                   channelMap[p.userId].avatar = p.avatar || channelMap[p.userId].avatar;
+                  channelMap[p.userId].snowflakes = p.snowflakes || 0;
                 }
               });
             }
@@ -91,8 +95,9 @@ export default function TopChannels() {
         // Sort for different categories
         setTopBySubs([...channels].sort((a, b) => b.subscribers - a.subscribers).slice(0, 10));
         setTopByViews([...channels].sort((a, b) => b.totalViews - a.totalViews).slice(0, 10));
-        setTopByLikes([...channels].sort((a, b) => b.totalLikes - a.totalLikes).slice(0, 10)); // Total likes would normally need more fetching
+        setTopByLikes([...channels].sort((a, b) => b.totalLikes - a.totalLikes).slice(0, 10)); 
         setTopByVideos([...channels].sort((a, b) => b.videoCount - a.videoCount).slice(0, 10));
+        setTopBySnowflakes([...channels].sort((a, b) => b.snowflakes - a.snowflakes).slice(0, 10));
 
       } catch (err) {
         console.error("Top Channels failed:", err);
@@ -108,11 +113,15 @@ export default function TopChannels() {
     return new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(num);
   };
 
-  const Leaderboard = ({ title, icon: Icon, data, type }: { title: string, icon: any, data: ChannelStats[], type: 'subs' | 'views' | 'likes' | 'videos' }) => (
+  const Leaderboard = ({ title, icon: Icon, data, type }: { title: string, icon: any, data: ChannelStats[], type: 'subs' | 'views' | 'likes' | 'videos' | 'snowflakes' }) => (
     <div className="flex flex-col gap-4 bg-white/[0.02] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-colors">
       <div className="flex items-center gap-3 mb-1">
         <div className={`p-2 rounded-xl bg-white/5 border ice-border ${
-           type === 'subs' ? 'text-[#70d6ff]' : type === 'views' ? 'text-[#ffb703]' : type === 'videos' ? 'text-[#00f5d4]' : 'text-[#ff70a6]'
+           type === 'subs' ? 'text-[#70d6ff]' : 
+           type === 'views' ? 'text-[#ffb703]' : 
+           type === 'videos' ? 'text-[#00f5d4]' : 
+           type === 'snowflakes' ? 'text-[#9bf6ff]' :
+           'text-[#ff70a6]'
         }`}>
           <Icon className="w-5 h-5" />
         </div>
@@ -140,6 +149,7 @@ export default function TopChannels() {
                   {type === 'views' && `${formatCount(channel.totalViews)} ${language === 'ru' ? 'просм.' : 'views'}`}
                   {type === 'likes' && `${formatCount(channel.totalLikes)} ${language === 'ru' ? 'лайков' : 'likes'}`}
                   {type === 'videos' && `${formatCount(channel.videoCount)} ${language === 'ru' ? 'видео' : 'videos'}`}
+                  {type === 'snowflakes' && `${formatCount(channel.snowflakes)} ${language === 'ru' ? 'снежинок' : 'snowflakes'}`}
                 </div>
               </div>
             </Link>
@@ -176,11 +186,12 @@ export default function TopChannels() {
           <p className="text-slate-400 font-bold mt-6 tracking-widest uppercase text-xs">{language === 'ru' ? 'Анализируем данные...' : 'Analyzing leaderboard data...'}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 sm:gap-6">
            <Leaderboard title={t('top_channels_by_subs')} icon={Users} data={topBySubs} type="subs" />
            <Leaderboard title={t('top_channels_by_views')} icon={Eye} data={topByViews} type="views" />
            <Leaderboard title={t('top_channels_by_likes')} icon={ThumbsUp} data={topByLikes} type="likes" />
            <Leaderboard title={t('top_channels_by_videos')} icon={Video} data={topByVideos} type="videos" />
+           <Leaderboard title={t('top_channels_by_snowflakes')} icon={Snowflake} data={topBySnowflakes} type="snowflakes" />
         </div>
       )}
     </div>

@@ -88,7 +88,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
           uploaderName: user.name || 'Anonymous',
           uploaderAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
           views: 0,
-          category: category.trim() || 'All',
+          // category: category.trim() || 'All', // Removed to fix 'Unknown attribute' error in some Appwrite setups
           contentType: contentType
         }
       );
