@@ -35,6 +35,9 @@ export default function Watch() {
   const [isCopied, setIsCopied] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [playlists, setPlaylists] = useState<any[]>([]);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [activeSuggestionFilter, setActiveSuggestionFilter] = useState<'all' | 'category' | 'author'>('all');
   const [showNextFloating, setShowNextFloating] = useState(true);
@@ -64,6 +67,72 @@ export default function Watch() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMoreMenu]);
 
+  useEffect(() => {
+    if (video) {
+      try {
+        const saved = JSON.parse(localStorage.getItem('saved_videos') || '[]');
+        setIsSaved(saved.some((v: any) => v.id === video.id));
+      } catch(e) {}
+    }
+  }, [video]);
+
+  useEffect(() => {
+    try {
+      const savedPlaylists = JSON.parse(localStorage.getItem('user_playlists') || '[]');
+      setPlaylists(savedPlaylists);
+    } catch(e) {}
+  }, []);
+
+  const handleCreatePlaylist = () => {
+    if (!newPlaylistName.trim()) return;
+    try {
+      const newPlaylist = {
+        id: 'pl_' + Date.now().toString(),
+        name: newPlaylistName.trim(),
+        videos: []
+      };
+      const updatedPlaylists = [...playlists, newPlaylist];
+      localStorage.setItem('user_playlists', JSON.stringify(updatedPlaylists));
+      setPlaylists(updatedPlaylists);
+      setNewPlaylistName('');
+    } catch(err) {
+      console.error('Failed to create playlist', err);
+    }
+  };
+
+  const handleToggleVideoInPlaylist = (playlistId: string) => {
+    if (!video) return;
+    try {
+      const updatedPlaylists = playlists.map(pl => {
+        if (pl.id === playlistId) {
+          const hasVideo = pl.videos.some((v: any) => v.id === video.id);
+          let newVideos = [...pl.videos];
+          if (hasVideo) {
+            newVideos = newVideos.filter((v: any) => v.id !== video.id);
+          } else {
+            newVideos.unshift({
+                id: video.id,
+                title: video.title,
+                thumbnailUrl: video.thumbnailUrl,
+                channelName: video.channelName,
+                channelAvatar: video.channelAvatar,
+                uploaderId: video.uploaderId,
+                views: video.views,
+                uploadDate: video.uploadDate,
+                timestamp: Date.now()
+            });
+          }
+          return { ...pl, videos: newVideos };
+        }
+        return pl;
+      });
+      localStorage.setItem('user_playlists', JSON.stringify(updatedPlaylists));
+      setPlaylists(updatedPlaylists);
+    } catch(err) {
+      console.error('Failed to update playlist', err);
+    }
+  };
+
   const handleShare = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -71,6 +140,33 @@ export default function Watch() {
       setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy link:", err);
+    }
+  };
+
+  const handleSave = () => {
+    if (!video) return;
+    try {
+      let saved = JSON.parse(localStorage.getItem('saved_videos') || '[]');
+      if (isSaved) {
+        saved = saved.filter((v: any) => v.id !== video.id);
+        setIsSaved(false);
+      } else {
+        saved.unshift({
+          id: video.id,
+          title: video.title,
+          thumbnailUrl: video.thumbnailUrl,
+          channelName: video.channelName,
+          channelAvatar: video.channelAvatar,
+          uploaderId: video.uploaderId,
+          views: video.views,
+          uploadDate: video.uploadDate,
+          timestamp: Date.now()
+        });
+        setIsSaved(true);
+      }
+      localStorage.setItem('saved_videos', JSON.stringify(saved));
+    } catch(err) {
+      console.error("Failed to save video:", err);
     }
   };
 
@@ -780,11 +876,19 @@ export default function Watch() {
               </button>
 
               <button 
-                onClick={() => setIsSaved(!isSaved)}
+                onClick={handleSave}
                 className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${isSaved ? 'text-[#70d6ff] border-[#70d6ff]/30' : 'text-slate-300 hover:text-[#70d6ff]'}`}
               >
                 <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
                 <span>{isSaved ? t('video_saved') : t('video_save')}</span>
+              </button>
+
+              <button 
+                onClick={() => setShowPlaylistModal(true)}
+                className="flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0 text-slate-300 hover:text-[#70d6ff]"
+              >
+                <ListFilter className="w-4 h-4" /> {/* Using ListFilter as generic List icon since ListVideo isn't imported yet */}
+                <span>{t('video_add_to_playlist') || 'Add to playlist'}</span>
               </button>
               
               <div className="relative" ref={moreMenuRef}>
@@ -853,6 +957,64 @@ export default function Watch() {
             )}
           </div>
           
+          {/* Playlist Modal */}
+          {showPlaylistModal && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+              <div className="bg-[#0a192f] border ice-border w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="p-4 border-b ice-border flex justify-between items-center bg-[#05070a]">
+                  <h3 className="text-white font-bold">{language === 'ru' ? 'Добавить в плейлист' : 'Add to playlist'}</h3>
+                  <button onClick={() => setShowPlaylistModal(false)} className="text-slate-400 hover:text-white transition-colors bg-white/5 rounded-full p-2">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                <div className="p-2 max-h-[40vh] overflow-y-auto custom-scrollbar">
+                  {playlists.length > 0 ? (
+                    playlists.map(pl => {
+                      const hasVideo = pl.videos.some((v: any) => v.id === video.id);
+                      return (
+                        <div 
+                          key={pl.id} 
+                          onClick={() => handleToggleVideoInPlaylist(pl.id)}
+                          className="flex items-center gap-3 w-full text-left px-4 py-3 text-slate-200 hover:bg-white/5 rounded-xl transition-colors cursor-pointer group"
+                        >
+                          <div className={`w-5 h-5 rounded-sm border flex items-center justify-center shrink-0 transition-colors ${hasVideo ? 'bg-[#70d6ff] border-[#70d6ff]' : 'border-slate-500 group-hover:border-slate-300'}`}>
+                            {hasVideo && <Check className="w-3.5 h-3.5 text-[#05070a]" />}
+                          </div>
+                          <span className="truncate">{pl.name}</span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-6 text-slate-400 text-sm">
+                      {language === 'ru' ? 'Нет плейлистов. Создайте новый.' : 'No playlists yet. Create a new one.'}
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-4 bg-[#05070a]/50 border-t ice-border flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="text" 
+                      placeholder={language === 'ru' ? 'Имя плейлиста...' : 'Playlist name...'}
+                      value={newPlaylistName}
+                      onChange={e => setNewPlaylistName(e.target.value)}
+                      className="flex-1 bg-white/5 border ice-border rounded-xl px-4 py-2 text-white text-sm focus:outline-none focus:border-[#70d6ff] transition-colors"
+                      onKeyDown={e => e.key === 'Enter' && handleCreatePlaylist()}
+                    />
+                    <button 
+                      onClick={handleCreatePlaylist}
+                      disabled={!newPlaylistName.trim()}
+                      className="px-4 py-2 bg-[#70d6ff] text-[#05070a] font-bold rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                    >
+                      {language === 'ru' ? 'Создать' : 'Create'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Report Modal */}
           {showReportModal && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">

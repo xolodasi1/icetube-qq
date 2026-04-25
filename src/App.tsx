@@ -7,6 +7,8 @@ import Channel from "./pages/Channel";
 import AdminPanel from "./pages/AdminPanel";
 import YourVideos from "./pages/YourVideos";
 import Settings from "./pages/Settings";
+import Favorites from "./pages/Favorites";
+import Playlists from "./pages/Playlists";
 import Studio from "./pages/Studio";
 import Content from "./pages/Content";
 import ChannelEditor from "./pages/ChannelEditor";
@@ -25,9 +27,10 @@ export default function App() {
           <Route path="/channel/:id" element={<Channel />} />
           <Route path="/subscriptions" element={<Subscriptions />} />
           <Route path="/continue-watching" element={<ContinueWatching />} />
-          <Route path="/playlists" element={<ComingSoon />} />
+          <Route path="/playlists" element={<Playlists />} />
           <Route path="/downloads" element={<ComingSoon />} />
           <Route path="/library" element={<ComingSoon />} />
+          <Route path="/favorites" element={<Favorites />} />
           <Route path="/history" element={<ComingSoon />} />
           <Route path="/your-videos" element={<YourVideos />} />
           <Route path="/studio" element={<Studio />} />
