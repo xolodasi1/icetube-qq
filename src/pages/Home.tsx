@@ -14,7 +14,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const dynamicCategories = Array.from(new Set(dbVideos.map(v => String(v.category)).filter(c => c && c !== 'All')));
+  const dynamicCategories: string[] = Array.from(new Set(dbVideos.map(v => String(v.category)).filter(c => c && c !== 'All')));
   const tags: string[] = [
     language === 'ru' ? 'Все' : 'All',
     ...dynamicCategories

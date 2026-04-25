@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../lib/LanguageContext';
-import { Users, Eye, ThumbsUp, Trophy, Loader2 } from 'lucide-react';
+import { Users, Eye, ThumbsUp, Trophy, Loader2, Video } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { databases } from '../lib/appwrite';
 import { Query } from 'appwrite';
@@ -12,6 +12,7 @@ interface ChannelStats {
   subscribers: number;
   totalViews: number;
   totalLikes: number;
+  videoCount: number;
 }
 
 export default function TopChannels() {
@@ -19,6 +20,7 @@ export default function TopChannels() {
   const [topBySubs, setTopBySubs] = useState<ChannelStats[]>([]);
   const [topByViews, setTopByViews] = useState<ChannelStats[]>([]);
   const [topByLikes, setTopByLikes] = useState<ChannelStats[]>([]);
+  const [topByVideos, setTopByVideos] = useState<ChannelStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -48,10 +50,12 @@ export default function TopChannels() {
               avatar: v.channelAvatar || v.uploaderAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${v.uploaderId}`,
               subscribers: 0,
               totalViews: 0,
-              totalLikes: 0
+              totalLikes: 0,
+              videoCount: 0
             };
           }
           channelMap[v.uploaderId].totalViews += (v.views || 0);
+          channelMap[v.uploaderId].videoCount += 1;
         });
 
         // Try to fetch actual profiles to get freshest names
@@ -88,6 +92,7 @@ export default function TopChannels() {
         setTopBySubs([...channels].sort((a, b) => b.subscribers - a.subscribers).slice(0, 10));
         setTopByViews([...channels].sort((a, b) => b.totalViews - a.totalViews).slice(0, 10));
         setTopByLikes([...channels].sort((a, b) => b.totalLikes - a.totalLikes).slice(0, 10)); // Total likes would normally need more fetching
+        setTopByVideos([...channels].sort((a, b) => b.videoCount - a.videoCount).slice(0, 10));
 
       } catch (err) {
         console.error("Top Channels failed:", err);
@@ -103,7 +108,7 @@ export default function TopChannels() {
     return new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(num);
   };
 
-  const Leaderboard = ({ title, icon: Icon, data, type }: { title: string, icon: any, data: ChannelStats[], type: 'subs' | 'views' | 'likes' }) => (
+  const Leaderboard = ({ title, icon: Icon, data, type }: { title: string, icon: any, data: ChannelStats[], type: 'subs' | 'views' | 'likes' | 'videos' }) => (
     <div className="flex-1 min-w-[300px] flex flex-col gap-4">
       <div className="flex items-center gap-3 mb-2">
         <div className={`p-2 rounded-lg bg-white/5 border ice-border ${
@@ -134,6 +139,7 @@ export default function TopChannels() {
                   {type === 'subs' && `${formatCount(channel.subscribers)} ${language === 'ru' ? 'подп.' : 'subs'}`}
                   {type === 'views' && `${formatCount(channel.totalViews)} ${language === 'ru' ? 'просм.' : 'views'}`}
                   {type === 'likes' && `${formatCount(channel.totalLikes)} ${language === 'ru' ? 'лайков' : 'likes'}`}
+                  {type === 'videos' && `${formatCount(channel.videoCount)} ${language === 'ru' ? 'видео' : 'videos'}`}
                 </div>
               </div>
             </Link>
@@ -167,6 +173,7 @@ export default function TopChannels() {
            <Leaderboard title={t('top_channels_by_subs')} icon={Users} data={topBySubs} type="subs" />
            <Leaderboard title={t('top_channels_by_views')} icon={Eye} data={topByViews} type="views" />
            <Leaderboard title={t('top_channels_by_likes')} icon={ThumbsUp} data={topByLikes} type="likes" />
+           <Leaderboard title={t('top_channels_by_videos')} icon={Video} data={topByVideos} type="videos" />
         </div>
       )}
     </div>

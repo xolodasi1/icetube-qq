@@ -7,10 +7,11 @@ import { Check } from "lucide-react";
 interface VideoCardProps {
   video: Video;
   layout?: "grid" | "list" | "clip";
+  hideDetails?: boolean;
   key?: string | number;
 }
 
-export function VideoCard({ video, layout = "grid" }: VideoCardProps) {
+export function VideoCard({ video, layout = "grid", hideDetails = false }: VideoCardProps) {
   const { t, language } = useLanguage();
   const formatViews = (views: number) => {
     if (language === 'ru') {
