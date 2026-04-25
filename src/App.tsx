@@ -10,6 +10,10 @@ import Settings from "./pages/Settings";
 import Favorites from "./pages/Favorites";
 import Playlists from "./pages/Playlists";
 import WatchLater from "./pages/WatchLater";
+import History from "./pages/History";
+import Liked from "./pages/Liked";
+import Downloads from "./pages/Downloads";
+import Clips from "./pages/Clips";
 import Studio from "./pages/Studio";
 import Content from "./pages/Content";
 import ChannelEditor from "./pages/ChannelEditor";
@@ -29,17 +33,17 @@ export default function App() {
           <Route path="/subscriptions" element={<Subscriptions />} />
           <Route path="/continue-watching" element={<ContinueWatching />} />
           <Route path="/playlists" element={<Playlists />} />
-          <Route path="/downloads" element={<ComingSoon />} />
+          <Route path="/downloads" element={<Downloads />} />
           <Route path="/library" element={<ComingSoon />} />
           <Route path="/favorites" element={<Favorites />} />
-          <Route path="/history" element={<ComingSoon />} />
+          <Route path="/history" element={<History />} />
           <Route path="/your-videos" element={<YourVideos />} />
           <Route path="/studio" element={<Studio />} />
           <Route path="/studio/content" element={<Content />} />
           <Route path="/studio/editor" element={<ChannelEditor />} />
           <Route path="/watch-later" element={<WatchLater />} />
-          <Route path="/liked" element={<ComingSoon />} />
-          <Route path="/clips" element={<ComingSoon />} />
+          <Route path="/liked" element={<Liked />} />
+          <Route path="/clips" element={<Clips />} />
           <Route path="/music" element={<ComingSoon />} />
           <Route path="/movies" element={<ComingSoon />} />
           <Route path="/live" element={<ComingSoon />} />

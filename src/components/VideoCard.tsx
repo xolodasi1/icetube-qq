@@ -6,7 +6,7 @@ import { Check } from "lucide-react";
 
 interface VideoCardProps {
   video: Video;
-  layout?: "grid" | "list";
+  layout?: "grid" | "list" | "clip";
   key?: string | number;
 }
 
@@ -24,6 +24,27 @@ export function VideoCard({ video, layout = "grid" }: VideoCardProps) {
   };
 
   const isList = layout === "list";
+  const isClip = layout === "clip";
+
+  if (isClip) {
+    return (
+      <Link to={`/watch/${video.id}`} className="block relative group aspect-[9/16] rounded-2xl overflow-hidden ice-panel border ice-border">
+        <img 
+          src={video.thumbnailUrl} 
+          alt={video.title} 
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col gap-1">
+          <h3 className="text-white font-bold line-clamp-2 text-sm drop-shadow-md">{video.title}</h3>
+          <div className="flex items-center gap-2 text-xs text-slate-300">
+             <span>{formatViews(video.views)} {t('video_views')}</span>
+          </div>
+        </div>
+        <div className="absolute inset-0 bg-[#70d6ff]/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+      </Link>
+    );
+  }
 
   return (
     <div className={clsx("group flex block", isList ? "flex-row gap-3 w-full" : "video-card flex-col")}>

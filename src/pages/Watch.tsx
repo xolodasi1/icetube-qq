@@ -36,6 +36,7 @@ export default function Watch() {
   const [isReporting, setIsReporting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isWatchLater, setIsWatchLater] = useState(false);
+  const [isDownloaded, setIsDownloaded] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [playlists, setPlaylists] = useState<any[]>([]);
@@ -76,6 +77,28 @@ export default function Watch() {
         
         const watchLater = JSON.parse(localStorage.getItem('watch_later') || '[]');
         setIsWatchLater(watchLater.some((v: any) => v.id === video.id));
+
+        const downloaded = JSON.parse(localStorage.getItem('downloaded_videos') || '[]');
+        setIsDownloaded(downloaded.some((v: any) => v.id === video.id));
+
+        // Add to History
+        let history = JSON.parse(localStorage.getItem('watch_history') || '[]');
+        // Remove existing entry for this video to move it to the top
+        history = history.filter((v: any) => v.id !== video.id);
+        history.unshift({
+          id: video.id,
+          title: video.title,
+          thumbnailUrl: video.thumbnailUrl,
+          channelName: video.channelName,
+          channelAvatar: video.channelAvatar,
+          uploaderId: video.uploaderId,
+          views: video.views,
+          uploadDate: video.uploadDate,
+          timestamp: Date.now()
+        });
+        // Limit history to 100 items
+        if (history.length > 100) history = history.slice(0, 100);
+        localStorage.setItem('watch_history', JSON.stringify(history));
       } catch(e) {}
     }
   }, [video]);
@@ -198,6 +221,34 @@ export default function Watch() {
       localStorage.setItem('watch_later', JSON.stringify(watchLater));
     } catch(err) {
       console.error("Failed to update watch later:", err);
+    }
+  };
+
+  const handleDownload = () => {
+    if (!video) return;
+    try {
+      let downloaded = JSON.parse(localStorage.getItem('downloaded_videos') || '[]');
+      if (isDownloaded) {
+        if (!window.confirm(language === 'ru' ? 'Удалить из скачанных?' : 'Remove from downloads?')) return;
+        downloaded = downloaded.filter((v: any) => v.id !== video.id);
+        setIsDownloaded(false);
+      } else {
+        downloaded.unshift({
+            id: video.id,
+            title: video.title,
+            thumbnailUrl: video.thumbnailUrl,
+            channelName: video.channelName,
+            channelAvatar: video.channelAvatar,
+            uploaderId: video.uploaderId,
+            views: video.views,
+            uploadDate: video.uploadDate,
+            timestamp: Date.now()
+        });
+        setIsDownloaded(true);
+      }
+      localStorage.setItem('downloaded_videos', JSON.stringify(downloaded));
+    } catch(err) {
+      console.error("Failed to update downloads:", err);
     }
   };
 
@@ -922,6 +973,15 @@ export default function Watch() {
               >
                 <Clock className={`w-4 h-4 ${isWatchLater ? 'fill-current' : ''}`} />
                 <span>{isWatchLater ? t('video_added_to_watch_later') : t('video_watch_later')}</span>
+              </button>
+
+              <button 
+                onClick={handleDownload}
+                className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${isDownloaded ? 'text-[#70d6ff] border-[#70d6ff]/30' : 'text-slate-300 hover:text-[#70d6ff]'}`}
+                title={language === 'ru' ? 'Скачать' : 'Download'}
+              >
+                <Download className={`w-4 h-4 ${isDownloaded ? 'fill-current' : ''}`} />
+                <span>{isDownloaded ? (language === 'ru' ? 'Скачано' : 'Downloaded') : (language === 'ru' ? 'Скачать' : 'Download')}</span>
               </button>
 
               <button 
