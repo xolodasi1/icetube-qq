@@ -28,7 +28,7 @@ export function VideoCard({ video, layout = "grid" }: VideoCardProps) {
 
   if (isClip) {
     return (
-      <Link to={`/watch/${video.id}`} className="block relative group aspect-[9/16] rounded-2xl overflow-hidden ice-panel border ice-border">
+      <Link to={`/shorts/${video.id}`} className="block relative group aspect-[9/16] rounded-2xl overflow-hidden ice-panel border ice-border">
         <img 
           src={video.thumbnailUrl} 
           alt={video.title} 

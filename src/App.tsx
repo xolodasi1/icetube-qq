@@ -12,6 +12,7 @@ import Playlists from "./pages/Playlists";
 import WatchLater from "./pages/WatchLater";
 import History from "./pages/History";
 import Liked from "./pages/Liked";
+import TopChannels from "./pages/TopChannels";
 import Downloads from "./pages/Downloads";
 import Clips from "./pages/Clips";
 import Studio from "./pages/Studio";
@@ -27,7 +28,7 @@ export default function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/shorts" element={<Shorts />} />
+          <Route path="/shorts/:id?" element={<Shorts />} />
           <Route path="/watch/:id" element={<Watch />} />
           <Route path="/channel/:id" element={<Channel />} />
           <Route path="/subscriptions" element={<Subscriptions />} />
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/studio/editor" element={<ChannelEditor />} />
           <Route path="/watch-later" element={<WatchLater />} />
           <Route path="/liked" element={<Liked />} />
+          <Route path="/top-channels" element={<TopChannels />} />
           <Route path="/clips" element={<Clips />} />
           <Route path="/music" element={<ComingSoon />} />
           <Route path="/movies" element={<ComingSoon />} />

@@ -1,4 +1,4 @@
-import { Home, Compass, Flame, PlaySquare, Clock, ThumbsUp, History, Settings, User, Video, Download, ChevronRight, ChevronDown, Scissors, Music, Film, Radio, Youtube, ListVideo, Send, Bookmark } from "lucide-react";
+import { Home, Compass, Flame, PlaySquare, Clock, ThumbsUp, History, Settings, User, Video, Download, ChevronRight, ChevronDown, Scissors, Music, Film, Radio, Youtube, ListVideo, Send, Bookmark, Trophy } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import clsx from "clsx";
 import { useLanguage } from "../lib/LanguageContext";
@@ -58,6 +58,7 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
     ...(user ? [{ header: t('nav_you'), path: `/channel/${user.$id}` }] : []),
     ...(user ? [{ icon: User, label: t('nav_your_channel'), path: `/channel/${user.$id}` }] : []),
     { icon: History, label: t('nav_history'), path: "/history" },
+    { icon: Trophy, label: t('nav_top_channels'), path: "/top-channels" },
     { icon: PlaySquare, label: t('nav_continue_watching'), path: "/continue-watching" },
     { icon: Bookmark, label: t('nav_favorites'), path: "/favorites" },
     { icon: ListVideo, label: t('nav_playlists'), path: "/playlists" },
