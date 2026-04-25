@@ -109,33 +109,33 @@ export default function TopChannels() {
   };
 
   const Leaderboard = ({ title, icon: Icon, data, type }: { title: string, icon: any, data: ChannelStats[], type: 'subs' | 'views' | 'likes' | 'videos' }) => (
-    <div className="flex-1 min-w-[300px] flex flex-col gap-4">
-      <div className="flex items-center gap-3 mb-2">
-        <div className={`p-2 rounded-lg bg-white/5 border ice-border ${
-           type === 'subs' ? 'text-[#70d6ff]' : type === 'views' ? 'text-[#ffb703]' : 'text-[#ff70a6]'
+    <div className="flex flex-col gap-4 bg-white/[0.02] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-colors">
+      <div className="flex items-center gap-3 mb-1">
+        <div className={`p-2 rounded-xl bg-white/5 border ice-border ${
+           type === 'subs' ? 'text-[#70d6ff]' : type === 'views' ? 'text-[#ffb703]' : type === 'videos' ? 'text-[#00f5d4]' : 'text-[#ff70a6]'
         }`}>
           <Icon className="w-5 h-5" />
         </div>
-        <h2 className="text-xl font-bold text-white tracking-tight">{title}</h2>
+        <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight truncate leading-tight">{title}</h2>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1 sm:gap-2">
         {data.length === 0 ? (
-          <p className="text-slate-500 text-sm italic py-4">{t('top_channels_empty')}</p>
+          <p className="text-slate-500 text-sm italic py-4 pl-1">{t('top_channels_empty')}</p>
         ) : (
           data.map((channel, index) => (
             <Link 
               key={channel.id} 
               to={`/channel/${channel.id}`}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all group"
+              className="flex items-center gap-3 p-2 sm:p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all group shrink-0"
             >
-              <div className="w-6 text-center font-mono text-sm text-slate-500 group-hover:text-[#70d6ff]">
-                {index === 0 ? '🏆' : index + 1}
+              <div className="w-6 text-center font-mono text-xs sm:text-sm text-slate-500 group-hover:text-[#70d6ff] font-bold">
+                {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
               </div>
-              <img src={channel.avatar} alt={channel.name} className="w-10 h-10 rounded-full object-cover border ice-border" />
+              <img src={channel.avatar} alt={channel.name} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full object-cover border-2 border-white/10 group-hover:border-[#70d6ff]/50 transition-colors" />
               <div className="flex-1 min-w-0">
-                <div className="text-white font-bold text-sm truncate">{channel.name}</div>
-                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-0.5">
+                <div className="text-white font-bold text-sm sm:text-base truncate group-hover:text-[#70d6ff] transition-colors">{channel.name}</div>
+                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-0.5 opacity-80">
                   {type === 'subs' && `${formatCount(channel.subscribers)} ${language === 'ru' ? 'подп.' : 'subs'}`}
                   {type === 'views' && `${formatCount(channel.totalViews)} ${language === 'ru' ? 'просм.' : 'views'}`}
                   {type === 'likes' && `${formatCount(channel.totalLikes)} ${language === 'ru' ? 'лайков' : 'likes'}`}
@@ -150,26 +150,33 @@ export default function TopChannels() {
   );
 
   return (
-    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative mt-16 sm:mt-0">
-      <header className="flex flex-col gap-2 mb-10">
-        <div className="flex items-center gap-3">
-           <Trophy className="w-8 h-8 text-[#70d6ff]" />
-           <h1 className="text-3xl sm:text-4xl font-extrabold text-white font-display uppercase tracking-tight">
-             {t('top_channels_title')}
-           </h1>
+    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 lg:px-8 py-6 mb-20 sm:mb-6 relative mt-16 sm:mt-0">
+      <header className="flex flex-col gap-3 mb-10 sm:mb-12">
+        <div className="flex items-center gap-4">
+           <div className="p-3 bg-[#70d6ff]/10 rounded-2xl border border-[#70d6ff]/20">
+             <Trophy className="w-7 h-7 sm:w-9 sm:h-9 text-[#70d6ff]" />
+           </div>
+           <div>
+             <h1 className="text-2xl sm:text-4xl font-black text-white font-display uppercase tracking-tighter italic">
+               {t('top_channels_title')}
+             </h1>
+             <p className="text-slate-400 text-xs sm:text-sm max-w-2xl mt-1 font-medium opacity-80">
+               {language === 'ru' ? 'Рейтинг самых успешных авторов нашей платформы на текущий момент.' : 'Rankings of the most successful creators on our platform right now.'}
+             </p>
+           </div>
         </div>
-        <p className="text-slate-400 text-sm max-w-2xl">
-          {language === 'ru' ? 'Рейтинг самых успешных авторов нашей платформы на текущий момент.' : 'Rankings of the most successful creators on our platform right now.'}
-        </p>
       </header>
 
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-32">
-          <Loader2 className="w-10 h-10 text-[#70d6ff] animate-spin mb-4" />
-          <p className="text-slate-500 font-medium">{language === 'ru' ? 'Анализируем данные...' : 'Analyzing leaderboard data...'}</p>
+        <div className="flex flex-col items-center justify-center py-32 sm:py-48">
+          <div className="relative">
+            <Loader2 className="w-12 h-12 text-[#70d6ff] animate-spin" />
+            <div className="absolute inset-0 blur-xl bg-[#70d6ff]/20 animate-pulse"></div>
+          </div>
+          <p className="text-slate-400 font-bold mt-6 tracking-widest uppercase text-xs">{language === 'ru' ? 'Анализируем данные...' : 'Analyzing leaderboard data...'}</p>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 sm:gap-8">
            <Leaderboard title={t('top_channels_by_subs')} icon={Users} data={topBySubs} type="subs" />
            <Leaderboard title={t('top_channels_by_views')} icon={Eye} data={topByViews} type="views" />
            <Leaderboard title={t('top_channels_by_likes')} icon={ThumbsUp} data={topByLikes} type="likes" />
