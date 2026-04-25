@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check } from "lucide-react";
 import { VideoCard } from "../components/VideoCard";
 import React, { useState, useEffect } from "react";
 import { databases, Permission, Role } from "../lib/appwrite";
@@ -184,7 +184,10 @@ export default function Watch() {
             channelAvatar: v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
             views: v.views || 0,
             uploadDate: t('video_recently'),
-            description: v.description || t('video_no_description')
+            description: v.description || t('video_no_description'),
+            category: v.category || 'All',
+            contentType: v.contentType || 'video',
+            duration: v.duration || '0:00'
         }));
 
         const currentVideo = allFormatted.find(v => v.id === id);
@@ -604,8 +607,78 @@ export default function Watch() {
     );
   }
 
+  const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    if (!video) return;
+    const target = e.target as HTMLVideoElement;
+    const progress = target.currentTime / target.duration;
+    
+    // Only save if watched between 5% and 95%
+    if (progress > 0.05 && progress < 0.95) {
+      try {
+        const saved = JSON.parse(localStorage.getItem('watching_progress') || '{}');
+        saved[video.id] = {
+          videoId: video.id,
+          title: video.title,
+          thumbnailUrl: video.thumbnailUrl,
+          channelName: video.channelName,
+          channelAvatar: video.channelAvatar,
+          uploaderId: video.uploaderId,
+          views: video.views,
+          uploadDate: video.uploadDate,
+          progress: progress,
+          currentTime: target.currentTime,
+          timestamp: Date.now()
+        };
+        localStorage.setItem('watching_progress', JSON.stringify(saved));
+      } catch(err) {
+         console.error('Error saving progress', err);
+      }
+    } else if (progress >= 0.95) {
+      // Remove it if watched to completion
+      try {
+        const saved = JSON.parse(localStorage.getItem('watching_progress') || '{}');
+        if (saved[video.id]) {
+          delete saved[video.id];
+          localStorage.setItem('watching_progress', JSON.stringify(saved));
+        }
+      } catch(err) {}
+    }
+  };
+
+  const [activeSuggestionFilter, setActiveSuggestionFilter] = useState<'all' | 'category' | 'author'>('all');
+  const [showNextFloating, setShowNextFloating] = useState(true);
+
+  const filteredSuggestedVideos = React.useMemo(() => {
+    if (activeSuggestionFilter === 'all') return suggestedVideos;
+    if (activeSuggestionFilter === 'category' && video) {
+      return suggestedVideos.filter(v => v.category === video.category);
+    }
+    if (activeSuggestionFilter === 'author' && video) {
+      return suggestedVideos.filter(v => v.uploaderId === video.uploaderId);
+    }
+    return suggestedVideos;
+  }, [suggestedVideos, activeSuggestionFilter, video]);
+
   return (
-    <div className="flex flex-col lg:flex-row gap-6 max-w-[1600px] mx-auto">
+    <div className="flex flex-col lg:flex-row gap-6 max-w-[1600px] mx-auto relative pb-16 lg:pb-0">
+      {/* Floating Next Video Bar (Mobile Only) */}
+      {showNextFloating && filteredSuggestedVideos.length > 0 && (
+        <div className="fixed bottom-14 left-0 right-0 z-40 bg-[#1e2025]/95 backdrop-blur-md border-t border-white/10 p-3 lg:hidden flex items-center justify-between shadow-t-xl rounded-t-xl">
+          <Link to={`/watch/${filteredSuggestedVideos[0].id}`} onClick={() => window.scrollTo(0, 0)} className="flex items-center gap-3 flex-1 overflow-hidden">
+            <div className="shrink-0 flex items-center justify-center p-2 rounded-full bg-white/5 text-white">
+              <ListFilter className="w-4 h-4 rotate-90" />
+            </div>
+            <div className="flex flex-col overflow-hidden">
+              <span className="text-xs text-slate-400">{language === 'ru' ? `Далее: ${filteredSuggestedVideos[0].title}` : `Up next: ${filteredSuggestedVideos[0].title}`}</span>
+              <span className="text-xs text-slate-300 font-medium truncate">{filteredSuggestedVideos[0].channelName} - {filteredSuggestedVideos[0].title}</span>
+            </div>
+          </Link>
+          <button onClick={() => setShowNextFloating(false)} className="p-2 text-slate-400 hover:text-white shrink-0">
+            <X className="w-5 h-5 opacity-50" />
+          </button>
+        </div>
+      )}
+
       {/* Primary Video Section */}
       <div className="flex-1 lg:w-[70%]">
         <div className="w-full aspect-video bg-black sm:rounded-xl overflow-hidden sm:border ice-border sm:shadow-2xl relative">
@@ -615,36 +688,65 @@ export default function Watch() {
             className="w-full h-full object-contain"
             poster={video.thumbnailUrl}
             src={video.videoUrl} 
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedData={(e) => {
+              try {
+                const saved = JSON.parse(localStorage.getItem('watching_progress') || '{}');
+                if (saved[video.id] && saved[video.id].currentTime) {
+                  (e.target as HTMLVideoElement).currentTime = saved[video.id].currentTime;
+                }
+              } catch(err) {}
+            }}
           />
         </div>
 
         <div className="mt-4 flex flex-col gap-3 px-4 sm:px-0">
-          <h1 className="text-xl sm:text-2xl font-bold font-display text-white">{video.title}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold font-display text-white line-clamp-2">{video.title}</h1>
           
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-            <div className="flex items-center gap-4">
-              <Link to={`/channel/${video.uploaderId}`} className="shrink-0 hover:opacity-80 transition-opacity">
-                <img src={video.channelAvatar} alt={video.channelName} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-cold-border" referrerPolicy="no-referrer" />
-              </Link>
-              <div className="flex flex-col">
-                <Link to={`/channel/${video.uploaderId}`} className="font-medium text-slate-100 hover:text-[#70d6ff] transition-colors">{video.channelName}</Link>
-                <span className="text-xs text-slate-400">{subsCount} {t('video_subscribers')}</span>
+          {/* Mobile-Style Inline Description/Stats Row (Replaces the raw view count usually in the desc) */}
+          <div 
+            className="flex flex-wrap items-center text-xs sm:text-sm text-slate-400 gap-1.5 cursor-pointer hover:bg-white/5 p-1 sm:p-2 -ml-1 sm:-ml-2 rounded-lg transition-colors w-fit"
+            onClick={() => setIsDescExpanded(!isDescExpanded)}
+          >
+            <span className="font-medium text-slate-300">
+              @{video.channelName?.replace(/\s+/g, '').toLowerCase() || 'user'}
+            </span>
+            <span>{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(video.views)} {t('video_views')}</span>
+            <span>{video.uploadDate}</span>
+            <span className="font-medium text-slate-200 ml-1">{language === 'ru' ? '...Ещё' : '...More'}</span>
+          </div>
+
+          <div className="flex justify-between items-start sm:items-center gap-4 flex-col sm:flex-row">
+            <div className="flex items-center gap-4 w-full sm:w-fit justify-between sm:justify-start">
+              <div className="flex items-center gap-3">
+                <Link to={`/channel/${video.uploaderId}`} className="shrink-0 hover:opacity-80 transition-opacity">
+                  <img src={video.channelAvatar} alt={video.channelName} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full border border-cold-border" referrerPolicy="no-referrer" />
+                </Link>
+                <div className="flex flex-col">
+                  <Link to={`/channel/${video.uploaderId}`} className="font-bold text-slate-100 hover:text-white transition-colors flex items-center gap-1">
+                    {video.channelName}
+                    <div className="w-3.5 h-3.5 bg-slate-400 text-black rounded-full flex items-center justify-center">
+                      <Check className="w-2.5 h-2.5" />
+                    </div>
+                  </Link>
+                  <span className="text-xs text-slate-400">{subsCount} {t('video_subscribers')}</span>
+                </div>
               </div>
               <button 
                 disabled={isSubbing || !user}
                 onClick={handleSubscribe}
-                className={`ml-2 font-medium px-4 py-2 rounded-full transition-colors text-sm ${isSubscribed ? 'bg-white/10 text-slate-200 hover:bg-white/20' : 'bg-slate-100 text-black hover:bg-slate-300'}`}
+                className={`font-medium px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${isSubscribed ? 'bg-white/10 text-slate-200 hover:bg-white/20' : 'bg-slate-100 text-black hover:bg-slate-200'}`}
               >
                 {isSubscribed ? t('video_subscribed') : t('video_subscribe')}
               </button>
             </div>
 
-            <div className={`flex items-center gap-2 pb-2 sm:pb-0 hide-scrollbar ${showMoreMenu ? 'overflow-visible' : 'overflow-x-auto'}`}>
+            <div className={`flex items-center gap-2 pb-2 sm:pb-0 hide-scrollbar overflow-x-auto overflow-y-visible`}>
               <div className="flex items-center bg-white/5 border ice-border rounded-full overflow-hidden shrink-0 cursor-pointer text-slate-300">
                 <button 
                   disabled={isLiking || !user}
                   onClick={() => handleLike(true)}
-                  className={`flex items-center gap-2 px-4 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors border-r ice-border text-sm ${likeState === 'liked' ? 'text-[#70d6ff]' : ''}`}
+                  className={`flex items-center gap-2 px-3 sm:px-4 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors border-r ice-border text-sm ${likeState === 'liked' ? 'text-[#70d6ff]' : ''}`}
                 >
                   <ThumbsUp className={`w-4 h-4 ${likeState === 'liked' ? 'fill-current' : ''}`} />
                   <span>{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(likesCount)}</span>
@@ -652,7 +754,7 @@ export default function Watch() {
                 <button 
                   disabled={isLiking || !user}
                   onClick={() => handleLike(false)}
-                  className={`px-4 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors text-sm flex items-center gap-2 ${likeState === 'disliked' ? 'text-red-400' : ''}`}
+                  className={`px-3 sm:px-4 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors text-sm flex items-center gap-2 ${likeState === 'disliked' ? 'text-red-400' : ''}`}
                 >
                   <ThumbsDown className={`w-4 h-4 ${likeState === 'disliked' ? 'fill-current text-red-400' : ''}`} />
                   {dislikesCount > 0 && <span>{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(dislikesCount)}</span>}
@@ -662,7 +764,7 @@ export default function Watch() {
               <button 
                 disabled={isSnowflaking || !user}
                 onClick={handleSnowflake}
-                className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[#70d6ff]/10 text-slate-300 px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${hasSnowflaked ? 'text-[#70d6ff] border-[#70d6ff]/30 shadow-[0_0_10px_rgba(112,214,255,0.1)]' : ''}`}
+                className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[#70d6ff]/10 text-slate-300 px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${hasSnowflaked ? 'text-[#70d6ff] border-[#70d6ff]/30 shadow-[0_0_10px_rgba(112,214,255,0.1)]' : ''}`}
                 title={t('video_snowflakes')}
               >
                 <Snowflake className={`w-4 h-4 ${hasSnowflaked ? 'text-[#70d6ff] animate-pulse' : ''}`} />
@@ -671,7 +773,7 @@ export default function Watch() {
               
               <button 
                 onClick={handleShare}
-                className="flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] text-slate-300 px-4 py-2 rounded-full transition-colors text-sm shrink-0"
+                className="flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] text-slate-300 px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0"
               >
                 <Share2 className="w-4 h-4" />
                 <span>{isCopied ? (language === 'ru' ? 'Ссылка скопирована!' : 'Link copied!') : t('video_share')}</span>
@@ -679,7 +781,7 @@ export default function Watch() {
 
               <button 
                 onClick={() => setIsSaved(!isSaved)}
-                className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${isSaved ? 'text-[#70d6ff] border-[#70d6ff]/30' : 'text-slate-300 hover:text-[#70d6ff]'}`}
+                className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${isSaved ? 'text-[#70d6ff] border-[#70d6ff]/30' : 'text-slate-300 hover:text-[#70d6ff]'}`}
               >
                 <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
                 <span>{isSaved ? t('video_saved') : t('video_save')}</span>
@@ -722,6 +824,33 @@ export default function Watch() {
                 )}
               </div>
             </div>
+          </div>
+          
+          {/* Comments Preview Box - Appears on Mobile to mimic the screenshot */}
+          <div 
+            onClick={() => document.getElementById('comments-section')?.scrollIntoView({ behavior: 'smooth' })}
+            className="mt-2 lg:hidden bg-white/5 hover:bg-white/10 border ice-border cursor-pointer rounded-xl p-3 flex flex-col gap-1.5 transition-colors"
+          >
+            <div className="text-sm font-medium text-slate-100">
+              {language === 'ru' ? 'Комментарии' : 'Comments'} {comments.length}
+            </div>
+            {comments.length > 0 ? (
+               <div className="flex items-center gap-2">
+                 <img 
+                   src={comments[0].authorAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comments[0].author)}`} 
+                   alt="commenter" 
+                   className="w-6 h-6 rounded-full bg-slate-800 shrink-0"
+                 />
+                 <span className="text-xs text-slate-300 line-clamp-1 flex-1 text-ellipsis overflow-hidden">
+                   {comments[0].text}
+                 </span>
+               </div>
+            ) : (
+               <div className="flex items-center gap-2 text-xs text-slate-400">
+                 <div className="w-6 h-6 rounded-full bg-slate-800 shrink-0 flex justify-center items-center">?</div>
+                 <span>{language === 'ru' ? 'Будьте первым!' : 'Be the first!'}</span>
+               </div>
+            )}
           </div>
           
           {/* Report Modal */}
@@ -767,7 +896,7 @@ export default function Watch() {
 
         <div 
           onClick={() => !isDescExpanded && setIsDescExpanded(true)}
-          className={`mt-4 bg-white/5 hover:bg-white/10 transition-colors border ice-border p-4 rounded-xl text-sm mx-4 sm:mx-0 ${!isDescExpanded ? 'cursor-pointer' : ''}`}
+          className={`mt-4 bg-white/5 hover:bg-white/10 transition-colors border ice-border p-4 rounded-xl text-sm mx-4 sm:mx-0 ${!isDescExpanded ? 'cursor-pointer hidden sm:block' : 'block'}`}
         >
           <div className="font-medium text-white mb-2">
             <span className="mr-2 font-bold">
@@ -1021,9 +1150,109 @@ export default function Watch() {
       </div>
 
       <div className="lg:w-[30%] flex flex-col gap-4">
-        {suggestedVideos.map(vid => (
-          <VideoCard key={vid.id} video={vid} layout="list" />
-        ))}
+        {video && (
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 px-4 sm:px-0 scroll-smooth">
+            <button 
+              onClick={() => setActiveSuggestionFilter('all')}
+              className={`px-4 py-1.5 rounded-lg whitespace-nowrap text-sm font-medium transition-colors ${activeSuggestionFilter === 'all' ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+            >
+              {language === 'ru' ? 'Все видео' : 'All videos'}
+            </button>
+            {video.category && video.category !== 'All' && (
+              <button 
+                onClick={() => setActiveSuggestionFilter('category')}
+                className={`px-4 py-1.5 rounded-lg whitespace-nowrap text-sm font-medium transition-colors ${activeSuggestionFilter === 'category' ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+              >
+                {language === 'ru' ? 'Из той же серии' : 'From this series'}
+              </button>
+            )}
+            <button 
+              onClick={() => setActiveSuggestionFilter('author')}
+              className={`px-4 py-1.5 rounded-lg whitespace-nowrap text-sm font-medium transition-colors ${activeSuggestionFilter === 'author' ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+            >
+              {language === 'ru' ? `Автор: ${video.channelName?.split(' ')[0]}` : `Author: ${video.channelName?.split(' ')[0]}`}
+            </button>
+          </div>
+        )}
+        
+        <div className="flex flex-col gap-4 px-4 sm:px-0 pb-20 sm:pb-0">
+          {filteredSuggestedVideos.length > 0 ? (
+            (() => {
+              const standards = filteredSuggestedVideos.filter(v => v.contentType !== 'shorts');
+              const shortsItems = filteredSuggestedVideos.filter(v => v.contentType === 'shorts');
+              
+              // If there are no shorts or no standards, just render them directly
+              if (shortsItems.length === 0) {
+                return standards.map(vid => (
+                  <div key={vid.id}>
+                    <div className="block lg:hidden">
+                      <VideoCard video={vid} layout="grid" />
+                    </div>
+                    <div className="hidden lg:block">
+                      <VideoCard video={vid} layout="list" />
+                    </div>
+                  </div>
+                ));
+              }
+
+              // We want to insert the shorts shelf after the 2nd video
+              const firstBatch = standards.slice(0, 2);
+              const secondBatch = standards.slice(2);
+
+              return (
+                <>
+                  {firstBatch.map(vid => (
+                    <div key={vid.id}>
+                      <div className="block lg:hidden">
+                        <VideoCard video={vid} layout="grid" />
+                      </div>
+                      <div className="hidden lg:block">
+                        <VideoCard video={vid} layout="list" />
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Shorts Shelf */}
+                  <div className="flex flex-col gap-3 py-4 border-y border-white/10 my-2">
+                    <div className="flex items-center gap-2 px-2 text-white font-bold text-lg">
+                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500"><path d="M10 15l5-3-5-3v6z"/><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/></svg>
+                       Shorts
+                    </div>
+                    <div className="flex gap-4 overflow-x-auto pb-4 px-2 snap-x hide-scrollbar">
+                      {shortsItems.map(short => (
+                        <Link to={`/shorts`} key={short.id} className="min-w-[140px] max-w-[140px] flex flex-col gap-2 snap-start group">
+                           <div className="w-full aspect-[9/16] rounded-xl overflow-hidden bg-slate-800 relative">
+                             <img src={short.thumbnailUrl} alt={short.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                             <div className="absolute bottom-1 right-1 bg-black/80 px-1.5 py-0.5 rounded text-[10px] font-medium text-white">{short.duration}</div>
+                           </div>
+                           <div className="flex flex-col">
+                             <span className="text-sm font-medium text-white line-clamp-2 leading-tight group-hover:text-blue-400">{short.title}</span>
+                             <span className="text-xs text-slate-400 mt-1">{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(short.views)} views</span>
+                           </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+
+                  {secondBatch.map(vid => (
+                    <div key={vid.id}>
+                      <div className="block lg:hidden">
+                        <VideoCard video={vid} layout="grid" />
+                      </div>
+                      <div className="hidden lg:block">
+                        <VideoCard video={vid} layout="list" />
+                      </div>
+                    </div>
+                  ))}
+                </>
+              );
+            })()
+          ) : (
+            <div className="text-center py-8 text-slate-500 text-sm">
+              {language === 'ru' ? 'Ничего не найдено.' : 'No videos found.'}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

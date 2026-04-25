@@ -1,9 +1,14 @@
 import { MonitorPlay } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { useLanguage } from "../lib/LanguageContext";
 
 export default function ComingSoon() {
   const location = useLocation();
-  const pageName = location.pathname.split("/")[1]?.replace("-", " ") || "Feature";
+  const { t } = useLanguage();
+  
+  const pathPart = location.pathname.split("/")[1];
+  const translationKey = pathPart ? `page_${pathPart.replace('-', '_')}` : 'page_feature';
+  const pageName = t(translationKey);
   
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center">
@@ -12,7 +17,7 @@ export default function ComingSoon() {
       </div>
       <h1 className="text-3xl font-bold text-slate-100 capitalize mb-4">{pageName}</h1>
       <p className="text-slate-400 max-w-md mx-auto">
-        This section is currently under development. Stay tuned for further updates to Icetube 2.0 where we will launch user libraries, personalized history, and advanced upload capabilities!
+        {t('coming_soon_desc')}
       </p>
     </div>
   );

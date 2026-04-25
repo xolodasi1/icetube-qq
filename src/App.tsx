@@ -12,6 +12,7 @@ import Content from "./pages/Content";
 import ChannelEditor from "./pages/ChannelEditor";
 import Shorts from "./pages/Shorts";
 import Subscriptions from "./pages/Subscriptions";
+import ContinueWatching from "./pages/ContinueWatching";
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/watch/:id" element={<Watch />} />
           <Route path="/channel/:id" element={<Channel />} />
           <Route path="/subscriptions" element={<Subscriptions />} />
+          <Route path="/continue-watching" element={<ContinueWatching />} />
           <Route path="/playlists" element={<ComingSoon />} />
           <Route path="/downloads" element={<ComingSoon />} />
           <Route path="/library" element={<ComingSoon />} />
@@ -33,6 +35,13 @@ export default function App() {
           <Route path="/studio/editor" element={<ChannelEditor />} />
           <Route path="/watch-later" element={<ComingSoon />} />
           <Route path="/liked" element={<ComingSoon />} />
+          <Route path="/clips" element={<ComingSoon />} />
+          <Route path="/music" element={<ComingSoon />} />
+          <Route path="/movies" element={<ComingSoon />} />
+          <Route path="/live" element={<ComingSoon />} />
+          <Route path="/premium" element={<ComingSoon />} />
+          <Route path="/yt-music" element={<ComingSoon />} />
+          <Route path="/yt-kids" element={<ComingSoon />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/settings" element={<Settings />} />
           {/* Catch-all route to redirect back to home for unhandled tabs */}

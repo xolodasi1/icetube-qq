@@ -21,7 +21,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('All');
+  const [category, setCategory] = useState('');
   const [contentType, setContentType] = useState<'video' | 'shorts'>('video');
   
   const [isUploading, setIsUploading] = useState(false);
@@ -88,7 +88,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
           uploaderName: user.name || 'Anonymous',
           uploaderAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
           views: 0,
-          category: category,
+          category: category.trim() || 'All',
           contentType: contentType
         }
       );
@@ -210,19 +210,20 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-slate-200">{language === 'ru' ? 'Категория' : 'Category'}</label>
               <div className="relative">
-                <select 
+                <input 
+                  list="category-suggestions"
+                  type="text"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   disabled={isUploading}
-                  className="appearance-none bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#70d6ff]/50 w-full cursor-pointer"
-                >
+                  placeholder={language === 'ru' ? 'Введите или выберите категорию...' : 'Enter or select category...'}
+                  className="bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#70d6ff]/50 w-full"
+                />
+                <datalist id="category-suggestions">
                   {categories.map(cat => (
-                    <option key={cat.id} value={cat.id} className="bg-[#0f1115]">{cat.label}</option>
+                    <option key={cat.id} value={cat.label} />
                   ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                  <ChevronDown className="w-4 h-4" />
-                </div>
+                </datalist>
               </div>
             </div>
           </div>

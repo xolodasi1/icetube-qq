@@ -1,4 +1,4 @@
-import { Home, Compass, Flame, PlaySquare, Clock, ThumbsUp, History, Settings, User, Video, Download, ChevronRight, ChevronDown } from "lucide-react";
+import { Home, Compass, Flame, PlaySquare, Clock, ThumbsUp, History, Settings, User, Video, Download, ChevronRight, ChevronDown, Scissors, Music, Film, Radio, Youtube, ListVideo, Send } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import clsx from "clsx";
 import { useLanguage } from "../lib/LanguageContext";
@@ -58,13 +58,32 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
     ...(user ? [{ header: t('nav_you'), path: `/channel/${user.$id}` }] : []),
     ...(user ? [{ icon: User, label: t('nav_your_channel'), path: `/channel/${user.$id}` }] : []),
     { icon: History, label: t('nav_history'), path: "/history" },
-    { icon: PlaySquare, label: t('nav_playlists'), path: "/playlists" },
+    { icon: PlaySquare, label: t('nav_continue_watching'), path: "/continue-watching" },
+    { icon: ListVideo, label: t('nav_playlists'), path: "/playlists" },
     { icon: Clock, label: t('nav_watch_later'), path: "/watch-later" },
     { icon: ThumbsUp, label: t('nav_liked'), path: "/liked" },
     { icon: Video, label: t('nav_your_videos'), path: "/your-videos" },
     { icon: Download, label: t('nav_downloads'), path: "/downloads" },
+    { icon: Scissors, label: t('nav_clips'), path: "/clips" },
+    
+    { divider: true },
+    { header_text: t('nav_navigator') },
+    { icon: Music, label: t('nav_music'), path: "/music" },
+    { icon: Film, label: t('nav_movies'), path: "/movies" },
+    { icon: Radio, label: t('nav_live'), path: "/live" },
+    
+    { divider: true },
+    { header_text: t('nav_more_features') },
+    { icon: Youtube, label: t('nav_premium'), path: "/premium", iconColor: "text-[#70d6ff] group-hover:text-blue-300" },
+    { icon: Youtube, label: t('nav_yt_music'), path: "/yt-music", iconColor: "text-[#70d6ff] group-hover:text-blue-300" },
+    { icon: Youtube, label: t('nav_yt_kids'), path: "/yt-kids", iconColor: "text-[#70d6ff] group-hover:text-blue-300" },
+
     { divider: true },
     { icon: Settings, label: t('nav_settings'), path: "/settings" },
+    
+    { divider: true },
+    { header_text: t('nav_socials') },
+    { icon: Send, label: t('nav_telegram'), path: "https://t.me/SAOtop", isExternal: true, iconColor: "text-blue-400 group-hover:text-blue-300" },
   ];
 
   return (
@@ -81,7 +100,7 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
           if ('header' in item && item.header) {
             return (
               <Link 
-                key={index} 
+                key={`hdr-${index}`} 
                 to={item.path || "#"}
                 className="flex items-center gap-2 px-3 py-2 text-white font-bold text-base hover:bg-white/5 rounded-xl transition-colors w-fit"
               >
@@ -91,28 +110,38 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
             )
           }
 
-          if (!('label' in item)) return null;
+          if ('header_text' in item && item.header_text) {
+            return (
+              <div key={`hdrtxt-${index}`} className="px-3 py-2 text-white font-bold text-base">
+                {item.header_text}
+              </div>
+            )
+          }
 
-          // Very simple active check
-          const isActive = location.pathname === item.path || location.search === item.path.replace('/', '');
+          if (!('label' in item) || !item.icon) return null;
+
+          const isActive = !item.isExternal && (location.pathname === item.path || location.search === item.path?.replace('/', ''));
+          
+          const LinkComponent = item.isExternal ? 'a' : Link;
+          const linkProps = item.isExternal ? { href: item.path, target: "_blank", rel: "noopener noreferrer" } : { to: item.path || "#" };
 
           return (
-            <Link
-              key={item.label}
-              to={item.path || "#"}
+            <LinkComponent
+              key={item.label as string}
+              {...linkProps as any}
               className={clsx(
-                "sidebar-item flex items-center gap-4 p-3 rounded-xl transition-all duration-200 cursor-pointer group",
+                "sidebar-item flex items-center gap-4 p-3 rounded-xl transition-all duration-200 cursor-pointer group hover:bg-white/5",
                 isActive 
                   ? "bg-[rgba(112,214,255,0.08)] text-[#70d6ff] font-medium" 
-                  : "text-slate-400"
+                  : "text-slate-400 hover:text-white"
               )}
             >
               <item.icon className={clsx(
                 "w-5 h-5 transition-colors",
-                isActive ? "text-[#70d6ff]" : "text-slate-500 group-hover:text-slate-300"
+                isActive ? "text-[#70d6ff]" : ('iconColor' in item ? item.iconColor : "text-slate-500 group-hover:text-white")
               )} />
-              <span className="text-sm">{item.label}</span>
-            </Link>
+              <span className="text-sm">{item.label as string}</span>
+            </LinkComponent>
           );
         })}
 

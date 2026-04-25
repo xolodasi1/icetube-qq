@@ -10,35 +10,22 @@ export default function Home() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   
-  const baseCategories = [
-    { id: 'All', ru: 'Все', en: 'All' },
-    { id: 'Music', ru: 'Музыка', en: 'Music' },
-    { id: 'Gaming', ru: 'Видеоигры', en: 'Gaming' },
-    { id: 'Jams', ru: 'Джемы', en: 'Jams' },
-    { id: 'Live', ru: 'Сейчас в эфире', en: 'Live' },
-    { id: 'MinecraftMods', ru: 'Модификации Minecraft', en: 'Minecraft Mods' },
-    { id: 'Minecraft', ru: 'Minecraft', en: 'Minecraft' },
-    { id: 'Animation', ru: 'Анимация', en: 'Animation' },
-    { id: 'Action', ru: 'Экшен и приключения', en: 'Action & Adventure' },
-    { id: 'Rap', ru: 'Рэп', en: 'Rap' },
-    { id: 'Platformers', ru: 'Платформеры', en: 'Platformers' },
-    { id: 'Crafts', ru: 'Ремесла', en: 'Crafts' },
-    { id: 'Recent', ru: 'Недавно опубликованные', en: 'Recently uploaded' },
+  const [dbVideos, setDbVideos] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const dynamicCategories = Array.from(new Set(dbVideos.map(v => v.category).filter(c => c && c !== 'All')));
+  const tags = [
+    language === 'ru' ? 'Все' : 'All',
+    ...dynamicCategories
   ];
-  
-  const tags = baseCategories.map(c => language === 'ru' ? c.ru : c.en);
   
   const searchQuery = searchParams.get("search") || "";
   const activeCategoryParam = searchParams.get("category") || 'All';
   
-  // Find current label for active category
-  const activeCategoryLabel = baseCategories.find(c => c.id === activeCategoryParam)?.[language] || 
-                         baseCategories.find(c => c.ru === activeCategoryParam || c.en === activeCategoryParam)?.[language] ||
-                         (language === 'ru' ? 'Все' : 'All');
-
-  const [dbVideos, setDbVideos] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const activeCategoryLabel = activeCategoryParam === 'All' 
+    ? (language === 'ru' ? 'Все' : 'All') 
+    : activeCategoryParam;
 
   useEffect(() => {
     const fetchVideos = async () => {
@@ -74,11 +61,10 @@ export default function Home() {
   }, [language]);
 
   const handleTagClick = (tagLabel: string) => {
-    const cat = baseCategories.find(c => c.ru === tagLabel || c.en === tagLabel);
-    if (!cat || cat.id === 'All') {
+    if (tagLabel === 'Все' || tagLabel === 'All') {
       navigate("/");
     } else {
-      navigate(`/?category=${cat.id}`);
+      navigate(`/?category=${tagLabel}`);
     }
   };
 

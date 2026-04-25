@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Video } from "../data";
 import clsx from "clsx";
 import { useLanguage } from "../lib/LanguageContext";
+import { Check } from "lucide-react";
 
 interface VideoCardProps {
   video: Video;
@@ -55,13 +56,16 @@ export function VideoCard({ video, layout = "grid" }: VideoCardProps) {
             {video.title}
           </Link>
           <div className="text-slate-500 text-xs sm:text-sm flex flex-col gap-0.5">
-            <Link to={`/channel/${video.uploaderId}`} className="hover:text-slate-300 transition-colors truncate">
-              {video.channelName}
+            <Link to={`/channel/${video.uploaderId}`} className="hover:text-slate-300 transition-colors truncate flex items-center gap-1 w-full">
+              <span className="truncate">{video.channelName}</span>
+              <div className="w-3 h-3 bg-slate-500 text-black rounded-full flex items-center justify-center shrink-0">
+                <Check className="w-2 h-2" />
+              </div>
             </Link>
-            <Link to={`/watch/${video.id}`} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-400 focus:outline-none">
-              <span>{formatViews(video.views)} {t('video_views')}</span>
+            <Link to={`/watch/${video.id}`} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-400 focus:outline-none w-full">
+              <span className="truncate">{formatViews(video.views)} {t('video_views')}</span>
               <span>•</span>
-              <span>{video.uploadDate}</span>
+              <span className="truncate">{video.uploadDate}</span>
             </Link>
           </div>
         </div>
