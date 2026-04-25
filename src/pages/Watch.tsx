@@ -1268,18 +1268,20 @@ export default function Watch() {
             {comments.filter(c => !c.parentId).map((comment) => (
               <div key={comment.id} className="flex gap-4 group flex-col">
                 <div className="flex gap-4 group">
-                  <img 
-                    src={comment.authorAvatar} 
-                    className="w-10 h-10 rounded-full shrink-0 object-cover bg-slate-700" 
-                    alt={comment.author} 
-                    referrerPolicy="no-referrer"
-                  />
+                  <Link to={`/channel/${comment.authorId}`} className="shrink-0 hover:opacity-80 transition-opacity">
+                    <img 
+                      src={comment.authorAvatar} 
+                      className="w-10 h-10 rounded-full object-cover bg-slate-700" 
+                      alt={comment.author} 
+                      referrerPolicy="no-referrer"
+                    />
+                  </Link>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-xs mb-1">
-                        <span className="font-medium text-slate-200">
+                        <Link to={`/channel/${comment.authorId}`} className="font-medium text-slate-200 hover:text-white transition-colors">
                           @{(user && user.$id === comment.authorId && profile?.name) ? profile.name : comment.author}
-                        </span>
+                        </Link>
                         <span className="text-slate-500">{comment.ts}</span>
                       </div>
                       {user && user.$id === comment.authorId && (
@@ -1379,18 +1381,20 @@ export default function Watch() {
                 <div className="ml-14 flex flex-col gap-4 mt-2">
                   {comments.filter(reply => reply.parentId === comment.id).reverse().map(reply => (
                     <div key={reply.id} className="flex gap-3 group">
-                      <img 
-                        src={reply.authorAvatar} 
-                        className="w-8 h-8 rounded-full shrink-0 object-cover bg-slate-700" 
-                        alt={reply.author} 
-                        referrerPolicy="no-referrer"
-                      />
+                      <Link to={`/channel/${reply.authorId}`} className="shrink-0 hover:opacity-80 transition-opacity">
+                        <img 
+                          src={reply.authorAvatar} 
+                          className="w-8 h-8 rounded-full object-cover bg-slate-700" 
+                          alt={reply.author} 
+                          referrerPolicy="no-referrer"
+                        />
+                      </Link>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 text-xs mb-1">
-                            <span className="font-medium text-slate-200 border bg-white/10 px-2 py-0.5 rounded-full">
+                            <Link to={`/channel/${reply.authorId}`} className="font-medium text-slate-200 border bg-white/10 px-2 py-0.5 rounded-full hover:bg-white/20 transition-colors">
                               @{(user && user.$id === reply.authorId && profile?.name) ? profile.name : reply.author}
-                            </span>
+                            </Link>
                             <span className="text-slate-500 text-[10px]">{reply.ts}</span>
                           </div>
                           {user && user.$id === reply.authorId && (
