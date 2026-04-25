@@ -41,10 +41,11 @@ export default function TopChannels() {
         // 1. Accumulate views and identify channels
         videosRes.documents.forEach(v => {
           if (!channelMap[v.uploaderId]) {
+            const displayName = v.channelName || v.uploaderName || v.uploaderId || 'User';
             channelMap[v.uploaderId] = {
               id: v.uploaderId,
-              name: v.channelName || 'User',
-              avatar: v.channelAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${v.uploaderId}`,
+              name: displayName === v.uploaderId ? 'User' : displayName,
+              avatar: v.channelAvatar || v.uploaderAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${v.uploaderId}`,
               subscribers: 0,
               totalViews: 0,
               totalLikes: 0
@@ -52,6 +53,27 @@ export default function TopChannels() {
           }
           channelMap[v.uploaderId].totalViews += (v.views || 0);
         });
+
+        // Try to fetch actual profiles to get freshest names
+        try {
+          const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID;
+          if (profilesCol) {
+            const uploaderIds = Object.keys(channelMap);
+            if (uploaderIds.length > 0) {
+              const profilesRes = await databases.listDocuments(dbId, profilesCol, [
+                Query.equal('userId', uploaderIds)
+              ]);
+              profilesRes.documents.forEach(p => {
+                if (channelMap[p.userId]) {
+                  channelMap[p.userId].name = p.name || channelMap[p.userId].name;
+                  channelMap[p.userId].avatar = p.avatar || channelMap[p.userId].avatar;
+                }
+              });
+            }
+          }
+        } catch (profileErr) {
+          console.warn("Failed to fetch profiles for top channels:", profileErr);
+        }
 
         // 2. Count subscribers
         allSubs.documents.forEach(s => {
