@@ -42,7 +42,8 @@ export default function YourVideos() {
           channelAvatar: v.uploaderAvatar,
           views: v.views || 0,
           uploadDate: new Date(v.$createdAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'),
-          description: v.description
+          description: v.description,
+          contentType: v.contentType || 'video'
         }));
 
       setVideos(userVids.reverse());

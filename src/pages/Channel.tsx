@@ -18,6 +18,7 @@ export default function Channel() {
   const [subsCount, setSubsCount] = useState(0);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isSubbing, setIsSubbing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'home' | 'videos' | 'shorts' | 'about'>('home');
 
   useEffect(() => {
     const fetchChannelData = async () => {
@@ -58,7 +59,8 @@ export default function Channel() {
           channelAvatar: channelProfile ? (channelProfile.avatar || channelProfile.photoUrl) : (v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`),
           views: v.views || 0,
           uploadDate: t('video_recently'),
-          duration: "10:00"
+          duration: "10:00",
+          contentType: v.contentType || 'video'
         }));
 
         setVideos(formattedVideos);
@@ -159,6 +161,9 @@ export default function Channel() {
   const channelHandle = profile.handle ? `@${profile.handle}` : `@${channelName.replace(/\s+/g, '').toLowerCase() || "user"}`;
   const bannerUrl = profile.bannerUrl;
 
+  const regularVideos = videos.filter(v => typeof v.contentType === 'undefined' || v.contentType === 'video');
+  const shortsVideos = videos.filter(v => v.contentType === 'shorts');
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Banner */}
@@ -221,23 +226,123 @@ export default function Channel() {
         </div>
       </div>
 
-      {/* Videos Section */}
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-          <Video className="w-6 h-6 text-[#70d6ff]" />
-          {t('channel_videos_tab')}
-        </h2>
+      {/* Channel Tabs */}
+      <div className="flex border-b border-white/10 mb-8 overflow-x-auto hide-scrollbar">
+        <button 
+          onClick={() => setActiveTab('home')}
+          className={`px-6 py-4 font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'home' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+        >
+          {language === 'ru' ? 'Главная' : 'Home'}
+        </button>
+        <button 
+          onClick={() => setActiveTab('videos')}
+          className={`px-6 py-4 font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'videos' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+        >
+          {language === 'ru' ? 'Видео' : 'Videos'}
+        </button>
+        <button 
+          onClick={() => setActiveTab('shorts')}
+          className={`px-6 py-4 font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'shorts' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+        >
+          Shorts
+        </button>
+        <button 
+          onClick={() => setActiveTab('about')}
+          className={`px-6 py-4 font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'about' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+        >
+          {language === 'ru' ? 'О канале' : 'About'}
+        </button>
+      </div>
 
-        {videos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/5 border border-white/10 rounded-2xl">
-            <Video className="w-12 h-12 text-slate-500 mb-4" />
-            <p className="text-lg">{t('channel_no_videos')}</p>
+      {/* Tab Content */}
+      <div className="min-h-[40vh]">
+        {activeTab === 'home' && (
+          <div className="flex flex-col gap-10">
+            {regularVideos.length > 0 && (
+              <div>
+                <h3 className="text-xl font-bold text-white mb-4">{language === 'ru' ? 'Недавние видео' : 'Recent Videos'}</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-8 gap-x-4">
+                  {regularVideos.slice(0, 8).map(video => (
+                    <VideoCard key={video.id} video={video} />
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {shortsVideos.length > 0 && (
+              <div>
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="text-[#FF0000]">Shorts</span>
+                </h3>
+                <div className="flex overflow-x-auto gap-4 custom-scrollbar pb-6 hide-scrollbar snap-x">
+                  {shortsVideos.map(video => (
+                    <div key={video.id} className="w-[180px] sm:w-[200px] shrink-0 snap-start">
+                      <VideoCard video={video} isShort={true} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {regularVideos.length === 0 && shortsVideos.length === 0 && (
+               <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/5 border border-white/10 rounded-2xl">
+                 <Video className="w-12 h-12 text-slate-500 mb-4" />
+                 <p className="text-lg">{t('channel_no_videos')}</p>
+               </div>
+            )}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-8 gap-x-4">
-            {videos.map(video => (
-              <VideoCard key={video.id} video={video} />
-            ))}
+        )}
+
+        {activeTab === 'videos' && (
+          <div>
+            {regularVideos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/5 border border-white/10 rounded-2xl">
+                <Video className="w-12 h-12 text-slate-500 mb-4" />
+                <p className="text-lg">{language === 'ru' ? 'Нет обычных видео.' : 'No regular videos.'}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-8 gap-x-4">
+                {regularVideos.map(video => (
+                  <VideoCard key={video.id} video={video} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'shorts' && (
+          <div>
+            {shortsVideos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/5 border border-white/10 rounded-2xl">
+                <Video className="w-12 h-12 text-slate-500 mb-4" />
+                <p className="text-lg">{language === 'ru' ? 'Нет Shorts.' : 'No Shorts.'}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-y-6 gap-x-4">
+                {shortsVideos.map(video => (
+                  <VideoCard key={video.id} video={video} isShort={true} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'about' && (
+          <div className="flex flex-col gap-6 max-w-3xl bg-white/5 border border-white/10 rounded-2xl p-6 sm:p-10">
+            <div>
+              <h3 className="text-xl font-bold text-white mb-4">{language === 'ru' ? 'Описание' : 'Description'}</h3>
+              <p className="text-slate-300 whitespace-pre-wrap leading-relaxed">
+                {profile.description || profile.bio || (language === 'ru' ? 'Нет описания.' : 'No description provided.')}
+              </p>
+            </div>
+            
+            <div className="pt-6 border-t border-white/10">
+              <h3 className="text-xl font-bold text-white mb-4">{language === 'ru' ? 'Статистика' : 'Stats'}</h3>
+              <ul className="text-slate-300 space-y-2">
+                <li>{new Intl.NumberFormat().format(subsCount)} {t('channel_subscribers')}</li>
+                <li>{videos.length} {t('channel_videos')}</li>
+              </ul>
+            </div>
           </div>
         )}
       </div>

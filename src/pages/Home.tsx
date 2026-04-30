@@ -107,6 +107,9 @@ export default function Home() {
     return matchesSearch && matchesCategory;
   });
 
+  const regularVideos = filteredVideos.filter(v => (!v.contentType || v.contentType === 'video'));
+  const shortsVideos = filteredVideos.filter(v => v.contentType === 'shorts');
+
   return (
     <div className="flex flex-col gap-4 sm:gap-6 pt-2 sm:pt-0 pb-4 sm:pb-0">
       {/* Category Tags */}
@@ -147,11 +150,30 @@ export default function Home() {
                 <p className="text-slate-400">{t('hero_upload_prompt')}</p>
             </div>
         ) : filteredVideos.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-2 sm:gap-y-8 gap-x-4 px-0 sm:px-0">
-            {filteredVideos.map(video => (
-              <VideoCard key={video.id} video={video} />
-            ))}
-          </div>
+          <>
+            {regularVideos.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-2 sm:gap-y-8 gap-x-4 px-0 sm:px-0">
+                {regularVideos.map(video => (
+                  <VideoCard key={video.id} video={video} />
+                ))}
+              </div>
+            )}
+            
+            {shortsVideos.length > 0 && (
+              <div className="mt-10">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2 px-4 sm:px-0">
+                  <span className="text-[#FF0000]">Shorts</span>
+                </h3>
+                <div className="flex overflow-x-auto gap-4 custom-scrollbar pb-6 px-4 sm:px-0 hide-scrollbar snap-x">
+                  {shortsVideos.map(video => (
+                    <div key={video.id} className="w-[180px] sm:w-[200px] shrink-0 snap-start">
+                      <VideoCard video={video} isShort={true} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
             <p className="text-xl font-medium">{t('video_no_results')}</p>
