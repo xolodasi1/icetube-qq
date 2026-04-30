@@ -366,7 +366,31 @@ export default function Watch() {
 
         const response = await databases.listDocuments(dbId, colId);
         
-        const allFormatted = response.documents.map(v => ({
+        let allFormatted = response.documents;
+        
+        // Fetch users/profiles to get freshest avatars
+        const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+        if (profilesCol && allFormatted.length > 0) {
+          try {
+            const profilesResult = await databases.listDocuments(dbId, profilesCol);
+            const profilesMap = new Map(profilesResult.documents.map(p => [p.userId, p]));
+            allFormatted = allFormatted.map(v => {
+               const profile = profilesMap.get(v.uploaderId);
+               if (profile) {
+                 return {
+                   ...v,
+                   uploaderName: profile.name || v.uploaderName,
+                   uploaderAvatar: profile.avatar || v.uploaderAvatar
+                 }
+               }
+               return v;
+            });
+          } catch (e) {
+            console.error("Could not fetch profiles for Watch avatars", e);
+          }
+        }
+
+        const formattedVideos = allFormatted.map(v => ({
             id: v.$id,
             uploaderId: v.uploaderId,
             title: v.title,
@@ -382,11 +406,11 @@ export default function Watch() {
             duration: v.duration || '0:00'
         }));
 
-        const currentVideo = allFormatted.find(v => v.id === id);
+        const currentVideo = formattedVideos.find(v => v.id === id);
         
         if (currentVideo) {
           setVideo(currentVideo);
-          setSuggestedVideos(allFormatted.filter(v => v.id !== id).reverse());
+          setSuggestedVideos(formattedVideos.filter(v => v.id !== id).reverse());
           fetchInteractions(currentVideo.id, currentVideo.uploaderId);
           
           // Increment View Count

@@ -38,18 +38,46 @@ export default function Home() {
         const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
         if (dbId && colId) {
             const response = await databases.listDocuments(dbId, colId);
-            const formatted = response.documents.map(v => ({
-                id: v.$id,
-                uploaderId: v.uploaderId,
-                title: v.title,
-                thumbnailUrl: v.thumbnailUrl,
-                videoUrl: v.videoUrl,
-                channelName: v.uploaderName,
-                channelAvatar: v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
-                views: v.views || 0,
-                uploadDate: t('video_recently'),
-                category: v.category || 'All'
-            }));
+            
+            // Fetch users/profiles to get freshest avatars
+            const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+            let profilesMap: Record<string, {name: string, avatar: string}> = {};
+            try {
+              if (profilesCol) {
+                const uploaderIds = Array.from(new Set(response.documents.map(v => v.uploaderId)));
+                if (uploaderIds.length > 0) {
+                  // If we have a lot, this might need pagination, but for now just fetch all profiles
+                  const profilesResult = await databases.listDocuments(dbId, profilesCol);
+                  profilesResult.documents.forEach(p => {
+                    if (p.userId) {
+                      profilesMap[p.userId] = {
+                        name: p.name || '',
+                        avatar: p.avatar || ''
+                      };
+                    }
+                  });
+                }
+              }
+            } catch (pErr) {
+              console.log("Could not fetch profiles for latest avatars", pErr);
+            }
+
+            const formatted = response.documents.map(v => {
+                const profile = profilesMap[v.uploaderId];
+                return {
+                  id: v.$id,
+                  uploaderId: v.uploaderId,
+                  title: v.title,
+                  thumbnailUrl: v.thumbnailUrl,
+                  videoUrl: v.videoUrl,
+                  channelName: profile?.name || v.uploaderName,
+                  channelAvatar: profile?.avatar || v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
+                  views: v.views || 0,
+                  uploadDate: t('video_recently'),
+                  category: v.category || 'All',
+                  contentType: v.contentType || 'video'
+                };
+            });
             setDbVideos(formatted.reverse()); 
         } else {
              setDbVideos([]);

@@ -46,6 +46,28 @@ export default function Shorts() {
           const allRes = await databases.listDocuments(dbId, colId, [Query.limit(50)]);
           docs = allRes.documents;
         }
+
+        // Fetch user profiles to enrich avatars
+        const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+        if (profilesCol && docs.length > 0) {
+          try {
+            const profilesResult = await databases.listDocuments(dbId, profilesCol);
+            const profilesMap = new Map(profilesResult.documents.map(p => [p.userId, p]));
+            docs = docs.map(doc => {
+               const profile = profilesMap.get(doc.uploaderId);
+               if (profile) {
+                 return {
+                   ...doc,
+                   uploaderName: profile.name || doc.uploaderName,
+                   uploaderAvatar: profile.avatar || doc.uploaderAvatar
+                 }
+               }
+               return doc;
+             });
+          } catch (e) {
+            console.error("Could not fetch profiles for Shorts avatars", e);
+          }
+        }
         
         const finalDocs = docs.reverse();
         setVideos(finalDocs);

@@ -102,7 +102,7 @@ export default function Content() {
                             alt={vid.title}
                             referrerPolicy="no-referrer"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = `https://via.placeholder.com/160x90/0f1115/70d6ff?text=${vid.title.substring(0,1)}`;
+                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(vid.title)}&background=random&size=160&font-size=0.1`;
                             }}
                           />
                         </div>

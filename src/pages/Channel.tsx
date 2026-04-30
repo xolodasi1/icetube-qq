@@ -54,8 +54,8 @@ export default function Channel() {
           title: v.title,
           thumbnailUrl: v.thumbnailUrl,
           videoUrl: v.videoUrl,
-          channelName: v.uploaderName,
-          channelAvatar: v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
+          channelName: channelProfile ? (channelProfile.name || channelProfile.displayName) : v.uploaderName,
+          channelAvatar: channelProfile ? (channelProfile.avatar || channelProfile.photoUrl) : (v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`),
           views: v.views || 0,
           uploadDate: t('video_recently'),
           duration: "10:00"
