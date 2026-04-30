@@ -7,6 +7,8 @@ import { Query, ID } from "appwrite";
 import { useAuth } from "../lib/AuthContext";
 import { useLanguage } from "../lib/LanguageContext";
 
+import { getOptimizedThumbnail } from '../lib/cloudinary';
+
 export default function Watch() {
   const { id } = useParams();
   const { user, profile } = useAuth();
@@ -888,7 +890,7 @@ export default function Watch() {
             autoPlay 
             controls 
             className="absolute top-0 left-0 w-full h-full object-contain"
-            poster={video.thumbnailUrl}
+            poster={getOptimizedThumbnail(video.thumbnailUrl)}
             src={video.videoUrl} 
             onTimeUpdate={handleTimeUpdate}
             onLoadedData={(e) => {
@@ -1562,9 +1564,16 @@ export default function Watch() {
                     </div>
                     <div className="flex gap-4 overflow-x-auto pb-4 px-2 snap-x hide-scrollbar">
                       {shortsItems.map(short => (
-                        <Link to={`/shorts`} key={short.id} className="min-w-[140px] max-w-[140px] flex flex-col gap-2 snap-start group">
+                          <Link to={`/shorts`} key={short.id} className="min-w-[140px] max-w-[140px] flex flex-col gap-2 snap-start group">
                            <div className="w-full aspect-[9/16] rounded-xl overflow-hidden bg-slate-800 relative">
-                             <img src={short.thumbnailUrl} alt={short.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                             <img 
+                               src={getOptimizedThumbnail(short.thumbnailUrl) || '/placeholder-thumb.jpg'} 
+                               alt={short.title} 
+                               className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                               onError={(e) => {
+                                 (e.target as HTMLImageElement).src = `https://placehold.co/140x250/0f1115/70d6ff?text=${encodeURIComponent(short.title.substring(0, 5))}`;
+                               }}
+                             />
                              <div className="absolute bottom-1 right-1 bg-black/80 px-1.5 py-0.5 rounded text-[10px] font-medium text-white">{short.duration}</div>
                            </div>
                            <div className="flex flex-col">

@@ -6,6 +6,8 @@ import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { useLanguage } from '../lib/LanguageContext';
 
+import { getOptimizedThumbnail } from '../lib/cloudinary';
+
 export default function Shorts() {
   const { id } = useParams();
   const [videos, setVideos] = useState<any[]>([]);
@@ -298,7 +300,7 @@ export default function Shorts() {
         <video 
           key={current.$id}
           src={current.videoUrl} 
-          poster={current.thumbnailUrl}
+          poster={getOptimizedThumbnail(current.thumbnailUrl)}
           loop 
           autoPlay 
           playsInline

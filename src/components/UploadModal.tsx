@@ -22,6 +22,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [game, setGame] = useState('');
   const [contentType, setContentType] = useState<'video' | 'shorts'>('video');
   
   const [isUploading, setIsUploading] = useState(false);
@@ -39,6 +40,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
     { id: 'Live', label: language === 'ru' ? 'Стримы' : 'Live' },
     { id: 'Tech', label: language === 'ru' ? 'Технологии' : 'Tech' },
     { id: 'Nature', label: language === 'ru' ? 'Природа' : 'Nature' }
+  ];
+
+  const commonGames = [
+    'Minecraft', 'Roblox', 'Fortnite', 'GTA V', 'CS:GO', 'Valorant', 'League of Legends'
   ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,7 +71,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
 
     try {
       const videoUrl = await uploadVideoToCloudinary(file, (p) => setProgress(p));
-      const thumbnailUrl = videoUrl.replace(/\.[^/.]+$/, ".jpg").replace("/video/upload/", "/video/upload/so_1/");
+      const thumbnailUrl = videoUrl.replace(/\.[^/.]+$/, ".jpg").replace("/video/upload/", "/video/upload/so_auto/");
 
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
       const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
@@ -75,27 +80,53 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         throw new Error(language === 'ru' ? "Отсутствует ID коллекции Videos в настройках!" : "Missing 'Videos' collection ID in Environment Variables!");
       }
 
-      await databases.createDocument(
-        dbId, 
-        videosColId, 
-        ID.unique(), 
-        {
-          title: title,
-          description: description || t('video_no_description'),
-          videoUrl: videoUrl,
-          thumbnailUrl: thumbnailUrl,
-          uploaderId: user.$id,
-          uploaderName: user.name || 'Anonymous',
-          uploaderAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
-          views: 0,
-          // category: category.trim() || 'All', // Removed to fix 'Unknown attribute' error in some Appwrite setups
-          // contentType: contentType // Removed to fix 'Unknown attribute' error
+      try {
+        await databases.createDocument(
+          dbId, 
+          videosColId, 
+          ID.unique(), 
+          {
+            title: title,
+            description: description || t('video_no_description'),
+            videoUrl: videoUrl,
+            thumbnailUrl: thumbnailUrl,
+            uploaderId: user.$id,
+            uploaderName: user.name || 'Anonymous',
+            uploaderAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
+            views: 0,
+            category: category.trim() || 'All',
+            contentType: contentType,
+            game: game.trim() || undefined
+          }
+        );
+      } catch (firstErr: any) {
+        if (firstErr.code === 400 && firstErr.message?.toLowerCase().includes('unknown attribute')) {
+          console.log("Retrying without category, contentType, and game due to unknown attribute error");
+          await databases.createDocument(
+            dbId, 
+            videosColId, 
+            ID.unique(), 
+            {
+              title: title,
+              description: description || t('video_no_description'),
+              videoUrl: videoUrl,
+              thumbnailUrl: thumbnailUrl,
+              uploaderId: user.$id,
+              uploaderName: user.name || 'Anonymous',
+              uploaderAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
+              views: 0
+            }
+          );
+        } else {
+          throw firstErr;
         }
-      );
+      }
 
       setFile(null);
       setTitle('');
       setDescription('');
+      setCategory('');
+      setGame('');
       onUploadSuccess?.();
       onClose();
     } catch (err: any) {
@@ -222,6 +253,26 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
                 <datalist id="category-suggestions">
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.label} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-slate-200">{language === 'ru' ? 'Игра (Опционально)' : 'Game (Optional)'}</label>
+              <div className="relative">
+                <input 
+                  list="game-suggestions"
+                  type="text"
+                  value={game}
+                  onChange={(e) => setGame(e.target.value)}
+                  disabled={isUploading}
+                  placeholder={language === 'ru' ? 'Название игры...' : 'Enter or select game...'}
+                  className="bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#70d6ff]/50 w-full"
+                />
+                <datalist id="game-suggestions">
+                  {commonGames.map(g => (
+                    <option key={g} value={g} />
                   ))}
                 </datalist>
               </div>

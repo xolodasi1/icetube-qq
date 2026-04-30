@@ -5,6 +5,8 @@ import { useLanguage } from '../lib/LanguageContext';
 import { Loader2, Film, Edit2, Trash2, AlertCircle } from 'lucide-react';
 import { Query } from 'appwrite';
 
+import { getOptimizedThumbnail } from '../lib/cloudinary';
+
 export default function Content() {
   const { user } = useAuth();
   const { t, language } = useLanguage();
@@ -97,12 +99,12 @@ export default function Content() {
                       <div className="flex items-center gap-4">
                         <div className="w-20 h-12 rounded-lg border ice-border shrink-0 overflow-hidden bg-slate-800">
                           <img 
-                            src={vid.thumbnailUrl || '/placeholder-thumb.jpg'} 
+                            src={getOptimizedThumbnail(vid.thumbnailUrl) || '/placeholder-thumb.jpg'} 
                             className="w-full h-full object-cover" 
                             alt={vid.title}
                             referrerPolicy="no-referrer"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(vid.title)}&background=random&size=160&font-size=0.1`;
+                              (e.target as HTMLImageElement).src = `https://placehold.co/160x90/0f1115/70d6ff?text=${encodeURIComponent(vid.title.substring(0, 5))}`;
                             }}
                           />
                         </div>

@@ -1,27 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { databases } from '../lib/appwrite';
-import { ShieldCheck, ShieldAlert, Users, Video, Activity, MoreHorizontal, Ban, Trash2, Clock, Eye, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Users, Video, Activity, MoreHorizontal, Ban, Trash2, Clock, Eye, AlertTriangle, Layers, Gamepad2 } from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
 import { useLanguage } from '../lib/LanguageContext';
+import { Query } from 'appwrite';
 
 export default function AdminPanel() {
   const { user, isLoading } = useAuth();
   const { t, language } = useLanguage();
   const [dbUsers, setDbUsers] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
+  const [dbVideos, setDbVideos] = useState<any[]>([]);
   const [isDbLoading, setIsDbLoading] = useState(true);
   const [isReportsLoading, setIsReportsLoading] = useState(true);
+  const [isVideosLoading, setIsVideosLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
       const usersColId = import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
       const reportsColId = import.meta.env.VITE_APPWRITE_REPORTS_COLLECTION_ID;
+      const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
 
       if (!dbId) {
         setIsDbLoading(false);
         setIsReportsLoading(false);
+        setIsVideosLoading(false);
         return;
       }
 
@@ -48,6 +53,18 @@ export default function AdminPanel() {
           setIsReportsLoading(false);
         }
       }
+
+      // Fetch Videos for categories
+      if (videosColId) {
+        try {
+          const response = await databases.listDocuments(dbId, videosColId, [Query.limit(100)]);
+          setDbVideos(response.documents);
+        } catch (error) {
+          console.warn("Could not fetch Videos");
+        } finally {
+          setIsVideosLoading(false);
+        }
+      }
     };
 
     fetchData();
@@ -63,6 +80,66 @@ export default function AdminPanel() {
       setReports(reports.filter(r => r.$id !== reportId));
     } catch (err) {
       console.error("Delete report failed:", err);
+    }
+  };
+
+  const handleDeleteCategory = async (categoryName: string) => {
+    if (!window.confirm(language === 'ru' ? `Удалить категорию "${categoryName}"? Всем видео с этой категорией будет присвоена категория "Все".` : `Are you sure you want to delete the category "${categoryName}"? This will set the category of all related videos to "All".`)) {
+      return;
+    }
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+    if (!dbId || !videosColId) return;
+
+    try {
+      const videosToUpdate = dbVideos.filter(v => v.category === categoryName);
+      for (const v of videosToUpdate) {
+        await databases.updateDocument(dbId, videosColId, v.$id, {
+          category: 'All'
+        });
+      }
+      // Update local state
+      setDbVideos(prev => prev.map(v => v.category === categoryName ? { ...v, category: 'All' } : v));
+      alert(language === 'ru' ? 'Категория успешно удалена' : 'Category deleted successfully');
+    } catch (err) {
+      console.error("Failed to delete category:", err);
+      alert(language === 'ru' ? 'Не удалось удалить категорию' : 'Failed to delete category');
+    }
+  };
+
+  const handleDeleteGame = async (gameName: string) => {
+    if (!window.confirm(language === 'ru' ? `Удалить игру "${gameName}"? Из всех видео эта игра будет удалена.` : `Are you sure you want to delete the game "${gameName}"? It will be removed from all related videos.`)) {
+      return;
+    }
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+    if (!dbId || !videosColId) return;
+
+    try {
+      const videosToUpdate = dbVideos.filter(v => v.game === gameName);
+      for (const v of videosToUpdate) {
+        await databases.updateDocument(dbId, videosColId, v.$id, {
+          game: null
+        });
+      }
+      // Update local state
+      setDbVideos(prev => prev.map(v => v.game === gameName ? { ...v, game: null } : v));
+      alert(language === 'ru' ? 'Игра успешно удалена' : 'Game deleted successfully');
+    } catch (err) {
+      console.error("Failed to delete game:", err);
+      // Fallback
+      try {
+        const videosToUpdate = dbVideos.filter(v => v.game === gameName);
+        for (const v of videosToUpdate) {
+          await databases.updateDocument(dbId, videosColId, v.$id, {
+            game: ''
+          });
+        }
+        setDbVideos(prev => prev.map(v => v.game === gameName ? { ...v, game: '' } : v));
+        alert(language === 'ru' ? 'Игра успешно удалена' : 'Game deleted successfully');
+      } catch (fallbackErr) {
+        alert(language === 'ru' ? 'Не удалось удалить игру' : 'Failed to delete game');
+      }
     }
   };
 
@@ -96,6 +173,18 @@ export default function AdminPanel() {
   ];
 
   const displayUsers = dbUsers.length > 0 ? dbUsers : mockUsersList;
+
+  const dynamicCategories: string[] = Array.from(new Set(
+    dbVideos
+      .map(v => v.category ? String(v.category) : '')
+      .filter(c => c && c !== 'All' && c !== 'undefined')
+  ));
+
+  const dynamicGames: string[] = Array.from(new Set(
+    dbVideos
+      .map(v => v.game ? String(v.game) : '')
+      .filter(g => g && g !== 'undefined')
+  ));
 
   return (
     <div className="flex flex-col gap-6 max-w-6xl mx-auto w-full px-4 sm:px-0 pb-20">
@@ -253,6 +342,130 @@ export default function AdminPanel() {
                         <button 
                           onClick={() => handleDeleteReport(report.$id)}
                           className="p-2 hover:bg-red-500/10 text-red-400 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* Categories Table */}
+      <div className="bg-white/5 border ice-border rounded-xl overflow-hidden mt-4">
+        <div className="p-5 border-b ice-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Layers className="w-5 h-5 text-indigo-400" />
+            <h2 className="text-lg font-bold text-white">{language === 'ru' ? 'Управление категориями' : 'Manage Categories'}</h2>
+          </div>
+          <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-xs rounded-full border border-indigo-500/20 font-bold">
+            {dynamicCategories.length}
+          </span>
+        </div>
+        
+        <div className="overflow-x-auto">
+          {isVideosLoading ? (
+            <div className="p-10 flex flex-col items-center justify-center gap-3 text-slate-400">
+               <Activity className="w-8 h-8 animate-pulse text-indigo-400" />
+               <span className="text-sm">Loading categories...</span>
+            </div>
+          ) : dynamicCategories.length === 0 ? (
+            <div className="p-12 flex flex-col items-center justify-center gap-3 text-slate-500">
+               <Layers className="w-10 h-10 opacity-20" />
+               <p>{language === 'ru' ? 'Нет пользовательских категорий' : 'No custom categories found'}</p>
+            </div>
+          ) : (
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-black/20 text-slate-400">
+                <tr>
+                  <th className="px-6 py-4 font-medium">{language === 'ru' ? 'Название категории' : 'Category Name'}</th>
+                  <th className="px-6 py-4 font-medium">{language === 'ru' ? 'Кол-во видео' : 'Video Count'}</th>
+                  <th className="px-6 py-4 font-medium text-right">{t('admin_actions')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[rgba(112,214,255,0.05)] text-slate-300">
+                {dynamicCategories.map((cat) => (
+                  <tr key={cat} className="hover:bg-indigo-500/5 transition-colors group">
+                    <td className="px-6 py-4">
+                      <span className="font-medium text-slate-200">{cat}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 bg-slate-800 rounded-md text-xs border border-white/5 text-slate-300 font-mono">
+                        {dbVideos.filter(v => v.category === cat).length}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => handleDeleteCategory(cat)}
+                          className="p-2 hover:bg-red-500/10 text-red-400 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
+                          title={language === 'ru' ? 'Удалить категорию' : 'Delete category'}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* Games Table */}
+      <div className="bg-white/5 border ice-border rounded-xl overflow-hidden mt-4">
+        <div className="p-5 border-b ice-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Gamepad2 className="w-5 h-5 text-fuchsia-400" />
+            <h2 className="text-lg font-bold text-white">{language === 'ru' ? 'Управление играми' : 'Manage Games'}</h2>
+          </div>
+          <span className="px-3 py-1 bg-fuchsia-500/10 text-fuchsia-400 text-xs rounded-full border border-fuchsia-500/20 font-bold">
+            {dynamicGames.length}
+          </span>
+        </div>
+        
+        <div className="overflow-x-auto">
+          {isVideosLoading ? (
+            <div className="p-10 flex flex-col items-center justify-center gap-3 text-slate-400">
+               <Activity className="w-8 h-8 animate-pulse text-fuchsia-400" />
+               <span className="text-sm">Loading games...</span>
+            </div>
+          ) : dynamicGames.length === 0 ? (
+            <div className="p-12 flex flex-col items-center justify-center gap-3 text-slate-500">
+               <Gamepad2 className="w-10 h-10 opacity-20" />
+               <p>{language === 'ru' ? 'Нет привязанных игр' : 'No custom games found'}</p>
+            </div>
+          ) : (
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-black/20 text-slate-400">
+                <tr>
+                  <th className="px-6 py-4 font-medium">{language === 'ru' ? 'Название игры' : 'Game Name'}</th>
+                  <th className="px-6 py-4 font-medium">{language === 'ru' ? 'Кол-во видео' : 'Video Count'}</th>
+                  <th className="px-6 py-4 font-medium text-right">{t('admin_actions')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[rgba(112,214,255,0.05)] text-slate-300">
+                {dynamicGames.map((game) => (
+                  <tr key={game} className="hover:bg-fuchsia-500/5 transition-colors group">
+                    <td className="px-6 py-4">
+                      <span className="font-medium text-slate-200">{game}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 bg-slate-800 rounded-md text-xs border border-white/5 text-slate-300 font-mono">
+                        {dbVideos.filter(v => v.game === game).length}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => handleDeleteGame(game)}
+                          className="p-2 hover:bg-red-500/10 text-red-400 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
+                          title={language === 'ru' ? 'Удалить игру' : 'Delete game'}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

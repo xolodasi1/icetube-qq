@@ -3,6 +3,7 @@ import { Video } from "../data";
 import clsx from "clsx";
 import { useLanguage } from "../lib/LanguageContext";
 import { Check } from "lucide-react";
+import { getOptimizedThumbnail } from "../lib/cloudinary";
 
 interface VideoCardProps {
   video: Video;
@@ -31,12 +32,12 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
     return (
       <Link to={`/shorts/${video.id}`} className="block relative group aspect-[9/16] rounded-2xl overflow-hidden ice-panel border ice-border">
         <img 
-          src={video.thumbnailUrl} 
+          src={getOptimizedThumbnail(video.thumbnailUrl)} 
           alt={video.title} 
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           referrerPolicy="no-referrer"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(video.title)}&background=random&size=640&font-size=0.1`;
+            (e.target as HTMLImageElement).src = `https://placehold.co/640x360/0f1115/70d6ff?text=${encodeURIComponent(video.title.substring(0, 10))}`;
           }}
         />
         <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col gap-1">
@@ -54,12 +55,12 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
     <div className={clsx("group flex block", isList ? "flex-row gap-3 w-full" : "video-card flex-col")}>
       <Link to={`/watch/${video.id}`} className={clsx("shrink-0 video-thumb", isList ? "w-40 sm:w-48 rounded-xl overflow-hidden" : "w-full")}>
         <img 
-          src={video.thumbnailUrl} 
+          src={getOptimizedThumbnail(video.thumbnailUrl)} 
           alt={video.title} 
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 relative z-10 opacity-95"
           referrerPolicy="no-referrer"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(video.title)}&background=random&size=640&font-size=0.1`;
+            (e.target as HTMLImageElement).src = `https://placehold.co/640x360/0f1115/70d6ff?text=${encodeURIComponent(video.title.substring(0, 10))}`;
           }}
         />
         <div className="absolute inset-0 bg-blue-900/10 z-20 pointer-events-none"></div>

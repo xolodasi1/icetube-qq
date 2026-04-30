@@ -68,3 +68,12 @@ export const uploadImageToCloudinary = async (file: File): Promise<string> => {
   }
   return data.secure_url;
 };
+
+export const getOptimizedThumbnail = (url: string | undefined): string => {
+  if (!url) return '';
+  if (url.includes('res.cloudinary.com') && url.includes('/video/upload/') && !url.includes('/so_')) {
+    // Generate a thumbnail from the middle of the video instead of the potentially black first frame
+    return url.replace('/video/upload/', '/video/upload/so_auto/');
+  }
+  return url;
+};
