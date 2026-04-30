@@ -6,6 +6,7 @@ import { Loader2, User, AlertCircle, Video } from "lucide-react";
 import { useLanguage } from "../lib/LanguageContext";
 import { useAuth } from "../lib/AuthContext";
 import { VideoCard } from "../components/VideoCard";
+import { createNotification } from "../lib/notifications";
 
 export default function Channel() {
   const { id } = useParams();
@@ -129,6 +130,14 @@ export default function Channel() {
         });
         setIsSubscribed(true);
         setSubsCount(prev => prev + 1);
+
+        createNotification({
+          userId: id,
+          actorId: user.$id,
+          actorName: user.name || 'User',
+          actorAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}`,
+          type: 'subscribe'
+        });
       }
     } catch (err) {
       console.error("Subscribe failed:", err);
@@ -277,7 +286,7 @@ export default function Channel() {
                 <div className="flex overflow-x-auto gap-4 custom-scrollbar pb-6 hide-scrollbar snap-x">
                   {shortsVideos.map(video => (
                     <div key={video.id} className="w-[180px] sm:w-[200px] shrink-0 snap-start">
-                      <VideoCard video={video} isShort={true} />
+                      <VideoCard video={video} layout="clip" />
                     </div>
                   ))}
                 </div>
@@ -320,7 +329,7 @@ export default function Channel() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-y-6 gap-x-4">
                 {shortsVideos.map(video => (
-                  <VideoCard key={video.id} video={video} isShort={true} />
+                  <VideoCard key={video.id} video={video} layout="clip" />
                 ))}
               </div>
             )}

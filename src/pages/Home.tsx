@@ -167,7 +167,7 @@ export default function Home() {
                 <div className="flex overflow-x-auto gap-4 custom-scrollbar pb-6 px-4 sm:px-0 hide-scrollbar snap-x">
                   {shortsVideos.map(video => (
                     <div key={video.id} className="w-[180px] sm:w-[200px] shrink-0 snap-start">
-                      <VideoCard video={video} isShort={true} />
+                      <VideoCard video={video} layout="clip" />
                     </div>
                   ))}
                 </div>

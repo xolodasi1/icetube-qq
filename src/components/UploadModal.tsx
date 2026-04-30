@@ -3,9 +3,10 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/AuthContext';
 import { uploadVideoToCloudinary } from '../lib/cloudinary';
 import { databases } from '../lib/appwrite';
-import { ID } from 'appwrite';
+import { ID, Query } from 'appwrite';
 import { UploadCloud, X, Loader2, AlertCircle, PlayCircle, ChevronDown } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageContext';
+import { createNotification } from '../lib/notifications';
 import clsx from 'clsx';
 
 interface UploadModalProps {
@@ -80,8 +81,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         throw new Error(language === 'ru' ? "Отсутствует ID коллекции Videos в настройках!" : "Missing 'Videos' collection ID in Environment Variables!");
       }
 
+      let createdVideoDoc: any = null;
       try {
-        await databases.createDocument(
+        createdVideoDoc = await databases.createDocument(
           dbId, 
           videosColId, 
           ID.unique(), 
@@ -102,7 +104,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
       } catch (firstErr: any) {
         if (firstErr.code === 400 && firstErr.message?.toLowerCase().includes('unknown attribute')) {
           console.log("Retrying without category, contentType, and game due to unknown attribute error");
-          await databases.createDocument(
+          createdVideoDoc = await databases.createDocument(
             dbId, 
             videosColId, 
             ID.unique(), 
@@ -129,6 +131,30 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
       setGame('');
       onUploadSuccess?.();
       onClose();
+
+      // Fan out notifications to subscribers
+      try {
+        const subsColId = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
+        if (subsColId) {
+          const subsRes = await databases.listDocuments(dbId, subsColId, [
+            Query.equal('channelId', user.$id)
+          ]);
+          for (const sub of subsRes.documents) {
+            await createNotification({
+              userId: sub.subscriberId,
+              actorId: user.$id,
+              actorName: user.name || 'Anonymous',
+              actorAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
+              type: 'upload',
+              videoId: createdVideoDoc?.$id || '',
+              videoTitle: title.trim() || 'Untitled Video'
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fan out notifications:", err);
+      }
+
     } catch (err: any) {
       console.error('UPLOAD ERROR:', err);
       let msg = err.message || (language === 'ru' ? 'Что-то пошло не так при загрузке' : 'Something went wrong during upload');

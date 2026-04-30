@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../lib/AuthContext";
 import { useLanguage } from "../lib/LanguageContext";
+import { databases } from "../lib/appwrite";
+import { Query } from "appwrite";
 
 export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
   const { user, profile, login, logoutUser } = useAuth();
@@ -13,10 +15,62 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
   const [showNotification, setShowNotification] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     setSearchQuery(searchParams.get("search") || "");
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchNotifications = async () => {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const notifCol = import.meta.env.VITE_APPWRITE_NOTIFICATIONS_COLLECTION_ID;
+      if (!dbId || !notifCol) return;
+
+      try {
+        const res = await databases.listDocuments(dbId, notifCol, [
+          Query.equal('userId', user.$id),
+          Query.orderDesc('$createdAt'),
+          Query.limit(50)
+        ]);
+        setNotifications(res.documents);
+        setUnreadCount(res.documents.filter(n => !n.isRead).length);
+      } catch (err) {
+        // Collection might not exist yet
+      }
+    };
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const handleMarkAsRead = async () => {
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const notifCol = import.meta.env.VITE_APPWRITE_NOTIFICATIONS_COLLECTION_ID;
+    if (!dbId || !notifCol) return;
+
+    try {
+      const unreadNotifs = notifications.filter(n => !n.isRead);
+      for (const notif of unreadNotifs) {
+        databases.updateDocument(dbId, notifCol, notif.$id, { isRead: true });
+      }
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (err) { }
+  };
+
+  const getNotificationText = (action: string) => {
+    switch (action) {
+      case 'like': return t('notif_like') || 'liked your video';
+      case 'snowflake': return t('notif_snowflake') || 'gave a snowflake to your video';
+      case 'comment': return t('notif_comment') || 'commented on your video';
+      case 'subscribe': return t('notif_subscribe') || 'subscribed to your channel';
+      case 'upload': return t('notif_upload') || 'uploaded a new video';
+      default: return 'interaction';
+    }
+  };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
@@ -104,20 +158,64 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
         
         <div className="relative">
           <button 
-            onClick={() => { setShowNotification(!showNotification); setShowUserMenu(false); }}
+            onClick={() => { 
+              if (!showNotification) handleMarkAsRead();
+              setShowNotification(!showNotification); 
+              setShowUserMenu(false); 
+            }}
             className="p-2 hover:bg-[rgba(112,214,255,0.08)] rounded-full text-slate-300 transition-colors relative"
           >
             <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#70d6ff] rounded-full shadow-[0_0_8px_rgba(112,214,255,0.8)]"></span>
+            {unreadCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[#70d6ff] rounded-full shadow-[0_0_8px_rgba(112,214,255,0.8)] border border-[#05070a]"></span>
+            )}
           </button>
           
           {showNotification && (
-            <div className="absolute top-12 -right-12 sm:right-0 w-[calc(100vw-32px)] sm:w-80 bg-[#0a192f] border ice-border shadow-2xl rounded-xl z-50 overflow-hidden">
-              <div className="p-4 border-b ice-border">
-                <span className="font-semibold text-slate-100">Notifications</span>
+            <div className="absolute top-12 -right-12 sm:right-0 w-[calc(100vw-32px)] sm:w-80 bg-[#0a192f] border ice-border shadow-2xl rounded-xl z-50 flex flex-col max-h-[70vh]">
+              <div className="p-4 border-b ice-border shrink-0 flex items-center justify-between">
+                <span className="font-semibold text-slate-100">{t('notifications_title') || 'Notifications'}</span>
+                {unreadCount > 0 && <span className="text-xs bg-[#70d6ff]/20 text-[#70d6ff] px-2 py-1 rounded-full">{unreadCount}</span>}
               </div>
-              <div className="p-6 text-center text-sm text-slate-400">
-                You have no new notifications right now. Keep exploring the ice!
+              <div className="overflow-y-auto custom-scrollbar flex-1">
+                {notifications.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-slate-400">
+                    {t('notifications_empty') || 'No notifications right now'}
+                  </div>
+                ) : (
+                  <div className="divide-y divide-white/5">
+                    {notifications.map((notif: any) => (
+                      <Link 
+                        key={notif.$id} 
+                        to={notif.videoId ? `/watch/${notif.videoId}` : `/channel/${notif.actorId}`}
+                        onClick={() => setShowNotification(false)}
+                        className={`block p-4 hover:bg-white/5 transition-colors ${!notif.isRead ? 'bg-blue-500/5' : ''}`}
+                      >
+                        <div className="flex gap-3">
+                          <img 
+                            src={notif.actorAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(notif.actorName || 'User')}`} 
+                            alt={notif.actorName} 
+                            className="w-10 h-10 rounded-full shrink-0 object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="flex flex-col">
+                            <span className="text-sm text-slate-300">
+                              <strong className="text-white">{notif.actorName}</strong> {getNotificationText(notif.type)}
+                            </span>
+                            {notif.videoTitle && (
+                              <span className="text-xs text-slate-500 line-clamp-1 mt-0.5 max-w-[200px]">
+                                {notif.videoTitle}
+                              </span>
+                            )}
+                            <span className="text-xs text-slate-500 mt-1">
+                              {new Date(notif.$createdAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short' })}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

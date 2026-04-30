@@ -6,6 +6,7 @@ import { databases, Permission, Role } from "../lib/appwrite";
 import { Query, ID } from "appwrite";
 import { useAuth } from "../lib/AuthContext";
 import { useLanguage } from "../lib/LanguageContext";
+import { createNotification } from "../lib/notifications";
 
 import { getOptimizedThumbnail } from '../lib/cloudinary';
 
@@ -412,7 +413,7 @@ export default function Watch() {
         
         if (currentVideo) {
           setVideo(currentVideo);
-          setSuggestedVideos(formattedVideos.filter(v => v.id !== id).reverse());
+          setSuggestedVideos(formattedVideos.filter(v => v.id !== id && (!v.contentType || v.contentType === 'video')).reverse());
           fetchInteractions(currentVideo.id, currentVideo.uploaderId);
           
           // Increment View Count
@@ -482,7 +483,18 @@ export default function Watch() {
           type: actionType
         });
         setLikeState(actionType as 'liked' | 'disliked');
-        if (isLike) setLikesCount(prev => prev + 1);
+        if (isLike) {
+          setLikesCount(prev => prev + 1);
+          createNotification({
+            userId: video.uploaderId,
+            actorId: user.$id,
+            actorName: profile?.name || user.name || 'User',
+            actorAvatar: profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}`,
+            type: 'like',
+            videoId: video.id,
+            videoTitle: video.title
+          });
+        }
         else setDislikesCount(prev => prev + 1);
       }
     } catch (err: any) {
@@ -530,6 +542,16 @@ export default function Watch() {
         });
         setHasSnowflaked(true);
         setSnowflakesCount(prev => prev + 1);
+        
+        createNotification({
+          userId: video.uploaderId,
+          actorId: user.$id,
+          actorName: profile?.name || user.name || 'User',
+          actorAvatar: profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}`,
+          type: 'snowflake',
+          videoId: video.id,
+          videoTitle: video.title
+        });
       }
     } catch (err: any) {
       console.error("Snowflake failed:", err);
@@ -561,6 +583,14 @@ export default function Watch() {
           subscriberId: user.$id
         });
         setIsSubscribed(true);
+
+        createNotification({
+          userId: video.uploaderId,
+          actorId: user.$id,
+          actorName: profile?.name || user.name || 'User',
+          actorAvatar: profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}`,
+          type: 'subscribe'
+        });
       }
     } catch (err) {
       console.error("Sub failed:", err);
@@ -629,6 +659,18 @@ export default function Watch() {
         ...comments
       ]);
       setNewComment("");
+
+      if (video) {
+        createNotification({
+          userId: video.uploaderId,
+          actorId: user.$id,
+          actorName: authorName,
+          actorAvatar: authorAvatar,
+          type: 'comment',
+          videoId: video.id,
+          videoTitle: video.title
+        });
+      }
     } catch (err: any) {
       console.error("Comment submission failed:", err);
       
@@ -756,6 +798,21 @@ export default function Watch() {
       ]);
       setReplyText("");
       setReplyingToId(null);
+      
+      if (video) {
+        const parentComment = comments.find(c => c.id === parentId);
+        if (parentComment && parentComment.authorId) {
+          createNotification({
+            userId: parentComment.authorId,
+            actorId: user.$id,
+            actorName: authorName,
+            actorAvatar: authorAvatar,
+            type: 'comment',
+            videoId: video.id,
+            videoTitle: video.title
+          });
+        }
+      }
     } catch (err: any) {
       console.error("Reply failed:", err);
       if (err.message?.includes('likedBy') && err.message?.includes('invalid type')) {

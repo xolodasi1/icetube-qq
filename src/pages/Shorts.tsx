@@ -5,7 +5,7 @@ import { Query, ID } from 'appwrite';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { useLanguage } from '../lib/LanguageContext';
-
+import { createNotification } from '../lib/notifications';
 import { getOptimizedThumbnail } from '../lib/cloudinary';
 
 export default function Shorts() {
@@ -38,7 +38,7 @@ export default function Shorts() {
 
       try {
         const res = await databases.listDocuments(dbId, colId, [
-           Query.equal('contentType', 'short'), // Prefer shorts if marked
+           Query.equal('contentType', 'shorts'), // Prefer shorts if marked
            Query.limit(50)
         ]);
         
@@ -197,7 +197,18 @@ export default function Shorts() {
           type: actionType
         });
         setLikeState(actionType as 'liked' | 'disliked');
-        if (isLike) setLikesCount(prev => prev + 1);
+        if (isLike) {
+          setLikesCount(prev => prev + 1);
+          createNotification({
+            userId: current.uploaderId,
+            actorId: user.$id,
+            actorName: profile?.name || user.name || 'User',
+            actorAvatar: profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}`,
+            type: 'like',
+            videoId: current.$id,
+            videoTitle: current.title
+          });
+        }
       }
     } catch (err) {
       console.error("Like failed in Shorts:", err);
@@ -230,6 +241,14 @@ export default function Shorts() {
           subscriberId: user.$id
         });
         setIsSubscribed(true);
+
+        createNotification({
+          userId: current.uploaderId,
+          actorId: user.$id,
+          actorName: profile?.name || user.name || 'User',
+          actorAvatar: profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}`,
+          type: 'subscribe'
+        });
       }
     } catch (err) {
       console.error("Subscribe failed in Shorts:", err);
@@ -272,6 +291,16 @@ export default function Shorts() {
         ts: t('video_recently')
       }, ...comments]);
       setNewComment("");
+
+      createNotification({
+        userId: current.uploaderId,
+        actorId: user.$id,
+        actorName: authorName,
+        actorAvatar: authorAvatar,
+        type: 'comment',
+        videoId: current.$id,
+        videoTitle: current.title
+      });
     } catch (err) {
       console.error("Comment failed in Shorts:", err);
     } finally {

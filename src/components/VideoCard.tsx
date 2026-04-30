@@ -27,10 +27,12 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
 
   const isList = layout === "list";
   const isClip = layout === "clip";
+  const isShortContentType = video.contentType === 'shorts';
+  const targetUrl = (isClip || isShortContentType) ? `/shorts/${video.id}` : `/watch/${video.id}`;
 
   if (isClip) {
     return (
-      <Link to={`/shorts/${video.id}`} className="block relative group aspect-[9/16] rounded-2xl overflow-hidden ice-panel border ice-border">
+      <Link to={targetUrl} className="block relative group aspect-[9/16] rounded-2xl overflow-hidden ice-panel border ice-border">
         <img 
           src={getOptimizedThumbnail(video.thumbnailUrl)} 
           alt={video.title} 
@@ -53,7 +55,7 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
 
   return (
     <div className={clsx("group flex block", isList ? "flex-row gap-3 w-full" : "video-card flex-col")}>
-      <Link to={`/watch/${video.id}`} className={clsx("shrink-0 video-thumb", isList ? "w-40 sm:w-48 rounded-xl overflow-hidden" : "w-full")}>
+      <Link to={targetUrl} className={clsx("shrink-0 video-thumb", isList ? "w-40 sm:w-48 rounded-xl overflow-hidden" : "w-full")}>
         <img 
           src={getOptimizedThumbnail(video.thumbnailUrl)} 
           alt={video.title} 
@@ -84,7 +86,7 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
           </Link>
         )}
         <div className="flex flex-col overflow-hidden">
-          <Link to={`/watch/${video.id}`} className={clsx("text-slate-200 font-bold line-clamp-2 group-hover:text-[#70d6ff] transition-colors leading-tight mb-1", isList ? "text-sm sm:text-base" : "text-sm")}>
+          <Link to={targetUrl} className={clsx("text-slate-200 font-bold line-clamp-2 group-hover:text-[#70d6ff] transition-colors leading-tight mb-1", isList ? "text-sm sm:text-base" : "text-sm")}>
             {video.title}
           </Link>
           <div className="text-slate-500 text-xs sm:text-sm flex flex-col gap-0.5">
@@ -94,7 +96,7 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
                 <Check className="w-2 h-2" />
               </div>
             </Link>
-            <Link to={`/watch/${video.id}`} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-400 focus:outline-none w-full">
+            <Link to={targetUrl} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-400 focus:outline-none w-full">
               <span className="truncate">{formatViews(video.views)} {t('video_views')}</span>
               <span>•</span>
               <span className="truncate">{video.uploadDate}</span>
