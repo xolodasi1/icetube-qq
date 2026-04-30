@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { databases } from '../lib/appwrite';
 import { useLanguage } from '../lib/LanguageContext';
-import { Loader2, LayoutDashboard, Film, TrendingUp, MoreVertical, Edit2, Trash2, AlertCircle, Upload, Wand2 } from 'lucide-react';
+import { Loader2, LayoutDashboard, Film, TrendingUp, MoreVertical, Edit2, Trash2, AlertCircle, Upload, Wand2, X } from 'lucide-react';
 import { Query, ID } from 'appwrite';
 import { UploadModal } from '../components/UploadModal';
 import { Link } from 'react-router-dom';
@@ -13,7 +13,55 @@ export default function Studio() {
   const [videos, setVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [editingVideo, setEditingVideo] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [stats, setStats] = useState({ totalViews: 0, totalVideos: 0 });
+
+  const handleDelete = async (videoId: string) => {
+    if (!window.confirm(language === 'ru' ? 'Вы уверены, что хотите удалить это видео? Это действие нельзя отменить.' : 'Are you sure you want to delete this video? This action cannot be undone.')) return;
+    
+    setIsDeleting(videoId);
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+    
+    try {
+      if (dbId && colId) {
+        await databases.deleteDocument(dbId, colId, videoId);
+        setVideos(prev => prev.filter(v => v.id !== videoId));
+        fetchStats();
+      }
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert('Failed to delete video.');
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingVideo) return;
+    
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+    
+    try {
+      if (dbId && colId) {
+        await databases.updateDocument(dbId, colId, editingVideo.id, {
+          title: editingVideo.title,
+          description: editingVideo.description,
+          category: editingVideo.category,
+          contentType: editingVideo.contentType,
+          game: editingVideo.game
+        });
+        setVideos(prev => prev.map(v => v.id === editingVideo.id ? editingVideo : v));
+        setEditingVideo(null);
+      }
+    } catch (err) {
+      console.error("Update failed:", err);
+      alert('Failed to update video.');
+    }
+  };
 
   const fetchStats = async () => {
     if (!user) return;
@@ -30,10 +78,15 @@ export default function Studio() {
       const userVids = response.documents.map(v => ({
         id: v.$id,
         title: v.title,
+        description: v.description,
+        category: v.category,
+        contentType: v.contentType,
+        game: v.game,
         thumbnailUrl: v.thumbnailUrl,
         views: v.views || 0,
         uploadDate: new Date(v.$createdAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'),
-        status: 'Published'
+        status: 'Published',
+        ...v
       }));
 
       setVideos(userVids.reverse());
@@ -182,11 +235,11 @@ export default function Studio() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors" title={t('studio_edit')}>
+                        <button onClick={() => setEditingVideo(vid)} className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors" title={t('studio_edit')}>
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button className="p-2 hover:bg-red-500/10 rounded-lg text-slate-400 hover:text-red-400 transition-colors" title={t('studio_delete')}>
-                          <Trash2 className="w-4 h-4" />
+                        <button onClick={() => handleDelete(vid.id)} disabled={isDeleting === vid.id} className="p-2 hover:bg-red-500/10 rounded-lg text-slate-400 hover:text-red-400 transition-colors disabled:opacity-50" title={t('studio_delete')}>
+                          {isDeleting === vid.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                         </button>
                       </div>
                     </td>
@@ -197,6 +250,103 @@ export default function Studio() {
           </table>
         </div>
       </div>
+
+      {/* Edit Video Modal */}
+      {editingVideo && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#0f1115] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h2 className="text-xl font-bold font-display text-white">{language === 'ru' ? 'Редактировать видео' : 'Edit Video'}</h2>
+              <button 
+                onClick={() => setEditingVideo(null)} 
+                className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditSubmit} className="p-4 sm:p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">{language === 'ru' ? 'Название' : 'Title'}</label>
+                <input 
+                  type="text" 
+                  value={editingVideo.title}
+                  onChange={(e) => setEditingVideo({ ...editingVideo, title: e.target.value })}
+                  className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-[#70d6ff]/50 transition-colors"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">{language === 'ru' ? 'Описание' : 'Description'}</label>
+                <textarea 
+                  value={editingVideo.description || ''}
+                  onChange={(e) => setEditingVideo({ ...editingVideo, description: e.target.value })}
+                  className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-[#70d6ff]/50 transition-colors h-32 resize-none custom-scrollbar"
+                />
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">{language === 'ru' ? 'Категория' : 'Category'}</label>
+                  <input 
+                    type="text" 
+                    value={editingVideo.category || ''}
+                    onChange={(e) => setEditingVideo({ ...editingVideo, category: e.target.value })}
+                    className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-[#70d6ff]/50 transition-colors"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">{language === 'ru' ? 'Игра' : 'Game'}</label>
+                  <input 
+                    type="text" 
+                    value={editingVideo.game || ''}
+                    onChange={(e) => setEditingVideo({ ...editingVideo, game: e.target.value })}
+                    className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-[#70d6ff]/50 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">{t('upload_type')}</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingVideo({ ...editingVideo, contentType: 'video' })}
+                    className={`px-4 py-2 text-sm rounded-lg border transition-colors ${editingVideo.contentType !== 'shorts' ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"}`}
+                  >
+                    {t('upload_video')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingVideo({ ...editingVideo, contentType: 'shorts' })}
+                    className={`px-4 py-2 text-sm rounded-lg border transition-colors ${editingVideo.contentType === 'shorts' ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"}`}
+                  >
+                    {t('upload_shorts')}
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setEditingVideo(null)}
+                  className="px-5 py-2.5 rounded-xl font-medium text-slate-300 hover:bg-white/5 transition-colors"
+                >
+                  {language === 'ru' ? 'Отмена' : 'Cancel'}
+                </button>
+                <button 
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl font-medium bg-[#70d6ff] hover:bg-[#70d6ff]/90 text-black shadow-[0_0_15px_rgba(112,214,255,0.2)] transition-colors"
+                >
+                  {language === 'ru' ? 'Сохранить' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

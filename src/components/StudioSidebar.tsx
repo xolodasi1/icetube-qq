@@ -25,7 +25,7 @@ export function StudioSidebar({ isOpen, onClose }: { isOpen: boolean, onClose?: 
 
   return (
     <aside className={clsx(
-      "fixed left-0 top-16 bottom-0 w-64 bg-[#0a192f] border-r ice-border overflow-y-auto px-4 py-4 z-50 transition-transform duration-300",
+      "fixed left-0 top-16 bottom-0 w-64 bg-[#0a192f] border-r ice-border overflow-y-auto px-4 py-4 z-[60] lg:z-40 transition-transform duration-300",
       isOpen ? "translate-x-0" : "-translate-x-full"
     )}>
       <div className="flex flex-col gap-2">
