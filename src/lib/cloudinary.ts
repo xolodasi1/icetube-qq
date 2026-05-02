@@ -71,9 +71,16 @@ export const uploadImageToCloudinary = async (file: File): Promise<string> => {
 
 export const getOptimizedThumbnail = (url: string | undefined): string => {
   if (!url) return '';
-  if (url.includes('res.cloudinary.com') && url.includes('/video/upload/') && !url.includes('/so_')) {
-    // Generate a thumbnail from the middle of the video instead of the potentially black first frame
-    return url.replace('/video/upload/', '/video/upload/so_auto/');
+  if (url.includes('res.cloudinary.com') && url.includes('/video/upload/')) {
+    let newUrl = url;
+    if (!newUrl.includes('/so_')) {
+      newUrl = newUrl.replace('/video/upload/', '/video/upload/so_auto/');
+    }
+    // Ensure the extension is .jpg for images
+    if (newUrl.match(/\.(mp4|webm|mov|ogg)$/i)) {
+      newUrl = newUrl.replace(/\.[^/.]+$/, ".jpg");
+    }
+    return newUrl;
   }
   return url;
 };

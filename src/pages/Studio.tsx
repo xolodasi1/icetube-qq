@@ -47,19 +47,35 @@ export default function Studio() {
     
     try {
       if (dbId && colId) {
-        await databases.updateDocument(dbId, colId, editingVideo.id, {
+        let updateData = {
           title: editingVideo.title,
           description: editingVideo.description,
           category: editingVideo.category,
           contentType: editingVideo.contentType,
           game: editingVideo.game
-        });
+        };
+
+        try {
+          await databases.updateDocument(dbId, colId, editingVideo.id, updateData);
+        } catch (firstErr: any) {
+          if (firstErr.code === 400 && firstErr.message?.toLowerCase().includes('unknown attribute')) {
+            console.log("Retrying update without category, contentType, and game");
+            updateData = {
+              title: editingVideo.title,
+              description: editingVideo.description
+            } as any;
+            await databases.updateDocument(dbId, colId, editingVideo.id, updateData);
+          } else {
+            throw firstErr;
+          }
+        }
+        
         setVideos(prev => prev.map(v => v.id === editingVideo.id ? editingVideo : v));
         setEditingVideo(null);
       }
     } catch (err) {
       console.error("Update failed:", err);
-      alert('Failed to update video.');
+      alert(language === 'ru' ? 'Не удалось обновить видео.' : 'Failed to update video.');
     }
   };
 

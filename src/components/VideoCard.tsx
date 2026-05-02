@@ -39,7 +39,10 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           referrerPolicy="no-referrer"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = `https://placehold.co/640x360/0f1115/70d6ff?text=${encodeURIComponent(video.title.substring(0, 10))}`;
+            const target = e.target as HTMLImageElement;
+            if (!target.src.startsWith('data:')) {
+              target.src = `data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='360' viewBox='0 0 640 360'%3E%3Crect width='100%25' height='100%25' fill='%230f1115'/%3E%3Ctext x='50%25' y='50%25' fill='%2370d6ff' text-anchor='middle' dominant-baseline='middle' font-family='sans-serif' font-size='24'%3EIMG%3C/text%3E%3C/svg%3E`;
+            }
           }}
         />
         <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col gap-1">
@@ -62,7 +65,10 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 relative z-10 opacity-95"
           referrerPolicy="no-referrer"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = `https://placehold.co/640x360/0f1115/70d6ff?text=${encodeURIComponent(video.title.substring(0, 10))}`;
+            const target = e.target as HTMLImageElement;
+            if (!target.src.startsWith('data:')) {
+              target.src = `data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='360' viewBox='0 0 640 360'%3E%3Crect width='100%25' height='100%25' fill='%230f1115'/%3E%3Ctext x='50%25' y='50%25' fill='%2370d6ff' text-anchor='middle' dominant-baseline='middle' font-family='sans-serif' font-size='24'%3EIMG%3C/text%3E%3C/svg%3E`;
+            }
           }}
         />
         <div className="absolute inset-0 bg-blue-900/10 z-20 pointer-events-none"></div>
