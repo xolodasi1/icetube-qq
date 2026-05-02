@@ -988,13 +988,17 @@ export default function Watch() {
           
           {/* Mobile-Style Inline Description/Stats Row (Replaces the raw view count usually in the desc) */}
           <div 
-            className="flex flex-wrap items-center text-xs sm:text-sm text-slate-400 gap-1.5 cursor-pointer hover:bg-white/5 p-1 sm:p-2 -ml-1 sm:-ml-2 rounded-lg transition-colors w-fit"
+            className="flex sm:hidden flex-wrap items-center text-xs text-slate-400 gap-1.5 cursor-pointer hover:bg-white/5 p-1 -ml-1 rounded-lg transition-colors w-fit"
             onClick={() => setIsDescExpanded(!isDescExpanded)}
           >
             <span className="font-medium text-slate-300">
               @{video.channelName?.replace(/\s+/g, '').toLowerCase() || 'user'}
             </span>
-            <span>{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(video.views)} {t('video_views')}</span>
+            <span>{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(video.views)} {language === 'ru' ? (
+              video.views % 10 === 1 && video.views % 100 !== 11 ? 'просмотр' :
+              [2, 3, 4].includes(video.views % 10) && ![12, 13, 14].includes(video.views % 100) ? 'просмотра' :
+              'просмотров'
+            ) : t('video_views')}</span>
             <span>{video.uploadDate}</span>
             <span className="font-medium text-slate-200 ml-1">{language === 'ru' ? '...Ещё' : '...More'}</span>
           </div>
@@ -1020,7 +1024,13 @@ export default function Watch() {
                       <Check className="w-2.5 h-2.5" />
                     </div>
                   </Link>
-                  <span className="text-xs text-slate-400">{subsCount} {t('video_subscribers')}</span>
+                  <span className="text-xs text-slate-400">
+                    {subsCount} {language === 'ru' ? (
+                      subsCount % 10 === 1 && subsCount % 100 !== 11 ? 'подписчик' :
+                      [2, 3, 4].includes(subsCount % 10) && ![12, 13, 14].includes(subsCount % 100) ? 'подписчика' :
+                      'подписчиков'
+                    ) : (subsCount === 1 ? 'subscriber' : 'subscribers')}
+                  </span>
                 </div>
               </div>
               <button 
@@ -1277,7 +1287,11 @@ export default function Watch() {
         >
           <div className="font-medium text-white mb-2">
             <span className="mr-2 font-bold">
-              {new Intl.NumberFormat().format(video.views)} {t('video_views_time').split('•')[0]}
+              {new Intl.NumberFormat().format(video.views)} {language === 'ru' ? (
+                video.views % 10 === 1 && video.views % 100 !== 11 ? 'просмотр' :
+                [2, 3, 4].includes(video.views % 10) && ![12, 13, 14].includes(video.views % 100) ? 'просмотра' :
+                'просмотров'
+              ) : t('video_views_time').split('•')[0].trim()}
             </span>
             <span className="font-bold">• {video.uploadDate}</span>
           </div>
@@ -1343,7 +1357,11 @@ export default function Watch() {
         <div className="mt-8 mb-10 px-4 sm:px-0" id="comments-section">
           <div className="flex items-center gap-6 mb-6">
             <h2 className="text-xl font-bold flex items-center gap-2 pb-1 inline-flex text-white">
-              {comments.length} {t('video_comments')}
+              {comments.length} {language === 'ru' ? (
+                comments.length % 10 === 1 && comments.length % 100 !== 11 ? 'комментарий' :
+                [2, 3, 4].includes(comments.length % 10) && ![12, 13, 14].includes(comments.length % 100) ? 'комментария' :
+                'комментариев'
+              ) : (comments.length === 1 ? 'comment' : 'comments')}
             </h2>
             <button className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors font-medium text-sm">
               <ListFilter className="w-5 h-5" />
