@@ -162,7 +162,11 @@ export default function Shorts() {
   }, [showComments]);
 
   const handleLike = async (isLike: boolean) => {
-    if (!user || isLiking || videos.length === 0) return;
+    if (!user) {
+      alert(language === 'ru' ? 'Вам нужно войти в аккаунт, чтобы ставить оценки' : 'You must log in to rate videos');
+      return;
+    }
+    if (isLiking || videos.length === 0) return;
     const current = videos[currentVideoIndex];
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const likesCol = import.meta.env.VITE_APPWRITE_LIKES_COLLECTION_ID;
@@ -218,7 +222,11 @@ export default function Shorts() {
   };
 
   const handleSubscribe = async () => {
-    if (!user || isSubbing || videos.length === 0) return;
+    if (!user) {
+      alert(language === 'ru' ? 'Вам нужно войти в аккаунт, чтобы подписаться' : 'You must log in to subscribe');
+      return;
+    }
+    if (isSubbing || videos.length === 0) return;
     const current = videos[currentVideoIndex];
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const subsCol = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
@@ -259,7 +267,7 @@ export default function Shorts() {
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim() || !user || isCommenting || videos.length === 0) return;
+    if (!newComment.trim() || isCommenting || videos.length === 0) return;
     
     const current = videos[currentVideoIndex];
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -268,12 +276,13 @@ export default function Shorts() {
 
     try {
       setIsCommenting(true);
-      const authorName = profile?.name || user.name || 'User';
-      const authorAvatar = profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}`;
+      const authorName = user ? (profile?.name || user.name || 'User') : (language === 'ru' ? 'Аноним' : 'Anonymous');
+      const authorAvatar = user && profile?.avatar ? profile.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random`;
+      const authorId = user ? user.$id : 'anonymous';
 
       const res = await databases.createDocument(dbId, commsCol, ID.unique(), {
         videoId: current.$id,
-        authorId: user.$id,
+        authorId: authorId,
         authorName: authorName,
         authorAvatar: authorAvatar,
         text: newComment,
@@ -294,7 +303,7 @@ export default function Shorts() {
 
       createNotification({
         userId: current.uploaderId,
-        actorId: user.$id,
+        actorId: authorId,
         actorName: authorName,
         actorAvatar: authorAvatar,
         type: 'comment',
@@ -509,18 +518,10 @@ export default function Shorts() {
 
              {/* Input Area */}
              <div className="p-4 border-t border-white/10 bg-black/40">
-                {!user ? (
-                   <button 
-                    disabled
-                    className="w-full py-3 bg-white/5 rounded-xl text-slate-500 text-sm font-bold border border-white/5"
-                   >
-                     {language === 'ru' ? 'Войдите, чтобы комментировать' : 'Sign in to comment'}
-                   </button>
-                ) : (
                   <form onSubmit={handleAddComment} className="flex gap-2">
                     <input 
                       type="text" 
-                      placeholder={language === 'ru' ? 'Добавьте комментарий...' : 'Add a comment...'}
+                      placeholder={language === 'ru' ? 'Добавьте комментарий (как инкогнито)...' : 'Add a comment (as anonymous)...'}
                       value={newComment}
                       onChange={e => setNewComment(e.target.value)}
                       className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#70d6ff] transition-all"
@@ -533,7 +534,6 @@ export default function Shorts() {
                       <Send className="w-5 h-5" />
                     </button>
                   </form>
-                )}
              </div>
 
           </div>

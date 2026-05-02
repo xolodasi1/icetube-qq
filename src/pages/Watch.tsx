@@ -437,7 +437,11 @@ export default function Watch() {
   }, [id, user, language]);
 
   const handleLike = async (isLike: boolean) => {
-    if (!user || isLiking) return;
+    if (!user) {
+      alert(language === 'ru' ? 'Вам нужно войти в аккаунт, чтобы ставить оценки' : 'You must log in to rate videos');
+      return;
+    }
+    if (isLiking) return;
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const likesCol = import.meta.env.VITE_APPWRITE_LIKES_COLLECTION_ID;
     if (!dbId || !likesCol) return;
@@ -510,7 +514,11 @@ export default function Watch() {
   };
 
   const handleSnowflake = async () => {
-    if (!user || isSnowflaking || !video) return;
+    if (!user) {
+      alert(language === 'ru' ? 'Вам нужно войти в аккаунт, чтобы ставить снежинки' : 'You must log in to give snowflakes');
+      return;
+    }
+    if (isSnowflaking || !video) return;
     
     // Restriction: Author cannot flake their own video
     if (user.$id === video.uploaderId) {
@@ -561,7 +569,11 @@ export default function Watch() {
   };
 
   const handleSubscribe = async () => {
-    if (!user || isSubbing || !video) return;
+    if (!user) {
+      alert(language === 'ru' ? 'Вам нужно войти в аккаунт, чтобы подписаться' : 'You must log in to subscribe');
+      return;
+    }
+    if (isSubbing || !video) return;
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const subsCol = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
     if (!dbId || !subsCol) return;
@@ -607,7 +619,7 @@ export default function Watch() {
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim() || !user || isCommenting) return;
+    if (!newComment.trim() || isCommenting) return;
     
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const commsCol = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
@@ -618,8 +630,17 @@ export default function Watch() {
 
     try {
       setIsCommenting(true);
-      const authorName = profile?.name || user.name || 'User';
-      const authorAvatar = profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}`;
+      const authorName = user ? (profile?.name || user.name || 'User') : (language === 'ru' ? 'Аноним' : 'Anonymous');
+      const authorAvatar = user && profile?.avatar ? profile.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random`;
+      const authorId = user ? user.$id : 'anonymous';
+
+      const permissions = user ? [
+        Permission.read(Role.any()),
+        Permission.update(Role.users()),
+        Permission.delete(Role.user(user.$id))
+      ] : [
+        Permission.read(Role.any())
+      ];
 
       const res = await databases.createDocument(
         dbId, 
@@ -627,7 +648,7 @@ export default function Watch() {
         ID.unique(), 
         {
           videoId: id,
-          authorId: user.$id,
+          authorId: authorId,
           authorName: authorName,
           authorAvatar: authorAvatar,
           text: newComment,
@@ -636,11 +657,7 @@ export default function Watch() {
           dislikedBy: [],
           parentId: null
         },
-        [
-          Permission.read(Role.any()),
-          Permission.update(Role.users()),
-          Permission.delete(Role.user(user.$id))
-        ]
+        permissions
       );
 
       setComments([
@@ -663,7 +680,7 @@ export default function Watch() {
       if (video) {
         createNotification({
           userId: video.uploaderId,
-          actorId: user.$id,
+          actorId: authorId,
           actorName: authorName,
           actorAvatar: authorAvatar,
           type: 'comment',
@@ -748,7 +765,7 @@ export default function Watch() {
   };
 
   const handleAddReply = async (parentId: string) => {
-    if (!replyText.trim() || !user || isCommenting) return;
+    if (!replyText.trim() || isCommenting) return;
     
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const commsCol = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
@@ -756,8 +773,17 @@ export default function Watch() {
 
     try {
       setIsCommenting(true);
-      const authorName = profile?.name || user.name || 'User';
-      const authorAvatar = profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}`;
+      const authorName = user ? (profile?.name || user.name || 'User') : (language === 'ru' ? 'Аноним' : 'Anonymous');
+      const authorAvatar = user && profile?.avatar ? profile.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random`;
+      const authorId = user ? user.$id : 'anonymous';
+
+      const permissions = user ? [
+        Permission.read(Role.any()),
+        Permission.update(Role.users()),
+        Permission.delete(Role.user(user.$id))
+      ] : [
+        Permission.read(Role.any())
+      ];
 
       const res = await databases.createDocument(
         dbId, 
@@ -765,7 +791,7 @@ export default function Watch() {
         ID.unique(), 
         {
           videoId: id,
-          authorId: user.$id,
+          authorId: authorId,
           authorName: authorName,
           authorAvatar: authorAvatar,
           text: replyText,
@@ -774,11 +800,7 @@ export default function Watch() {
           dislikedBy: [],
           parentId: parentId
         },
-        [
-          Permission.read(Role.any()),
-          Permission.update(Role.users()),
-          Permission.delete(Role.user(user.$id))
-        ]
+        permissions
       );
 
       setComments([
@@ -804,7 +826,7 @@ export default function Watch() {
         if (parentComment && parentComment.authorId) {
           createNotification({
             userId: parentComment.authorId,
-            actorId: user.$id,
+            actorId: authorId,
             actorName: authorName,
             actorAvatar: authorAvatar,
             type: 'comment',
@@ -1329,13 +1351,16 @@ export default function Watch() {
             </button>
           </div>
           
-          {user ? (
             <form onSubmit={handleAddComment} className="flex gap-4">
               <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-[#70d6ff] to-blue-600 flex items-center justify-center text-white font-bold shrink-0">
-                {profile?.avatar ? (
-                  <img src={profile.avatar} alt="You" className="w-full h-full object-cover" />
+                {user ? (
+                  profile?.avatar ? (
+                    <img src={profile.avatar} alt="You" className="w-full h-full object-cover" />
+                  ) : (
+                    (profile?.name || user.name || 'U').charAt(0).toUpperCase()
+                  )
                 ) : (
-                  (profile?.name || user.name || 'U').charAt(0).toUpperCase()
+                  'А'
                 )}
               </div>
               <div className="flex-1">
@@ -1344,16 +1369,11 @@ export default function Watch() {
                   value={newComment}
                   disabled={isCommenting}
                   onChange={(e) => setNewComment(e.target.value)}
-                  placeholder={language === 'ru' ? 'Оставьте комментарий...' : "Add a comment... (Press Enter to post)"} 
+                  placeholder={language === 'ru' ? 'Оставьте комментарий (как инкогнито)...' : "Add a comment (as anonymous)... (Press Enter to post)"} 
                   className="w-full bg-transparent border-b ice-border focus:border-[#70d6ff]/50 transition-colors pb-1 outline-none text-sm text-slate-200 placeholder:text-slate-500"
                 />
               </div>
             </form>
-          ) : (
-            <div className="p-4 bg-white/5 rounded-xl text-center text-slate-400 text-sm">
-              <Link to="/settings" className="text-[#70d6ff] hover:underline">{t('nav_sign_in')}</Link> {t('video_sign_in_comment')}
-            </div>
-          )}
 
           <div className="mt-8 flex flex-col gap-6">
             {comments.filter(c => !c.parentId).map((comment) => (
@@ -1428,7 +1448,6 @@ export default function Watch() {
                         <ThumbsDown className={`w-4 h-4 ${comment.dislikedBy?.includes(user?.$id) ? 'fill-current' : ''}`} />
                         <span className="text-xs">{(comment.dislikedBy?.length || 0) > 0 && comment.dislikedBy.length}</span>
                       </button>
-                      {user && (
                         <button 
                           onClick={() => {
                             setReplyingToId(replyingToId === comment.id ? null : comment.id);
@@ -1438,16 +1457,19 @@ export default function Watch() {
                         >
                           {t('comment_reply')}
                         </button>
-                      )}
                     </div>
                     
                     {replyingToId === comment.id && !editingCommentId && (
                       <div className="mt-3 flex gap-3 animate-in slide-in-from-top-1 duration-200">
                          <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-800 shrink-0 flex items-center justify-center text-[10px] font-bold">
-                           {profile?.avatar ? (
-                             <img src={profile.avatar} alt="You" className="w-full h-full object-cover" />
+                           {user ? (
+                             profile?.avatar ? (
+                               <img src={profile.avatar} alt="You" className="w-full h-full object-cover" />
+                             ) : (
+                               (profile?.name || user?.name || 'U').charAt(0).toUpperCase()
+                             )
                            ) : (
-                             (profile?.name || user?.name || 'U').charAt(0).toUpperCase()
+                             'А'
                            )}
                          </div>
                          <div className="flex-1 flex flex-col gap-2">
