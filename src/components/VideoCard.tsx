@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Video } from "../data";
 import clsx from "clsx";
 import { useLanguage } from "../lib/LanguageContext";
-import { Check } from "lucide-react";
+import { Check, Zap } from "lucide-react";
 import { getOptimizedThumbnail } from "../lib/cloudinary";
 
 interface VideoCardProps {
@@ -52,6 +52,10 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
           </div>
         </div>
         <div className="absolute inset-0 bg-[#70d6ff]/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+        <div className="absolute top-2 left-2 z-20 bg-black/50 backdrop-blur-sm px-2 py-1 rounded inline-flex items-center gap-1">
+          <Zap className="w-3 h-3 text-[#70d6ff] fill-[#70d6ff]" />
+          <span className="text-[10px] font-bold text-white uppercase tracking-wider">Short</span>
+        </div>
       </Link>
     );
   }
