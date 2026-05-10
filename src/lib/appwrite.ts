@@ -15,15 +15,15 @@ export const account = new Account(client);
 export const databases = new Databases(client);
 
 export const loginWithGoogle = () => {
-    // Determine the current URL to redirect back to
-    const currentUrl = window.location.origin;
+    // Determine the redirect URL
+    const redirectUrl = 'https://icetube-q.vercel.app/';
     
     // Create an OAuth2 session using Google
     // Pass success and failure redirect URLs
     account.createOAuth2Session(
         OAuthProvider.Google,
-        `${currentUrl}/`,
-        `${currentUrl}/?error=auth_failed`
+        redirectUrl,
+        `${redirectUrl}/?error=auth_failed`
     );
 };
 
