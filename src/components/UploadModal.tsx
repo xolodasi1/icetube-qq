@@ -82,47 +82,51 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
       }
 
       let createdVideoDoc: any = null;
+      const isShorts = contentType === 'shorts' || title.toLowerCase().includes('#shorts') || description.toLowerCase().includes('#shorts');
+      
+      const uploadData = {
+        title: title,
+        description: isShorts ? (description.toLowerCase().includes('#shorts') ? description : `${description}\n\n#shorts`).trim() : (description || t('video_no_description')),
+        videoUrl: videoUrl,
+        thumbnailUrl: thumbnailUrl,
+        uploaderId: user.$id,
+        uploaderName: user.name || 'Anonymous',
+        uploaderAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
+        views: 0,
+        category: category.trim() || 'All',
+        contentType: isShorts ? 'shorts' : 'video',
+        game: game.trim() || undefined
+      };
+
       try {
         createdVideoDoc = await databases.createDocument(
-          dbId, 
-          videosColId, 
-          ID.unique(), 
-          {
-            title: title,
-            description: description || t('video_no_description'),
-            videoUrl: videoUrl,
-            thumbnailUrl: thumbnailUrl,
-            uploaderId: user.$id,
-            uploaderName: user.name || 'Anonymous',
-            uploaderAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
-            views: 0,
-            category: category.trim() || 'All',
-            contentType: contentType,
-            game: game.trim() || undefined
-          }
-        );
-      } catch (firstErr: any) {
-        if (firstErr.code === 400 && firstErr.message?.toLowerCase().includes('unknown attribute')) {
-          console.log("Retrying without category, contentType, and game due to unknown attribute error");
-          createdVideoDoc = await databases.createDocument(
-            dbId, 
-            videosColId, 
-            ID.unique(), 
-            {
-              title: title,
-              description: description || t('video_no_description'),
-              videoUrl: videoUrl,
-              thumbnailUrl: thumbnailUrl,
-              uploaderId: user.$id,
-              uploaderName: user.name || 'Anonymous',
-              uploaderAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
-              views: 0
-            }
-          );
-        } else {
-          throw firstErr;
+      dbId, 
+      videosColId, 
+      ID.unique(), 
+      uploadData
+    );
+  } catch (firstErr: any) {
+    if (firstErr.code === 400 && firstErr.message?.toLowerCase().includes('unknown attribute')) {
+      console.log("Retrying without category, contentType, and game due to unknown attribute error");
+      createdVideoDoc = await databases.createDocument(
+        dbId, 
+        videosColId, 
+        ID.unique(), 
+        {
+          title: uploadData.title,
+          description: uploadData.description,
+          videoUrl: uploadData.videoUrl,
+          thumbnailUrl: uploadData.thumbnailUrl,
+          uploaderId: uploadData.uploaderId,
+          uploaderName: uploadData.uploaderName,
+          uploaderAvatar: uploadData.uploaderAvatar,
+          views: uploadData.views
         }
-      }
+      );
+    } else {
+      throw firstErr;
+    }
+  }
 
       setFile(null);
       setTitle('');

@@ -37,12 +37,19 @@ export default function Shorts() {
       if (!dbId || !colId) return;
 
       try {
-        const res = await databases.listDocuments(dbId, colId, [
-           Query.equal('contentType', 'shorts'), // Prefer shorts if marked
-           Query.limit(50)
-        ]);
-        
-        let docs = res.documents;
+        let docs: any[] = [];
+        try {
+          const res = await databases.listDocuments(dbId, colId, [
+             Query.equal('contentType', 'shorts'), // Prefer shorts if marked
+             Query.limit(50)
+          ]);
+          docs = res.documents;
+        } catch (queryErr: any) {
+          console.log("Query by contentType failed, fetching all and filtering manually");
+          const allRes = await databases.listDocuments(dbId, colId, [Query.limit(100)]);
+          docs = allRes.documents.filter((d: any) => d.contentType === 'shorts' || d.title?.toLowerCase().includes('#shorts') || d.description?.toLowerCase().includes('#shorts'));
+        }
+
         if (docs.length === 0) {
           // Fallback to any videos if no shorts found
           const allRes = await databases.listDocuments(dbId, colId, [Query.limit(50)]);

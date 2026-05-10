@@ -47,13 +47,15 @@ export default function Studio() {
     
     try {
       if (dbId && colId) {
-        let updateData = {
-          title: editingVideo.title,
-          description: editingVideo.description,
-          category: editingVideo.category,
-          contentType: editingVideo.contentType,
-          game: editingVideo.game
-        };
+          let isShorts = editingVideo.contentType === 'shorts' || editingVideo.title?.toLowerCase().includes('#shorts') || editingVideo.description?.toLowerCase().includes('#shorts');
+          
+          let updateData = {
+            title: editingVideo.title,
+            description: isShorts ? (editingVideo.description.toLowerCase().includes('#shorts') ? editingVideo.description : `${editingVideo.description}\n\n#shorts`).trim() : editingVideo.description,
+            category: editingVideo.category,
+            contentType: isShorts ? 'shorts' : (editingVideo.contentType || 'video'),
+            game: editingVideo.game
+          };
 
         try {
           await databases.updateDocument(dbId, colId, editingVideo.id, updateData);

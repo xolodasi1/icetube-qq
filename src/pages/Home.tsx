@@ -107,8 +107,9 @@ export default function Home() {
     return matchesSearch && matchesCategory;
   });
 
-  const regularVideos = filteredVideos.filter(v => (!v.contentType || v.contentType === 'video'));
-  const shortsVideos = filteredVideos.filter(v => v.contentType === 'shorts');
+  const isShort = (v: any) => v.contentType === 'shorts' || v.title?.toLowerCase().includes('#shorts') || v.description?.toLowerCase().includes('#shorts');
+  const regularVideos = filteredVideos.filter(v => !isShort(v));
+  const shortsVideos = filteredVideos.filter(v => isShort(v));
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6 pt-2 sm:pt-0 pb-4 sm:pb-0">

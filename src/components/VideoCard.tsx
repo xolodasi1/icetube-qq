@@ -27,7 +27,7 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
 
   const isList = layout === "list";
   const isClip = layout === "clip";
-  const isShortContentType = video.contentType === 'shorts';
+  const isShortContentType = video.contentType === 'shorts' || video.title?.toLowerCase().includes('#shorts') || video.description?.toLowerCase().includes('#shorts');
   const targetUrl = (isClip || isShortContentType) ? `/shorts/${video.id}` : `/watch/${video.id}`;
 
   if (isClip) {
