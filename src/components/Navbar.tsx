@@ -153,6 +153,16 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
+        {user && (
+          <Link 
+            to="/studio"
+            className="hidden sm:flex p-2 hover:bg-[rgba(112,214,255,0.08)] rounded-full text-slate-300 transition-colors relative group"
+            title={language === 'ru' ? 'Создать' : 'Create'}
+          >
+            <Video className="w-5 h-5" />
+          </Link>
+        )}
+
         <button 
           onClick={() => setMobileSearchOpen(true)}
           className="md:hidden p-2 hover:bg-cold-hover rounded-full text-slate-300 transition-colors"
