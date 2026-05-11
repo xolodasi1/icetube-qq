@@ -421,6 +421,18 @@ export default function Watch() {
             await databases.updateDocument(dbId, colId, currentVideo.id, {
               views: (currentVideo.views || 0) + 1
             });
+
+            // Increment viewsCount in author profile
+            const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+            if (profilesCol) {
+              const authorRes = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', currentVideo.uploaderId)]);
+              if (authorRes.documents.length > 0) {
+                const authorProfile = authorRes.documents[0];
+                await databases.updateDocument(dbId, profilesCol, authorProfile.$id, {
+                  viewsCount: (authorProfile.viewsCount || 0) + 1
+                });
+              }
+            }
           } catch (viewErr) {
             console.error("View increment failed:", viewErr);
           }
@@ -463,7 +475,10 @@ export default function Watch() {
           // Remove interaction
           await databases.deleteDocument(dbId, likesCol, existingDoc.$id);
           setLikeState('none');
-          if (isLike) setLikesCount(prev => prev - 1);
+          if (isLike) {
+            setLikesCount(prev => prev - 1);
+            updateProfileStat(video.uploaderId, 'likesCount', -1);
+          }
           else setDislikesCount(prev => prev - 1);
         } else {
           // Switch interaction
@@ -474,9 +489,11 @@ export default function Watch() {
           if (isLike) {
             setLikesCount(prev => prev + 1);
             setDislikesCount(prev => prev - 1);
+            updateProfileStat(video.uploaderId, 'likesCount', 1);
           } else {
             setLikesCount(prev => prev - 1);
             setDislikesCount(prev => prev + 1);
+            updateProfileStat(video.uploaderId, 'likesCount', -1);
           }
         }
       } else {
@@ -489,6 +506,7 @@ export default function Watch() {
         setLikeState(actionType as 'liked' | 'disliked');
         if (isLike) {
           setLikesCount(prev => prev + 1);
+          updateProfileStat(video.uploaderId, 'likesCount', 1);
           createNotification({
             userId: video.uploaderId,
             actorId: user.$id,
@@ -511,6 +529,24 @@ export default function Watch() {
       }
     } finally {
       setIsLiking(false);
+    }
+  };
+
+  const updateProfileStat = async (userId: string, field: string, increment: number) => {
+    try {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+      if (!dbId || !profilesCol) return;
+
+      const res = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', userId)]);
+      if (res.documents.length > 0) {
+        const doc = res.documents[0];
+        await databases.updateDocument(dbId, profilesCol, doc.$id, {
+          [field]: (doc[field] || 0) + increment
+        });
+      }
+    } catch (err) {
+      console.error(`Failed to update profile stat ${field}:`, err);
     }
   };
 
@@ -543,6 +579,7 @@ export default function Watch() {
         await databases.deleteDocument(dbId, likesCol, res.documents[0].$id);
         setHasSnowflaked(false);
         setSnowflakesCount(prev => prev - 1);
+        updateProfileStat(video.uploaderId, 'snowflakesCount', -1);
       } else {
         await databases.createDocument(dbId, likesCol, ID.unique(), {
           videoId: id,
@@ -551,6 +588,7 @@ export default function Watch() {
         });
         setHasSnowflaked(true);
         setSnowflakesCount(prev => prev + 1);
+        updateProfileStat(video.uploaderId, 'snowflakesCount', 1);
         
         createNotification({
           userId: video.uploaderId,
@@ -590,6 +628,7 @@ export default function Watch() {
         if (res.total > 0) {
           await databases.deleteDocument(dbId, subsCol, res.documents[0].$id);
           setIsSubscribed(false);
+          updateProfileStat(video.uploaderId, 'subscribersCount', -1);
         }
       } else {
         await databases.createDocument(dbId, subsCol, ID.unique(), {
@@ -597,6 +636,7 @@ export default function Watch() {
           subscriberId: user.$id
         });
         setIsSubscribed(true);
+        updateProfileStat(video.uploaderId, 'subscribersCount', 1);
 
         createNotification({
           userId: video.uploaderId,

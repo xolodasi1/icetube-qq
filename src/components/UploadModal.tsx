@@ -136,6 +136,22 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
       onUploadSuccess?.();
       onClose();
 
+      // Increment videosCount in profile
+      try {
+        const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+        if (profilesCol) {
+          const profileRes = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', user.$id)]);
+          if (profileRes.documents.length > 0) {
+            const profileDoc = profileRes.documents[0];
+            await databases.updateDocument(dbId, profilesCol, profileDoc.$id, {
+              videosCount: (profileDoc.videosCount || 0) + 1
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to update videosCount:", err);
+      }
+
       // Fan out notifications to subscribers
       try {
         const subsColId = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;

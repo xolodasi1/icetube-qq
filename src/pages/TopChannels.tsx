@@ -5,203 +5,150 @@ import { Link } from 'react-router-dom';
 import { databases } from '../lib/appwrite';
 import { Query } from 'appwrite';
 
-interface ChannelStats {
-  id: string;
-  name: string;
-  avatar: string;
-  subscribers: number;
-  totalViews: number;
-  totalLikes: number;
-  videoCount: number;
-  snowflakes: number;
-}
-
 export default function TopChannels() {
   const { t, language } = useLanguage();
-  const [topBySubs, setTopBySubs] = useState<ChannelStats[]>([]);
-  const [topByViews, setTopByViews] = useState<ChannelStats[]>([]);
-  const [topByLikes, setTopByLikes] = useState<ChannelStats[]>([]);
-  const [topByVideos, setTopByVideos] = useState<ChannelStats[]>([]);
-  const [topBySnowflakes, setTopBySnowflakes] = useState<ChannelStats[]>([]);
+  const [channels, setChannels] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<'subscribersCount' | 'viewsCount' | 'likesCount' | 'snowflakesCount' | 'videosCount'>('subscribersCount');
+
+  const categories = [
+    { id: 'subscribersCount', label: language === 'ru' ? 'Топ по подписчикам' : 'By Subscribers', icon: Users, color: 'text-[#70d6ff]' },
+    { id: 'viewsCount', label: language === 'ru' ? 'Топ по просмотрам' : 'By Views', icon: Eye, color: 'text-[#ffb703]' },
+    { id: 'likesCount', label: language === 'ru' ? 'Топ по лайкам' : 'By Likes', icon: ThumbsUp, color: 'text-[#ff70a6]' },
+    { id: 'snowflakesCount', label: language === 'ru' ? 'Топ по снежинкам' : 'By Snowflakes', icon: Snowflake, color: 'text-[#9bf6ff]' },
+    { id: 'videosCount', label: language === 'ru' ? 'Топ по видео' : 'By Videos', icon: Video, color: 'text-[#00f5d4]' },
+  ];
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchTopData = async () => {
       try {
         setIsLoading(true);
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const videosCol = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
-        const subsCol = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
-        const likesCol = import.meta.env.VITE_APPWRITE_LIKES_COLLECTION_ID;
+        const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
 
-        if (!dbId || !videosCol) return;
+        if (!dbId || !profilesCol) return;
 
-        // Fetch all videos to calculate views/likes per channel
-        const videosRes = await databases.listDocuments(dbId, videosCol, [Query.limit(100)]);
-        const allSubs = subsCol ? await databases.listDocuments(dbId, subsCol, [Query.limit(100)]) : { documents: [] };
+        const res = await databases.listDocuments(
+          dbId,
+          profilesCol,
+          [
+            Query.orderDesc(sortBy),
+            Query.limit(50)
+          ]
+        );
         
-        const channelMap: Record<string, ChannelStats> = {};
-
-        // 1. Accumulate views and identify channels
-        videosRes.documents.forEach(v => {
-          if (!channelMap[v.uploaderId]) {
-            const displayName = v.channelName || v.uploaderName || v.uploaderId || 'User';
-            channelMap[v.uploaderId] = {
-              id: v.uploaderId,
-              name: displayName === v.uploaderId ? 'User' : displayName,
-              avatar: v.channelAvatar || v.uploaderAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${v.uploaderId}`,
-              subscribers: 0,
-              totalViews: 0,
-              totalLikes: 0,
-              videoCount: 0,
-              snowflakes: 0
-            };
-          }
-          channelMap[v.uploaderId].totalViews += (v.views || 0);
-          channelMap[v.uploaderId].videoCount += 1;
-        });
-
-        // Try to fetch actual profiles to get freshest names and snowflakes
-        try {
-          const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
-          if (profilesCol) {
-            const uploaderIds = Object.keys(channelMap);
-            if (uploaderIds.length > 0) {
-              const profilesRes = await databases.listDocuments(dbId, profilesCol, [
-                Query.equal('userId', uploaderIds)
-              ]);
-              profilesRes.documents.forEach(p => {
-                if (channelMap[p.userId]) {
-                  channelMap[p.userId].name = p.name || channelMap[p.userId].name;
-                  channelMap[p.userId].avatar = p.avatar || channelMap[p.userId].avatar;
-                  channelMap[p.userId].snowflakes = p.snowflakes || 0;
-                }
-              });
-            }
-          }
-        } catch (profileErr) {
-          console.warn("Failed to fetch profiles for top channels:", profileErr);
-        }
-
-        // 2. Count subscribers
-        allSubs.documents.forEach(s => {
-          if (channelMap[s.channelId]) {
-            channelMap[s.channelId].subscribers += 1;
-          }
-        });
-
-        const channels = Object.values(channelMap);
-
-        // Sort for different categories
-        setTopBySubs([...channels].sort((a, b) => b.subscribers - a.subscribers).slice(0, 10));
-        setTopByViews([...channels].sort((a, b) => b.totalViews - a.totalViews).slice(0, 10));
-        setTopByLikes([...channels].sort((a, b) => b.totalLikes - a.totalLikes).slice(0, 10)); 
-        setTopByVideos([...channels].sort((a, b) => b.videoCount - a.videoCount).slice(0, 10));
-        setTopBySnowflakes([...channels].sort((a, b) => b.snowflakes - a.snowflakes).slice(0, 10));
-
+        setChannels(res.documents);
       } catch (err) {
-        console.error("Top Channels failed:", err);
+        console.error("Leaderboard fetch failed:", err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchData();
-  }, []);
+    fetchTopData();
+  }, [sortBy]);
 
   const formatCount = (num: number) => {
-    return new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(num);
+    return new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(num || 0);
   };
 
-  const Leaderboard = ({ title, icon: Icon, data, type }: { title: string, icon: any, data: ChannelStats[], type: 'subs' | 'views' | 'likes' | 'videos' | 'snowflakes' }) => (
-    <div className="flex flex-col gap-4 bg-white/[0.02] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-colors">
-      <div className="flex items-center gap-3 mb-1">
-        <div className={`p-2 rounded-xl bg-white/5 border ice-border ${
-           type === 'subs' ? 'text-[#70d6ff]' : 
-           type === 'views' ? 'text-[#ffb703]' : 
-           type === 'videos' ? 'text-[#00f5d4]' : 
-           type === 'snowflakes' ? 'text-[#9bf6ff]' :
-           'text-[#ff70a6]'
-        }`}>
-          <Icon className="w-5 h-5" />
-        </div>
-        <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight truncate leading-tight">{title}</h2>
-      </div>
-
-      <div className="flex flex-col gap-1 sm:gap-2">
-        {data.length === 0 ? (
-          <p className="text-slate-500 text-sm italic py-4 pl-1">{t('top_channels_empty')}</p>
-        ) : (
-          data.map((channel, index) => (
-            <Link 
-              key={channel.id} 
-              to={`/channel/${channel.id}`}
-              className="flex items-center gap-3 p-2 sm:p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all group shrink-0"
-            >
-              <div className="w-6 text-center font-mono text-xs sm:text-sm text-slate-500 group-hover:text-[#70d6ff] font-bold">
-                {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
-              </div>
-              <img src={channel.avatar} alt={channel.name} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full object-cover border-2 border-white/10 group-hover:border-[#70d6ff]/50 transition-colors" />
-              <div className="flex-1 min-w-0">
-                <div className="text-white font-bold text-sm sm:text-base truncate group-hover:text-[#70d6ff] transition-colors">{channel.name}</div>
-                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-0.5 opacity-80">
-                  {type === 'subs' && `${formatCount(channel.subscribers)} ${language === 'ru' ? 'подп.' : 'subs'}`}
-                  {type === 'views' && `${formatCount(channel.totalViews)} ${language === 'ru' ? 'просм.' : 'views'}`}
-                  {type === 'likes' && `${formatCount(channel.totalLikes)} ${language === 'ru' ? 'лайков' : 'likes'}`}
-                  {type === 'videos' && `${formatCount(channel.videoCount)} ${language === 'ru' ? 'видео' : 'videos'}`}
-                  {type === 'snowflakes' && `${formatCount(channel.snowflakes)} ${language === 'ru' ? 'снежинок' : 'snowflakes'}`}
-                </div>
-              </div>
-            </Link>
-          ))
-        )}
-      </div>
-    </div>
-  );
+  const currentCategory = categories.find(c => c.id === sortBy) || categories[0];
+  const Icon = currentCategory.icon;
 
   return (
-    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 lg:px-8 py-6 mb-20 sm:mb-6 relative mt-16 sm:mt-0">
-      <header className="flex flex-col gap-3 mb-8 sm:mb-12">
+    <div className="flex-1 w-full max-w-[1200px] mx-auto px-4 sm:px-6 py-6 mb-20 sm:mb-6 mt-16 sm:mt-0">
+      <header className="flex flex-col gap-6 mb-10">
         <div className="flex items-center gap-4">
            <div className="p-3 bg-white/5 rounded-2xl border ice-border">
-             <Trophy className="w-7 h-7 sm:w-9 sm:h-9 text-[#70d6ff]" />
+             <Trophy className="w-8 h-8 sm:w-10 sm:h-10 text-[#70d6ff]" />
            </div>
            <div>
              <h1 className="text-2xl sm:text-4xl font-black text-white font-display uppercase tracking-tighter italic">
-               {t('top_channels_title')}
+               {t('top_channels_title') || (language === 'ru' ? 'Зал славы' : 'Hall of Fame')}
              </h1>
-             <p className="text-slate-400 text-[10px] sm:text-sm max-w-2xl mt-0.5 font-medium opacity-80">
+             <p className="text-slate-400 text-xs sm:text-sm max-w-2xl mt-0.5 font-medium opacity-80">
                {language === 'ru' ? 'Рейтинг самых успешных авторов нашей платформы' : 'Rankings of the most successful creators'}
              </p>
            </div>
         </div>
+
+        <div className="flex flex-wrap gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setSortBy(cat.id as any)}
+              className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 border ${
+                sortBy === cat.id 
+                  ? 'bg-[#70d6ff] text-[#0a192f] border-[#70d6ff] shadow-[0_0_20px_rgba(112,214,255,0.3)]' 
+                  : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:border-white/10'
+              }`}
+            >
+              <cat.icon className="w-4 h-4" />
+              {cat.label}
+            </button>
+          ))}
+        </div>
       </header>
 
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-32 sm:py-48">
-          <div className="relative">
-            <Loader2 className="w-12 h-12 text-[#70d6ff] animate-spin" />
-            <div className="absolute inset-0 blur-xl bg-[#70d6ff]/20 animate-pulse"></div>
-          </div>
-          <p className="text-slate-400 font-bold mt-6 tracking-widest uppercase text-xs">{language === 'ru' ? 'Анализируем данные...' : 'Analyzing leaderboard data...'}</p>
+        <div className="flex flex-col items-center justify-center py-32">
+          <Loader2 className="w-10 h-10 text-[#70d6ff] animate-spin mb-4" />
+          <p className="text-slate-500 font-bold tracking-widest uppercase text-[10px]">{language === 'ru' ? 'Загрузка рейтинга...' : 'Loading rankings...'}</p>
         </div>
       ) : (
-        <div className="flex flex-col md:grid md:grid-cols-2 lg:grid-cols-3 xl:flex xl:flex-row gap-6 sm:gap-8 overflow-x-auto pb-10 xl:pb-6 scrollbar-hide snap-x snap-mandatory px-0 -mx-4 sm:mx-0 sm:px-0">
-           <div className="flex flex-col gap-8 min-w-[280px] w-full xl:min-w-[320px] xl:max-w-[400px] xl:flex-1 snap-center px-4 sm:px-0">
-             <Leaderboard title={t('top_channels_by_subs')} icon={Users} data={topBySubs} type="subs" />
-           </div>
-           <div className="flex flex-col gap-8 min-w-[280px] w-full xl:min-w-[320px] xl:max-w-[400px] xl:flex-1 snap-center px-4 sm:px-0">
-             <Leaderboard title={t('top_channels_by_views')} icon={Eye} data={topByViews} type="views" />
-           </div>
-           <div className="flex flex-col gap-8 min-w-[280px] w-full xl:min-w-[320px] xl:max-w-[400px] xl:flex-1 snap-center px-4 sm:px-0">
-             <Leaderboard title={t('top_channels_by_likes')} icon={ThumbsUp} data={topByLikes} type="likes" />
-           </div>
-           <div className="flex flex-col gap-8 min-w-[280px] w-full xl:min-w-[320px] xl:max-w-[400px] xl:flex-1 snap-center px-4 sm:px-0">
-             <Leaderboard title={t('top_channels_by_videos')} icon={Video} data={topByVideos} type="videos" />
-           </div>
-           <div className="flex flex-col gap-8 min-w-[280px] w-full xl:min-w-[320px] xl:max-w-[400px] xl:flex-1 snap-center px-4 sm:px-0">
-             <Leaderboard title={t('top_channels_by_snowflakes')} icon={Snowflake} data={topBySnowflakes} type="snowflakes" />
-           </div>
+        <div className="bg-white/[0.02] border ice-border rounded-3xl overflow-hidden backdrop-blur-xl">
+          <div className="grid grid-cols-1 divide-y ice-border">
+            {channels.length === 0 ? (
+              <div className="p-20 text-center text-slate-500 italic">{t('top_channels_empty')}</div>
+            ) : (
+              channels.map((channel, index) => (
+                <Link 
+                  key={channel.$id} 
+                  to={`/channel/${channel.userId}`}
+                  className="flex items-center gap-4 p-4 sm:p-5 hover:bg-white/5 transition-all group"
+                >
+                  <div className={`w-8 sm:w-10 text-center font-black text-lg sm:text-xl ${
+                    index === 0 ? 'text-yellow-400' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-amber-600' : 'text-slate-600'
+                  }`}>
+                    {index + 1}
+                  </div>
+                  
+                  <div className="relative">
+                    <img 
+                      src={channel.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.name || 'User')}&background=random`} 
+                      alt={channel.name} 
+                      className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-white/10 group-hover:border-[#70d6ff]/50 transition-colors" 
+                    />
+                    {index < 3 && (
+                      <div className="absolute -top-1 -right-1 bg-black rounded-full p-1 border border-white/10">
+                        <Trophy className={`w-3 h-3 ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-slate-300' : 'text-amber-600'}`} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white font-black text-base sm:text-lg truncate group-hover:text-[#70d6ff] transition-colors">
+                      {channel.name || (language === 'ru' ? 'Безымянный автор' : 'Unnamed Creator')}
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5">
+                      <div className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${currentCategory.color}`}>
+                        <Icon className="w-3 h-3" />
+                        {formatCount(channel[sortBy])}
+                      </div>
+                      <div className="w-1 h-1 bg-white/20 rounded-full" />
+                      <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                        {formatCount(channel.subscribersCount)} {language === 'ru' ? 'подп.' : 'subs'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border ice-border text-[#70d6ff] text-xs font-black uppercase opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                    {language === 'ru' ? 'Смотреть' : 'View'}
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>
