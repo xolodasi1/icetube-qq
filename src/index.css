@@ -159,3 +159,17 @@ body.light-mode .bg-\[\#05070a\]\/95 {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* TV Focus support */
+:focus {
+  outline: 3px solid #70d6ff !important;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Ensure focus works on elements that might not have it by default */
+button:focus, a:focus, .video-card:focus {
+  outline: 3px solid #70d6ff !important;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
