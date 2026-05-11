@@ -156,10 +156,11 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
         {user && (
           <Link 
             to="/studio"
-            className="hidden sm:flex p-2 hover:bg-[rgba(112,214,255,0.08)] rounded-full text-slate-300 transition-colors relative group"
+            className="hidden sm:flex items-center gap-2 px-4 py-2 hover:bg-[rgba(112,214,255,0.08)] rounded-full text-slate-300 transition-colors border border-white/10 hover:border-[#70d6ff]/40 group"
             title={language === 'ru' ? 'Создать' : 'Create'}
           >
-            <Video className="w-5 h-5" />
+            <Video className="w-5 h-5 group-hover:text-[#70d6ff] transition-colors" />
+            <span className="text-sm font-bold hidden lg:inline">{language === 'ru' ? 'Загрузить' : 'Upload'}</span>
           </Link>
         )}
 

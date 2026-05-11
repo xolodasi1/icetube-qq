@@ -1,153 +1,129 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { databases } from '../lib/appwrite';
-import { ShieldCheck, ShieldAlert, Users, Video, Activity, MoreHorizontal, Ban, Trash2, Clock, Eye, AlertTriangle, Layers, Gamepad2 } from 'lucide-react';
+import { 
+  ShieldCheck, ShieldAlert, Users, Video, Activity, MoreHorizontal, 
+  Ban, Trash2, Clock, Eye, AlertTriangle, Layers, Gamepad2, 
+  LayoutDashboard, PieChart, BarChart3, ArrowLeft, Loader2,
+  ChevronRight, Calendar, Bell, Search, Filter
+} from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
 import { useLanguage } from '../lib/LanguageContext';
 import { Query } from 'appwrite';
 
+type AdminTab = 'dashboard' | 'analytics' | 'users' | 'reports' | 'content';
+
 export default function AdminPanel() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const { t, language } = useLanguage();
+  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+  
   const [dbUsers, setDbUsers] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [dbVideos, setDbVideos] = useState<any[]>([]);
-  const [isDbLoading, setIsDbLoading] = useState(true);
-  const [isReportsLoading, setIsReportsLoading] = useState(true);
-  const [isVideosLoading, setIsVideosLoading] = useState(true);
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorDetails, setErrorDetails] = useState<{message: string, collection: string} | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
+      setErrorDetails(null);
+      
+      const refreshIcon = document.getElementById('admin-refresh-icon');
+      if (refreshIcon) refreshIcon.classList.add('animate-spin');
+
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
       const usersColId = import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
       const reportsColId = import.meta.env.VITE_APPWRITE_REPORTS_COLLECTION_ID;
       const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
 
       if (!dbId) {
-        setIsDbLoading(false);
-        setIsReportsLoading(false);
-        setIsVideosLoading(false);
+        setErrorDetails({ message: "Database ID missing in .env", collection: "Global Config" });
+        setIsLoading(false);
         return;
       }
 
-      // Fetch Users
-      if (usersColId) {
-        try {
-          const response = await databases.listDocuments(dbId, usersColId);
-          setDbUsers(response.documents);
-        } catch (error) {
-          console.warn("Could not fetch Users");
-        } finally {
-          setIsDbLoading(false);
+      try {
+        // Fetch Users (Profiles)
+        if (usersColId) {
+          try {
+            const response = await databases.listDocuments(dbId, usersColId, [Query.limit(100)]);
+            setDbUsers(response.documents);
+          } catch (err: any) {
+            console.error("Users Fetch Error:", err);
+            setErrorDetails({ message: err.message, collection: "Users/Profiles" });
+          }
         }
-      }
 
-      // Fetch Reports
-      if (reportsColId) {
-        try {
-          const response = await databases.listDocuments(dbId, reportsColId);
-          setReports(response.documents);
-        } catch (error) {
-          console.warn("Could not fetch Reports. Make sure collection exists.");
-        } finally {
-          setIsReportsLoading(false);
+        // Fetch Reports
+        if (reportsColId) {
+          try {
+            const response = await databases.listDocuments(dbId, reportsColId, [Query.limit(100)]);
+            setReports(response.documents);
+          } catch (err: any) {
+            console.warn("Reports Fetch Error:", err);
+          }
         }
-      }
 
-      // Fetch Videos for categories
-      if (videosColId) {
-        try {
-          const response = await databases.listDocuments(dbId, videosColId, [Query.limit(100)]);
-          setDbVideos(response.documents);
-        } catch (error) {
-          console.warn("Could not fetch Videos");
-        } finally {
-          setIsVideosLoading(false);
+        // Fetch Videos
+        if (videosColId) {
+          try {
+            const response = await databases.listDocuments(dbId, videosColId, [Query.limit(100)]);
+            setDbVideos(response.documents);
+          } catch (err: any) {
+            console.error("Videos Fetch Error:", err);
+            if (!errorDetails) setErrorDetails({ message: err.message, collection: "Videos" });
+          }
         }
+      } catch (err: any) {
+        console.error("General Admin Panel Error:", err);
+        setErrorDetails({ message: err.message, collection: "Database Connection" });
+      } finally {
+        setIsLoading(false);
+        if (refreshIcon) refreshIcon.classList.remove('animate-spin');
       }
     };
 
     fetchData();
+
+    window.addEventListener('refreshAdminData', fetchData);
+    return () => window.removeEventListener('refreshAdminData', fetchData);
   }, []);
 
-  const handleDeleteReport = async (reportId: string) => {
-    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-    const reportsColId = import.meta.env.VITE_APPWRITE_REPORTS_COLLECTION_ID;
-    if (!dbId || !reportsColId) return;
+  const stats = useMemo(() => {
+    const shorts = dbVideos.filter(v => v.isShort || v.isShorts).length;
+    const regularVideos = dbVideos.length - shorts;
+    
+    // Calculate leaderboards
+    const leaderboards = {
+      subscribers: [...dbUsers].sort((a, b) => (b.subscribersCount || 0) - (a.subscribersCount || 0)).slice(0, 5),
+      likes: [...dbUsers].sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0)).slice(0, 5),
+      views: [...dbUsers].sort((a, b) => (b.viewsCount || 0) - (a.viewsCount || 0)).slice(0, 5),
+      videos: [...dbUsers].sort((a, b) => (b.videosCount || 0) - (a.videosCount || 0)).slice(0, 5),
+      snowflakes: [...dbUsers].sort((a, b) => (b.snowflakesCount || 0) - (a.snowflakesCount || 0)).slice(0, 5),
+    };
+    
+    return {
+      totalUsers: dbUsers.length,
+      totalVideos: regularVideos,
+      totalShorts: shorts,
+      totalReports: reports.length,
+      growth: '+12%',
+      serverStatus: 'Online',
+      uptime: '99.98%',
+      leaderboards
+    };
+  }, [dbUsers, dbVideos, reports]);
 
-    try {
-      await databases.deleteDocument(dbId, reportsColId, reportId);
-      setReports(reports.filter(r => r.$id !== reportId));
-    } catch (err) {
-      console.error("Delete report failed:", err);
-    }
-  };
-
-  const handleDeleteCategory = async (categoryName: string) => {
-    if (!window.confirm(language === 'ru' ? `Удалить категорию "${categoryName}"? Всем видео с этой категорией будет присвоена категория "Все".` : `Are you sure you want to delete the category "${categoryName}"? This will set the category of all related videos to "All".`)) {
-      return;
-    }
-    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-    const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
-    if (!dbId || !videosColId) return;
-
-    try {
-      const videosToUpdate = dbVideos.filter(v => v.category === categoryName);
-      for (const v of videosToUpdate) {
-        await databases.updateDocument(dbId, videosColId, v.$id, {
-          category: 'All'
-        });
-      }
-      // Update local state
-      setDbVideos(prev => prev.map(v => v.category === categoryName ? { ...v, category: 'All' } : v));
-      alert(language === 'ru' ? 'Категория успешно удалена' : 'Category deleted successfully');
-    } catch (err) {
-      console.error("Failed to delete category:", err);
-      alert(language === 'ru' ? 'Не удалось удалить категорию' : 'Failed to delete category');
-    }
-  };
-
-  const handleDeleteGame = async (gameName: string) => {
-    if (!window.confirm(language === 'ru' ? `Удалить игру "${gameName}"? Из всех видео эта игра будет удалена.` : `Are you sure you want to delete the game "${gameName}"? It will be removed from all related videos.`)) {
-      return;
-    }
-    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-    const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
-    if (!dbId || !videosColId) return;
-
-    try {
-      const videosToUpdate = dbVideos.filter(v => v.game === gameName);
-      for (const v of videosToUpdate) {
-        await databases.updateDocument(dbId, videosColId, v.$id, {
-          game: null
-        });
-      }
-      // Update local state
-      setDbVideos(prev => prev.map(v => v.game === gameName ? { ...v, game: null } : v));
-      alert(language === 'ru' ? 'Игра успешно удалена' : 'Game deleted successfully');
-    } catch (err) {
-      console.error("Failed to delete game:", err);
-      // Fallback
-      try {
-        const videosToUpdate = dbVideos.filter(v => v.game === gameName);
-        for (const v of videosToUpdate) {
-          await databases.updateDocument(dbId, videosColId, v.$id, {
-            game: ''
-          });
-        }
-        setDbVideos(prev => prev.map(v => v.game === gameName ? { ...v, game: '' } : v));
-        alert(language === 'ru' ? 'Игра успешно удалена' : 'Game deleted successfully');
-      } catch (fallbackErr) {
-        alert(language === 'ru' ? 'Не удалось удалить игру' : 'Failed to delete game');
-      }
-    }
-  };
-
-  if (isLoading) {
-    return <div className="flex p-10 justify-center text-slate-400">Verifying access...</div>;
+  if (isAuthLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-8 h-8 text-[#70d6ff] animate-spin" />
+      </div>
+    );
   }
 
-  // Admin Verification Gate
   if (!user || user.email !== 'xolodtop889@gmail.com') {
     return (
       <div className="flex flex-col items-center justify-center p-10 mt-10 text-center">
@@ -156,399 +132,482 @@ export default function AdminPanel() {
         </div>
         <h1 className="text-3xl font-bold text-white mb-2">Access Denied</h1>
         <p className="text-slate-400 max-w-md">
-          This area is strictly for Icetube network administrators. 
-          Your email ({user?.email || 'Unauthorized'}) does not have the required permissions.
+          {language === 'ru' 
+            ? `Эта зона строго для администраторов Icetube. Ваш email (${user?.email || 'Неизвестно'}) не имеет прав доступа.`
+            : `This area is strictly for Icetube network administrators. Your email (${user?.email || 'Unauthorized'}) does not have the required permissions.`}
         </p>
+        <Link to="/" className="mt-8 px-6 py-2 bg-white/5 border ice-border rounded-xl text-slate-300 hover:bg-white/10 transition-all flex items-center gap-2">
+          <ArrowLeft className="w-4 h-4" />
+          {language === 'ru' ? 'Вернуться домой' : 'Back to Home'}
+        </Link>
       </div>
     );
   }
 
-  // Fallback Mock Data
-  const mockUsersList = [
-    { id: user.$id || 'admin_id_001', name: user.name || 'Admin', email: user.email, role: 'Super Admin', joined: 'Today', status: 'Active' },
-    { id: 'usr_abc123', name: 'IceExplorer', email: 'explorer@example.com', role: 'User', joined: 'Apr 20, 2026', status: 'Active' },
-    { id: 'usr_def456', name: 'FrostByte22', email: 'frost22@gaming.io', role: 'Content Creator', joined: 'Apr 15, 2026', status: 'Active' },
-    { id: 'usr_ghi789', name: 'Snowboarder99', email: 'snow99@mail.com', role: 'User', joined: 'Apr 10, 2026', status: 'Banned' },
-    { id: 'usr_jkl012', name: 'Tech Penguin', email: 'tech@penguin.net', role: 'Moderator', joined: 'Mar 28, 2026', status: 'Active' },
-  ];
-
-  const displayUsers = dbUsers.length > 0 ? dbUsers : mockUsersList;
-
-  const dynamicCategories: string[] = Array.from(new Set(
-    dbVideos
-      .map(v => v.category ? String(v.category) : '')
-      .filter(c => c && c !== 'All' && c !== 'undefined')
-  ));
-
-  const dynamicGames: string[] = Array.from(new Set(
-    dbVideos
-      .map(v => v.game ? String(v.game) : '')
-      .filter(g => g && g !== 'undefined')
-  ));
+  const SidebarItem = ({ id, label, icon: Icon }: { id: AdminTab, label: string, icon: any }) => (
+    <button
+      onClick={() => setActiveTab(id)}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all relative group ${
+        activeTab === id 
+          ? 'bg-[#70d6ff]/10 text-[#70d6ff] border border-[#70d6ff]/20' 
+          : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+      }`}
+    >
+      <Icon className={`w-5 h-5 ${activeTab === id ? 'text-[#70d6ff]' : 'text-slate-500 group-hover:text-slate-300'}`} />
+      <span className="truncate">{label}</span>
+      {activeTab === id && (
+         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#70d6ff] rounded-r-full shadow-[0_0_10px_rgba(112,214,255,0.5)]" />
+      )}
+    </button>
+  );
 
   return (
-    <div className="flex flex-col gap-6 max-w-6xl mx-auto w-full px-4 sm:px-0 pb-20">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b ice-border pb-6 mt-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-[#70d6ff]/10 rounded-lg border border-[#70d6ff]/20">
+    <div className="flex flex-col md:flex-row min-h-[calc(100vh-120px)] bg-[#0a0f1e]/50 rounded-3xl overflow-hidden border ice-border mb-10 mx-4 sm:mx-0">
+      <aside className="w-full md:w-64 bg-black/20 border-r ice-border flex flex-col p-4 gap-2 shrink-0">
+        <div className="p-4 mb-4 flex items-center gap-3">
+          <div className="p-2 bg-[#70d6ff]/10 rounded-lg">
             <ShieldCheck className="w-6 h-6 text-[#70d6ff]" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white font-display">Command Center</h1>
-            <p className="text-sm text-slate-400">Welcome back, Administrator</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 text-green-400 rounded-lg border border-green-500/20 text-sm font-medium">
-          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-          Servers Online
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white/5 border ice-border p-5 rounded-xl flex flex-col relative overflow-hidden group">
-          <div className="flex items-center justify-between mb-4 relative z-10">
-            <span className="text-slate-400 text-sm font-medium">Total Accounts</span>
-            <Users className="w-5 h-5 text-blue-400" />
-          </div>
-          <span className="text-3xl font-bold text-white relative z-10">14,248</span>
-          <span className="text-xs text-green-400 mt-2 relative z-10">+124 this week</span>
-          <div className="absolute right-0 bottom-0 opacity-0 group-hover:opacity-10 scale-150 transition-all duration-500">
-            <Users className="w-24 h-24 text-blue-400" />
+            <span className="text-white font-black uppercase text-sm block tracking-tighter">Admin UI</span>
+            <span className="text-[10px] text-green-400 font-bold uppercase">{stats.serverStatus}</span>
           </div>
         </div>
 
-        <div className="bg-white/5 border ice-border p-5 rounded-xl flex flex-col relative overflow-hidden group">
-          <div className="flex items-center justify-between mb-4 relative z-10">
-            <span className="text-slate-400 text-sm font-medium">Total Videos</span>
-            <Video className="w-5 h-5 text-purple-400" />
-          </div>
-          <span className="text-3xl font-bold text-white relative z-10">8,593</span>
-          <span className="text-xs text-green-400 mt-2 relative z-10">+42 today</span>
-          <div className="absolute right-0 bottom-0 opacity-0 group-hover:opacity-10 scale-150 transition-all duration-500">
-            <Video className="w-24 h-24 text-purple-400" />
-          </div>
+        <SidebarItem id="dashboard" label={language === 'ru' ? 'Дашборд' : 'Dashboard'} icon={LayoutDashboard} />
+        <SidebarItem id="analytics" label={language === 'ru' ? 'Аналитика сайта' : 'Site Analytics'} icon={PieChart} />
+        <SidebarItem id="users" label={language === 'ru' ? 'Пользователи' : 'User Base'} icon={Users} />
+        <SidebarItem id="reports" label={language === 'ru' ? 'Жалобы' : 'Compliance'} icon={ShieldAlert} />
+        <SidebarItem id="content" label={language === 'ru' ? 'Контент' : 'Content'} icon={Layers} />
+
+        <div className="mt-8 px-4">
+           <button 
+             onClick={() => {
+                const event = new Event('refreshAdminData');
+                window.dispatchEvent(event);
+             }}
+             className="w-full flex items-center justify-center gap-2 py-2 bg-white/5 border ice-border rounded-xl text-[10px] font-black uppercase tracking-widest text-[#70d6ff] hover:bg-[#70d6ff]/10 transition-all"
+           >
+             <Loader2 className="w-3 h-3" id="admin-refresh-icon" />
+             {language === 'ru' ? 'Обновить данные' : 'Refresh Data'}
+           </button>
         </div>
 
-        <div className="bg-white/5 border ice-border p-5 rounded-xl flex flex-col relative overflow-hidden group">
-          <div className="flex items-center justify-between mb-4 relative z-10">
-            <span className="text-slate-400 text-sm font-medium">Active Streams</span>
-            <Activity className="w-5 h-5 text-red-400" />
-          </div>
-          <span className="text-3xl font-bold text-white relative z-10">12</span>
-          <span className="text-xs text-slate-500 mt-2 relative z-10">Currently Live</span>
-          <div className="absolute right-0 bottom-0 opacity-0 group-hover:opacity-10 scale-150 transition-all duration-500">
-            <Activity className="w-24 h-24 text-red-400" />
-          </div>
+        <div className="mt-auto pt-6 border-t ice-border p-4">
+           <Link to="/" className="flex items-center gap-2 text-slate-500 hover:text-[#70d6ff] text-xs font-bold transition-all group">
+             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+             {language === 'ru' ? 'На главную' : 'Exit to Site'}
+           </Link>
         </div>
+      </aside>
 
-        <div className="bg-[#70d6ff]/5 border border-[#70d6ff]/20 p-5 rounded-xl flex flex-col">
-          <h3 className="text-slate-200 text-sm font-medium mb-3">System Health</h3>
-          <div className="flex flex-col gap-3">
-            <div>
-              <div className="flex justify-between text-xs text-slate-400 mb-1">
-                <span>Database Load</span>
-                <span>42%</span>
-              </div>
-              <div className="w-full bg-black/40 rounded-full h-1.5 overflow-hidden">
-                <div className="bg-[#70d6ff] h-1.5 rounded-full" style={{ width: '42%' }}></div>
-              </div>
+      <main className="flex-1 p-6 md:p-8 overflow-y-auto bg-gradient-to-br from-transparent to-[#70d6ff]/[0.02]">
+        {errorDetails && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-start gap-4">
+            <div className="p-2 bg-red-500/20 rounded-xl mt-1">
+               <AlertTriangle className="w-5 h-5 text-red-500" />
             </div>
             <div>
-              <div className="flex justify-between text-xs text-slate-400 mb-1">
-                <span>Storage</span>
-                <span>86%</span>
+              <h3 className="text-red-400 font-black uppercase text-xs tracking-widest">{errorDetails.collection} Error</h3>
+              <p className="text-red-200/70 text-sm mt-1">{errorDetails.message}</p>
+              <p className="text-[10px] text-red-400/50 mt-2 italic">Check Appwrite Console for correct collection IDs and permissions.</p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'dashboard' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+            <header>
+              <h1 className="text-3xl font-black text-white italic uppercase tracking-tighter">Command Center</h1>
+              <p className="text-slate-400 text-sm mt-1">Real-time infrastructure and community oversight</p>
+            </header>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard title="Total Users" value={stats.totalUsers} icon={Users} color="text-blue-400" bgColor="bg-blue-400/10" />
+              <StatCard title="Total Videos" value={stats.totalVideos} icon={Video} color="text-purple-400" bgColor="bg-purple-400/10" />
+              <StatCard title="Total Shorts" value={stats.totalShorts} icon={Activity} color="text-teal-400" bgColor="bg-teal-400/10" />
+              <StatCard title="Pending Reports" value={stats.totalReports} icon={ShieldAlert} color="text-red-400" bgColor="bg-red-400/10" />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white/[0.02] border ice-border rounded-2xl p-6">
+                 <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                   <Activity className="w-5 h-5 text-[#70d6ff]" />
+                   Recent Activity
+                 </h2>
+                 <div className="space-y-4 text-center py-10 text-slate-500">
+                    <Clock className="w-8 h-8 mx-auto opacity-20 mb-2" />
+                    <p className="text-xs font-bold uppercase tracking-widest">Real-time logs offline</p>
+                 </div>
               </div>
-              <div className="w-full bg-black/40 rounded-full h-1.5 overflow-hidden">
-                <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: '86%' }}></div>
+
+              <div className="bg-white/[0.02] border ice-border rounded-2xl p-6">
+                 <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                   <Bell className="w-5 h-5 text-orange-400" />
+                   System Alerts
+                 </h2>
+                 <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl">
+                    <div className="flex items-center gap-3 text-orange-400 mb-2">
+                       <AlertTriangle className="w-4 h-4" />
+                       <span className="text-xs font-bold uppercase">Minor Latency issue</span>
+                    </div>
+                    <p className="text-orange-200/60 text-sm">Large media uploads may experience higher latency in some regions.</p>
+                 </div>
               </div>
             </div>
           </div>
+        )}
+
+        {activeTab === 'analytics' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+            <header className="flex justify-between items-end">
+              <div>
+                <h1 className="text-3xl font-black text-white italic uppercase tracking-tighter">Site Analytics</h1>
+                <p className="text-slate-400 text-sm mt-1">Data-driven insights into Icetube growth</p>
+              </div>
+              <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/5 border ice-border rounded-xl text-xs font-bold text-slate-300">
+                <Calendar className="w-4 h-4" />
+                All Time
+              </div>
+            </header>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+               <div className="md:col-span-2 bg-white/[0.02] border ice-border rounded-3xl p-8 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                     <BarChart3 className="w-32 h-32 text-[#70d6ff]" />
+                  </div>
+                  <h3 className="text-slate-400 text-xs font-black uppercase tracking-widest mb-2">Registration Base</h3>
+                  <div className="flex items-end gap-3 mb-8">
+                     <span className="text-5xl font-black text-white tracking-tighter">{stats.totalUsers}</span>
+                     <span className="text-sm font-bold text-green-400 mb-2">Users Enrolled</span>
+                  </div>
+                  
+                  <div className="flex items-end justify-between h-40 gap-2">
+                    {[30, 45, 25, 60, 40, 80, 55, 70, 90, 45, 30, 65].map((h, i) => (
+                      <div 
+                        key={i} 
+                        className="flex-1 bg-[#70d6ff]/20 hover:bg-[#70d6ff] transition-all rounded-t-lg relative group/bar"
+                        style={{ height: `${h}%` }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex justify-between mt-4 text-[10px] text-slate-500 font-black uppercase tracking-widest px-1">
+                     <span>Jan</span>
+                     <span>Jun</span>
+                     <span>Dec</span>
+                  </div>
+               </div>
+
+               <div className="space-y-6">
+                  <div className="bg-white/[0.02] border ice-border rounded-3xl p-6">
+                     <h4 className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-4">Content Distribution</h4>
+                     <div className="space-y-4">
+                        <div className="space-y-1.5">
+                           <div className="flex justify-between text-xs">
+                              <span className="text-slate-300 font-bold">Videos</span>
+                              <span className="text-white">{stats.totalVideos}</span>
+                           </div>
+                           <div className="w-full bg-black/40 rounded-full h-2">
+                              <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${(stats.totalVideos / Math.max(1, stats.totalVideos + stats.totalShorts)) * 100}%` }}></div>
+                           </div>
+                        </div>
+                        <div className="space-y-1.5">
+                           <div className="flex justify-between text-xs">
+                              <span className="text-slate-300 font-bold">Shorts</span>
+                              <span className="text-white">{stats.totalShorts}</span>
+                           </div>
+                           <div className="w-full bg-black/40 rounded-full h-2">
+                              <div className="bg-teal-400 h-2 rounded-full" style={{ width: `${(stats.totalShorts / Math.max(1, stats.totalVideos + stats.totalShorts)) * 100}%` }}></div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+
+                  <div className="bg-[#70d6ff]/5 border border-[#70d6ff]/20 rounded-3xl p-6">
+                     <h4 className="text-[#70d6ff] text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                        <Bell className="w-3 h-3" />
+                        Platform Update
+                     </h4>
+                     <p className="text-[#70d6ff]/80 text-xs font-medium leading-relaxed">
+                        Icetube 2.0 deployment complete. Enhanced snowflake tracking and leaderboard syncing enabled.
+                     </p>
+                  </div>
+               </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+               <MetricSquare label="Total Views" value="Live" change="+4.2%" trend="up" />
+               <MetricSquare label="Reports" value={stats.totalReports} change="Managed" trend="up" />
+               <MetricSquare label="Avg Session" value="--m" change="+0.8%" trend="up" />
+               <MetricSquare label="Network" value="Cloud" change="Active" trend="up" />
+            </div>
+
+            <div className="bg-white/[0.02] border ice-border rounded-3xl p-6 overflow-hidden">
+               <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-white uppercase italic tracking-tighter">Leaderboards (Top Creators)</h2>
+                  <div className="text-[10px] text-slate-500 font-bold uppercase">Based on current database state</div>
+               </div>
+               
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                  <LeaderboardColumn title="By Subscribers" icon={Users} data={stats.leaderboards.subscribers} metric="subscribersCount" />
+                  <LeaderboardColumn title="By Likes" icon={ShieldCheck} data={stats.leaderboards.likes} metric="likesCount" />
+                  <LeaderboardColumn title="By Views" icon={Eye} data={stats.leaderboards.views} metric="viewsCount" />
+                  <LeaderboardColumn title="By Content" icon={Video} data={stats.leaderboards.videos} metric="videosCount" />
+                  <LeaderboardColumn title="By Snowflakes" icon={Activity} data={stats.leaderboards.snowflakes} metric="snowflakesCount" />
+               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'users' && <UsersSection dbUsers={dbUsers} t={t} language={language} />}
+        {activeTab === 'reports' && <ReportsSection reports={reports} t={t} language={language} setReports={setReports} />}
+        {activeTab === 'content' && <ContentSection dbVideos={dbVideos} language={language} t={t} setDbVideos={setDbVideos} />}
+      </main>
+    </div>
+  );
+}
+
+function StatCard({ title, value, icon: Icon, color, bgColor }: any) {
+  return (
+    <div className="bg-white/5 border ice-border p-5 rounded-2xl hover:border-white/10 transition-all group overflow-hidden relative">
+      <div className="flex items-center justify-between mb-2 relative z-10">
+        <span className="text-slate-400 text-xs font-black uppercase tracking-widest">{title}</span>
+        <div className={`p-2 ${bgColor} rounded-xl`}>
+          <Icon className={`w-4 h-4 ${color}`} />
         </div>
       </div>
+      <div className="flex items-baseline gap-2 relative z-10">
+        <span className="text-2xl font-black text-white">{value}</span>
+      </div>
+      <Icon className={`absolute -right-4 -bottom-4 w-24 h-24 ${color} opacity-[0.03] group-hover:opacity-10 transition-all duration-500 scale-150 rotate-12`} />
+    </div>
+  );
+}
 
-      {/* Reports Section */}
-      <div className="bg-white/5 border ice-border rounded-xl overflow-hidden mt-4">
-        <div className="p-5 border-b ice-border flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <ShieldAlert className="w-5 h-5 text-red-400" />
-            <h2 className="text-lg font-bold text-white">{t('admin_reports')}</h2>
-          </div>
-          <span className="px-3 py-1 bg-red-500/10 text-red-400 text-xs rounded-full border border-red-500/20 font-bold">
-            {reports.length}
+function MetricSquare({ label, value, change, trend }: any) {
+  return (
+    <div className="bg-white/[0.02] border ice-border p-5 rounded-2xl">
+       <span className="text-slate-500 text-[10px] font-black uppercase tracking-widest block mb-1">{label}</span>
+       <div className="flex items-center justify-between">
+          <span className="text-xl font-black text-white">{value}</span>
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${trend === 'up' ? 'text-green-400 bg-green-400/10' : 'text-red-400 bg-red-400/10'}`}>
+             {change}
           </span>
-        </div>
+       </div>
+    </div>
+  );
+}
 
-        <div className="overflow-x-auto">
-          {isReportsLoading ? (
-            <div className="p-10 flex flex-col items-center justify-center gap-3 text-slate-400">
-               <Activity className="w-8 h-8 animate-pulse text-blue-400" />
-               <span className="text-sm">Scanning for violations...</span>
+function LeaderboardColumn({ title, icon: Icon, data, metric }: any) {
+  return (
+    <div className="bg-black/20 border ice-border rounded-2xl p-4 flex flex-col gap-4">
+      <div className="flex items-center gap-2 border-b ice-border pb-3">
+         <Icon className="w-4 h-4 text-[#70d6ff]" />
+         <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{title}</span>
+      </div>
+      <div className="space-y-3">
+        {data.length === 0 ? (
+          <div className="py-8 text-center text-[10px] text-slate-600 font-bold uppercase">No data</div>
+        ) : data.map((usr: any, i: number) => (
+          <div key={usr.$id} className="flex items-center justify-between group">
+            <div className="flex items-center gap-2 min-w-0">
+               <span className="text-[10px] font-black text-slate-600 w-4 italic">#{i+1}</span>
+               <img 
+                 src={usr.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(usr.name || 'U')}&background=random`} 
+                 className="w-6 h-6 rounded-full border border-white/10 shrink-0" 
+                 alt=""
+               />
+               <span className="text-xs font-bold text-slate-300 truncate group-hover:text-white transition-colors">{usr.name || 'Anonymous'}</span>
             </div>
-          ) : reports.length === 0 ? (
-            <div className="p-12 flex flex-col items-center justify-center gap-3 text-slate-500">
-               <ShieldCheck className="w-10 h-10 opacity-20" />
-               <p>{t('admin_no_reports')}</p>
-            </div>
-          ) : (
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-black/20 text-slate-400">
-                <tr>
-                  <th className="px-6 py-4 font-medium">{t('admin_video')}</th>
-                  <th className="px-6 py-4 font-medium">{t('admin_reason')}</th>
-                  <th className="px-6 py-4 font-medium">{t('admin_reporter')}</th>
-                  <th className="px-6 py-4 font-medium truncate">{t('studio_date_header')}</th>
-                  <th className="px-6 py-4 font-medium text-right">{t('admin_actions')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[rgba(112,214,255,0.05)] text-slate-300">
-                {reports.map((report) => (
-                  <tr key={report.$id} className="hover:bg-red-500/5 transition-colors group">
-                    <td className="px-6 py-4 max-w-xs">
-                      <div className="flex flex-col">
-                        <Link to={`/watch/${report.videoId}`} className="font-medium text-slate-200 hover:text-[#70d6ff] truncate">
-                          {report.videoTitle || 'Untitled Video'}
-                        </Link>
-                        <span className="text-[10px] text-slate-600 font-mono">ID: {report.videoId}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="flex items-center gap-2 text-red-400 font-medium">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        {t(`report_reason_${report.reason}`) || report.reason}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="text-slate-300">{report.reporterName}</span>
-                        <span className="text-[10px] text-slate-600 font-mono">UID: {report.reporterId}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-500 text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="w-3 h-3" />
-                        {new Date(report.timestamp || report.$createdAt).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US')}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link 
-                          to={`/watch/${report.videoId}`}
-                          className="p-2 hover:bg-blue-500/10 text-blue-400 rounded-lg transition-colors border border-transparent hover:border-blue-500/20"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                        <button 
-                          onClick={() => handleDeleteReport(report.$id)}
-                          className="p-2 hover:bg-red-500/10 text-red-400 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+            <span className="text-xs font-black text-[#70d6ff]">{usr[metric] || 0}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function UsersSection({ dbUsers, t, language }: any) {
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white uppercase italic tracking-tighter">Registered Creators</h1>
+          <p className="text-sm text-slate-400">Total base: {dbUsers.length} profiles</p>
         </div>
       </div>
 
-      {/* Categories Table */}
-      <div className="bg-white/5 border ice-border rounded-xl overflow-hidden mt-4">
-        <div className="p-5 border-b ice-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Layers className="w-5 h-5 text-indigo-400" />
-            <h2 className="text-lg font-bold text-white">{language === 'ru' ? 'Управление категориями' : 'Manage Categories'}</h2>
-          </div>
-          <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-xs rounded-full border border-indigo-500/20 font-bold">
-            {dynamicCategories.length}
-          </span>
-        </div>
-        
-        <div className="overflow-x-auto">
-          {isVideosLoading ? (
-            <div className="p-10 flex flex-col items-center justify-center gap-3 text-slate-400">
-               <Activity className="w-8 h-8 animate-pulse text-indigo-400" />
-               <span className="text-sm">Loading categories...</span>
-            </div>
-          ) : dynamicCategories.length === 0 ? (
-            <div className="p-12 flex flex-col items-center justify-center gap-3 text-slate-500">
-               <Layers className="w-10 h-10 opacity-20" />
-               <p>{language === 'ru' ? 'Нет пользовательских категорий' : 'No custom categories found'}</p>
-            </div>
-          ) : (
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-black/20 text-slate-400">
-                <tr>
-                  <th className="px-6 py-4 font-medium">{language === 'ru' ? 'Название категории' : 'Category Name'}</th>
-                  <th className="px-6 py-4 font-medium">{language === 'ru' ? 'Кол-во видео' : 'Video Count'}</th>
-                  <th className="px-6 py-4 font-medium text-right">{t('admin_actions')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[rgba(112,214,255,0.05)] text-slate-300">
-                {dynamicCategories.map((cat) => (
-                  <tr key={cat} className="hover:bg-indigo-500/5 transition-colors group">
-                    <td className="px-6 py-4">
-                      <span className="font-medium text-slate-200">{cat}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 bg-slate-800 rounded-md text-xs border border-white/5 text-slate-300 font-mono">
-                        {dbVideos.filter(v => v.category === cat).length}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button 
-                          onClick={() => handleDeleteCategory(cat)}
-                          className="p-2 hover:bg-red-500/10 text-red-400 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
-                          title={language === 'ru' ? 'Удалить категорию' : 'Delete category'}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-
-      {/* Games Table */}
-      <div className="bg-white/5 border ice-border rounded-xl overflow-hidden mt-4">
-        <div className="p-5 border-b ice-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Gamepad2 className="w-5 h-5 text-fuchsia-400" />
-            <h2 className="text-lg font-bold text-white">{language === 'ru' ? 'Управление играми' : 'Manage Games'}</h2>
-          </div>
-          <span className="px-3 py-1 bg-fuchsia-500/10 text-fuchsia-400 text-xs rounded-full border border-fuchsia-500/20 font-bold">
-            {dynamicGames.length}
-          </span>
-        </div>
-        
-        <div className="overflow-x-auto">
-          {isVideosLoading ? (
-            <div className="p-10 flex flex-col items-center justify-center gap-3 text-slate-400">
-               <Activity className="w-8 h-8 animate-pulse text-fuchsia-400" />
-               <span className="text-sm">Loading games...</span>
-            </div>
-          ) : dynamicGames.length === 0 ? (
-            <div className="p-12 flex flex-col items-center justify-center gap-3 text-slate-500">
-               <Gamepad2 className="w-10 h-10 opacity-20" />
-               <p>{language === 'ru' ? 'Нет привязанных игр' : 'No custom games found'}</p>
-            </div>
-          ) : (
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-black/20 text-slate-400">
-                <tr>
-                  <th className="px-6 py-4 font-medium">{language === 'ru' ? 'Название игры' : 'Game Name'}</th>
-                  <th className="px-6 py-4 font-medium">{language === 'ru' ? 'Кол-во видео' : 'Video Count'}</th>
-                  <th className="px-6 py-4 font-medium text-right">{t('admin_actions')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[rgba(112,214,255,0.05)] text-slate-300">
-                {dynamicGames.map((game) => (
-                  <tr key={game} className="hover:bg-fuchsia-500/5 transition-colors group">
-                    <td className="px-6 py-4">
-                      <span className="font-medium text-slate-200">{game}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 bg-slate-800 rounded-md text-xs border border-white/5 text-slate-300 font-mono">
-                        {dbVideos.filter(v => v.game === game).length}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button 
-                          onClick={() => handleDeleteGame(game)}
-                          className="p-2 hover:bg-red-500/10 text-red-400 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
-                          title={language === 'ru' ? 'Удалить игру' : 'Delete game'}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-
-      {/* Users Table */}
-      <div className="bg-white/5 border ice-border rounded-xl overflow-hidden mt-4">
-        <div className="p-5 border-b ice-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-bold text-white">Registered Users Map</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Note: Client SDK shows local/synced sample. Real full list requires Appwrite Server API.</p>
-          </div>
-          <button className="px-4 py-2 bg-white/5 hover:bg-white/10 border ice-border rounded-lg text-sm transition-colors text-slate-200 whitespace-nowrap">
-            Export CSV
-          </button>
-        </div>
-        
+      <div className="bg-white/5 border ice-border rounded-2xl overflow-hidden backdrop-blur-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-black/20 text-slate-400">
+            <thead className="bg-black/20 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b ice-border">
               <tr>
-                <th className="px-6 py-4 font-medium">User Details</th>
-                <th className="px-6 py-4 font-medium">Role</th>
-                <th className="px-6 py-4 font-medium">Joined</th>
-                <th className="px-6 py-4 font-medium">Status</th>
-                <th className="px-6 py-4 font-medium text-right">Actions</th>
+                <th className="px-6 py-4">Profile</th>
+                <th className="px-6 py-4">Role / Permissions</th>
+                <th className="px-6 py-4">Registered At</th>
+                <th className="px-6 py-4 text-right">Settings</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[rgba(112,214,255,0.05)] text-slate-300">
-              {displayUsers.map((usr) => (
-                <tr key={usr.id || usr.$id} className="hover:bg-white/5 transition-colors">
+            <tbody className="divide-y divide-white/5 text-slate-300">
+              {dbUsers.map((usr: any) => (
+                <tr key={usr.$id} className="hover:bg-white/5 transition-all group">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
-                        {((usr.firstName || usr.name) || 'U').charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-slate-200">
-                          {usr.firstName ? `${usr.firstName} ${usr.lastName || ''}`.trim() : (usr.name || 'Unknown')}
-                        </span>
-                        <span className="text-xs text-slate-500">{usr.email || 'No email'}</span>
+                      <img 
+                        src={usr.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(usr.name || 'U')}&background=random`} 
+                        className="w-10 h-10 rounded-full border border-white/10 shrink-0" 
+                        alt=""
+                      />
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-bold text-white truncate">{usr.name || 'Unnamed'}</span>
+                        <span className="text-[10px] text-slate-500 font-mono tracking-tighter truncate">UID: {usr.userId}</span>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded text-xs border ${
-                      (usr.userRole || usr.role || 'User') === 'Super Admin' ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' :
-                      (usr.userRole || usr.role || 'User') === 'Moderator' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
-                      (usr.userRole || usr.role || 'User') === 'Content Creator' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
-                      'bg-slate-500/10 border-slate-500/20 text-slate-400'
-                    }`}>
-                      {usr.userRole || usr.role || 'User'}
+                    <span className={`px-2.5 py-1 bg-white/5 border border-white/5 text-[10px] font-black uppercase rounded ${usr.email === 'xolodtop889@gmail.com' ? 'text-purple-400 border-purple-400/20' : 'text-slate-400'}`}>
+                      {usr.email === 'xolodtop889@gmail.com' ? 'Proprietor' : 'Creator'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-slate-400">{usr.joined || new Date(usr.$createdAt).toLocaleDateString()}</td>
-                  <td className="px-6 py-4">
-                    {(usr.status || 'Active') === 'Active' ? (
-                      <span className="flex items-center gap-1.5 text-green-400 text-xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span> Active
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1.5 text-red-400 text-xs">
-                        <Ban className="w-3 h-3" /> Banned
-                      </span>
-                    )}
+                  <td className="px-6 py-4 text-xs font-mono text-slate-500">
+                     {new Date(usr.$createdAt).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4 text-right border-0">
-                    <button className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 border-0 outline-none">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </button>
+                  <td className="px-6 py-4 text-right">
+                     <button className="p-2 hover:bg-white/10 rounded-xl transition-all text-slate-400">
+                        <MoreHorizontal className="w-4 h-4" />
+                     </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReportsSection({ reports, t, language, setReports }: any) {
+  const handleDeleteReport = async (reportId: string) => {
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const reportsColId = import.meta.env.VITE_APPWRITE_REPORTS_COLLECTION_ID;
+    if (!dbId || !reportsColId) return;
+    try {
+      await databases.deleteDocument(dbId, reportsColId, reportId);
+      setReports(reports.filter((r: any) => r.$id !== reportId));
+    } catch (err) {
+      console.error("Delete report failed:", err);
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+       <div>
+        <h1 className="text-2xl font-bold text-white uppercase italic tracking-tighter">Content Integrity</h1>
+        <p className="text-sm text-slate-400">Total Flags: {reports.length}</p>
+      </div>
+
+      <div className="bg-white/5 border ice-border rounded-2xl overflow-hidden">
+        {reports.length === 0 ? (
+          <div className="p-20 flex flex-col items-center justify-center text-center">
+             <ShieldCheck className="w-16 h-16 text-green-500/20 mb-4" />
+             <p className="text-slate-500 font-bold tracking-widest uppercase text-xs">No pending violations.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-black/20 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b ice-border">
+                <tr>
+                  <th className="px-6 py-4">Evidence</th>
+                  <th className="px-6 py-4">Type</th>
+                  <th className="px-6 py-4">Involved</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-red-500/5 text-slate-300">
+                {reports.map((report: any) => (
+                  <tr key={report.$id} className="hover:bg-red-500/[0.03] transition-all group">
+                    <td className="px-6 py-4">
+                      <Link to={`/watch/${report.videoId}`} className="flex items-center gap-3">
+                         <div className="w-12 h-8 bg-black rounded border border-white/10 flex items-center justify-center">
+                            <Eye className="w-3 h-3 text-slate-600" />
+                         </div>
+                         <span className="text-white font-bold text-xs truncate max-w-[120px]">{report.videoTitle || 'Flagged Content'}</span>
+                      </Link>
+                    </td>
+                    <td className="px-6 py-4">
+                       <span className="px-2 py-1 bg-red-500/10 text-red-500 rounded text-[10px] font-black uppercase border border-red-500/10">
+                          {report.reason}
+                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                       <div className="text-[10px] text-slate-400 font-bold uppercase truncate max-w-[100px]">By {report.reporterName}</div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                       <button onClick={() => handleDeleteReport(report.$id)} className="p-2 hover:bg-red-500/10 text-red-400 rounded-xl transition-all">
+                          <Trash2 className="w-4 h-4" />
+                       </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ContentSection({ dbVideos, language, t, setDbVideos }: any) {
+  const dynamicCategories = useMemo(() => Array.from(new Set(
+    dbVideos.map((v: any) => v.category ? String(v.category) : '').filter((c: string) => c && c !== 'All' && c !== 'undefined')
+  )), [dbVideos]);
+
+  const dynamicGames = useMemo(() => Array.from(new Set(
+    dbVideos.map((v: any) => v.game ? String(v.game) : '').filter((g: string) => g && g !== 'undefined')
+  )), [dbVideos]);
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+       <div>
+        <h1 className="text-2xl font-bold text-white uppercase italic tracking-tighter">Topic Management</h1>
+        <p className="text-sm text-slate-400">Taxonomy and classification control</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white/5 border ice-border rounded-3xl overflow-hidden">
+           <div className="p-5 border-b ice-border bg-black/20 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-indigo-400">
+                 <Layers className="w-5 h-5" />
+                 <h3 className="text-xs font-black uppercase tracking-widest">Global Categories</h3>
+              </div>
+           </div>
+           <div className="p-4 max-h-[400px] overflow-y-auto space-y-2">
+              {dynamicCategories.length === 0 ? <p className="text-center py-10 text-slate-600 italic">None found</p> : dynamicCategories.map(cat => (
+                <div key={cat} className="flex items-center justify-between p-3 hover:bg-white/5 rounded-2xl transition-all">
+                   <span className="text-white text-sm font-bold">{cat}</span>
+                   <span className="text-[10px] text-slate-600 font-bold uppercase">{dbVideos.filter((v: any) => v.category === cat).length} Videos</span>
+                </div>
+              ))}
+           </div>
+        </div>
+
+        <div className="bg-white/5 border ice-border rounded-3xl overflow-hidden">
+           <div className="p-5 border-b ice-border bg-black/20 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-fuchsia-400">
+                 <Gamepad2 className="w-5 h-5" />
+                 <h3 className="text-xs font-black uppercase tracking-widest">Global Games</h3>
+              </div>
+           </div>
+           <div className="p-4 max-h-[400px] overflow-y-auto space-y-2">
+              {dynamicGames.length === 0 ? <p className="text-center py-10 text-slate-600 italic">None found</p> : dynamicGames.map(game => (
+                <div key={game} className="flex items-center justify-between p-3 hover:bg-white/5 rounded-2xl transition-all">
+                   <span className="text-white text-sm font-bold">{game}</span>
+                   <span className="text-[10px] text-slate-600 font-bold uppercase">{dbVideos.filter((v: any) => v.game === game).length} Videos</span>
+                </div>
+              ))}
+           </div>
         </div>
       </div>
     </div>
