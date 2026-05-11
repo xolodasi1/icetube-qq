@@ -136,45 +136,53 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
       onUploadSuccess?.();
       onClose();
 
-      // Increment videosCount in profile
-      try {
-        const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
-        if (profilesCol) {
-          const profileRes = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', user.$id)]);
-          if (profileRes.documents.length > 0) {
-            const profileDoc = profileRes.documents[0];
-            await databases.updateDocument(dbId, profilesCol, profileDoc.$id, {
-              videosCount: (profileDoc.videosCount || 0) + 1
-            });
+      // Increment videosCount in profile (don't block the UI)
+      const updateStats = async () => {
+        try {
+          const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+          if (profilesCol) {
+            const profileRes = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', user.$id)]);
+            if (profileRes.documents.length > 0) {
+              const profileDoc = profileRes.documents[0];
+              await databases.updateDocument(dbId, profilesCol, profileDoc.$id, {
+                videosCount: (profileDoc.videosCount || 0) + 1
+              });
+            }
           }
+        } catch (err) {
+          console.error("Failed to update videosCount:", err);
         }
-      } catch (err) {
-        console.error("Failed to update videosCount:", err);
-      }
 
-      // Fan out notifications to subscribers
-      try {
-        const subsColId = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
-        if (subsColId) {
-          const subsRes = await databases.listDocuments(dbId, subsColId, [
-            Query.equal('channelId', user.$id)
-          ]);
-          for (const sub of subsRes.documents) {
-            await createNotification({
-              userId: sub.subscriberId,
-              actorId: user.$id,
-              actorName: user.name || 'Anonymous',
-              actorAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
-              type: 'upload',
-              videoId: createdVideoDoc?.$id || '',
-              videoTitle: title.trim() || 'Untitled Video',
-              contentType: isShorts ? 'shorts' : 'video'
-            });
+        // Fan out notifications to subscribers
+        try {
+          const subsColId = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
+          if (subsColId) {
+            const subsRes = await databases.listDocuments(dbId, subsColId, [
+              Query.equal('channelId', user.$id),
+              Query.limit(100) // Optimization: limit to 100 for now to prevent long loops
+            ]);
+            
+            // Run notifications in parallel for speed
+            await Promise.all(subsRes.documents.map(sub => 
+              createNotification({
+                userId: sub.subscriberId,
+                actorId: user.$id,
+                actorName: user.name || 'Anonymous',
+                actorAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
+                type: 'upload',
+                videoId: createdVideoDoc?.$id || '',
+                videoTitle: title.trim() || 'Untitled Video',
+                contentType: isShorts ? 'shorts' : 'video'
+              }).catch(e => console.error("Notification failed for", sub.subscriberId, e))
+            ));
           }
+        } catch (err) {
+          console.error("Failed to fan out notifications:", err);
         }
-      } catch (err) {
-        console.error("Failed to fan out notifications:", err);
-      }
+      };
+
+      // Fire and forget
+      updateStats();
 
     } catch (err: any) {
       console.error('UPLOAD ERROR:', err);

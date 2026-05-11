@@ -418,21 +418,29 @@ export default function Watch() {
           
           // Increment View Count
           try {
-            await databases.updateDocument(dbId, colId, currentVideo.id, {
-              views: (currentVideo.views || 0) + 1
-            });
+          // Increment views (non-blocking)
+          const runUpdate = async () => {
+            try {
+              await databases.updateDocument(dbId, colId, currentVideo.id, {
+                views: (currentVideo.views || 0) + 1
+              });
 
-            // Increment viewsCount in author profile
-            const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
-            if (profilesCol) {
-              const authorRes = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', currentVideo.uploaderId)]);
-              if (authorRes.documents.length > 0) {
-                const authorProfile = authorRes.documents[0];
-                await databases.updateDocument(dbId, profilesCol, authorProfile.$id, {
-                  viewsCount: (authorProfile.viewsCount || 0) + 1
-                });
+              // Increment viewsCount in author profile
+              const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+              if (profilesCol) {
+                const authorRes = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', currentVideo.uploaderId)]);
+                if (authorRes.documents.length > 0) {
+                  const authorProfile = authorRes.documents[0];
+                  await databases.updateDocument(dbId, profilesCol, authorProfile.$id, {
+                    viewsCount: (authorProfile.viewsCount || 0) + 1
+                  });
+                }
               }
+            } catch (viewErr) {
+              console.error("View increment background update failed:", viewErr);
             }
+          };
+          runUpdate();
           } catch (viewErr) {
             console.error("View increment failed:", viewErr);
           }
@@ -532,22 +540,25 @@ export default function Watch() {
     }
   };
 
-  const updateProfileStat = async (userId: string, field: string, increment: number) => {
-    try {
-      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-      const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
-      if (!dbId || !profilesCol) return;
+  const updateProfileStat = (userId: string, field: string, increment: number) => {
+    // Non-blocking background update
+    (async () => {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+        if (!dbId || !profilesCol) return;
 
-      const res = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', userId)]);
-      if (res.documents.length > 0) {
-        const doc = res.documents[0];
-        await databases.updateDocument(dbId, profilesCol, doc.$id, {
-          [field]: (doc[field] || 0) + increment
-        });
+        const res = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', userId)]);
+        if (res.documents.length > 0) {
+          const doc = res.documents[0];
+          await databases.updateDocument(dbId, profilesCol, doc.$id, {
+            [field]: (doc[field] || 0) + increment
+          });
+        }
+      } catch (err) {
+        console.error(`Failed to update profile stat ${field} in background:`, err);
       }
-    } catch (err) {
-      console.error(`Failed to update profile stat ${field}:`, err);
-    }
+    })();
   };
 
   const handleSnowflake = async () => {
