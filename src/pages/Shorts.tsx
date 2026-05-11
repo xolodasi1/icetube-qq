@@ -217,7 +217,8 @@ export default function Shorts() {
             actorAvatar: profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}`,
             type: 'like',
             videoId: current.$id,
-            videoTitle: current.title
+            videoTitle: current.title,
+            contentType: 'shorts'
           });
         }
       }
@@ -315,7 +316,8 @@ export default function Shorts() {
         actorAvatar: authorAvatar,
         type: 'comment',
         videoId: current.$id,
-        videoTitle: current.title
+        videoTitle: current.title,
+        contentType: 'shorts'
       });
     } catch (err) {
       console.error("Comment failed in Shorts:", err);

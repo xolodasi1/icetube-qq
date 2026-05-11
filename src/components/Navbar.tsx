@@ -61,13 +61,17 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
     } catch (err) { }
   };
 
-  const getNotificationText = (action: string) => {
-    switch (action) {
+  const getNotificationText = (notif: any) => {
+    switch (notif.type) {
       case 'like': return t('notif_like') || 'liked your video';
       case 'snowflake': return t('notif_snowflake') || 'gave a snowflake to your video';
       case 'comment': return t('notif_comment') || 'commented on your video';
       case 'subscribe': return t('notif_subscribe') || 'subscribed to your channel';
-      case 'upload': return t('notif_upload') || 'uploaded a new video';
+      case 'upload': 
+        if (notif.contentType === 'shorts') {
+          return language === 'ru' ? 'опубликовал(а) новый Short' : 'uploaded a new Short';
+        }
+        return t('notif_upload') || 'uploaded a new video';
       default: return 'interaction';
     }
   };
@@ -172,7 +176,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
           </button>
           
           {showNotification && (
-            <div className="absolute top-12 -right-12 sm:right-0 w-[calc(100vw-32px)] sm:w-80 bg-[#0a192f] border ice-border shadow-2xl rounded-xl z-50 flex flex-col max-h-[70vh]">
+            <div className="absolute top-12 right-0 w-[280px] sm:w-80 max-w-[calc(100vw-1.5rem)] bg-[#0a192f] border ice-border shadow-2xl rounded-xl z-50 flex flex-col max-h-[70vh]">
               <div className="p-4 border-b ice-border shrink-0 flex items-center justify-between">
                 <span className="font-semibold text-slate-100">{t('notifications_title') || 'Notifications'}</span>
                 {unreadCount > 0 && <span className="text-xs bg-[#70d6ff]/20 text-[#70d6ff] px-2 py-1 rounded-full">{unreadCount}</span>}
@@ -200,7 +204,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
                           />
                           <div className="flex flex-col">
                             <span className="text-sm text-slate-300">
-                              <strong className="text-white">{notif.actorName}</strong> {getNotificationText(notif.type)}
+                              <strong className="text-white">{notif.actorName}</strong> {getNotificationText(notif)}
                             </span>
                             {notif.videoTitle && (
                               <span className="text-xs text-slate-500 line-clamp-1 mt-0.5 max-w-[200px]">
@@ -225,12 +229,12 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
             <>
               <button 
                 onClick={() => { setShowUserMenu(!showUserMenu); setShowNotification(false); }}
-                className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-[#70d6ff] to-blue-600 border border-white/20 flex items-center justify-center transition-colors text-white font-bold text-sm shrink-0 hover:ring-2 hover:ring-[#70d6ff]/50"
+                className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-[#70d6ff] to-blue-600 border border-white/20 flex items-center justify-center transition-colors text-white font-bold text-sm shrink-0 hover:ring-2 hover:ring-[#70d6ff]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#70d6ff]"
               >
                 {profile?.avatar ? (
                   <img 
                     src={profile.avatar} 
-                    className="w-full h-full object-cover" 
+                    className="w-full h-full object-cover rounded-full" 
                     alt="Profile" 
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.name || user?.name || 'User')}&background=random`;
@@ -242,7 +246,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
               </button>
               
               {showUserMenu && (
-                <div className="absolute top-12 -right-4 sm:right-0 w-[calc(100vw-32px)] sm:w-64 bg-[#0a192f] border ice-border shadow-2xl rounded-xl z-50 overflow-hidden" onClick={() => setShowUserMenu(false)}>
+                <div className="absolute top-12 right-0 w-[240px] sm:w-64 max-w-[calc(100vw-1.5rem)] bg-[#0a192f] border ice-border shadow-2xl rounded-xl z-50 overflow-hidden" onClick={() => setShowUserMenu(false)}>
                   <div className="p-4 border-b ice-border flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-[#70d6ff] to-blue-600 flex items-center justify-center shrink-0 text-white font-bold">
                        {profile?.avatar ? (

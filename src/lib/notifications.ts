@@ -9,6 +9,7 @@ export const createNotification = async (params: {
   type: 'like' | 'snowflake' | 'comment' | 'subscribe' | 'upload';
   videoId?: string;
   videoTitle?: string;
+  contentType?: 'video' | 'shorts';
 }) => {
   if (params.userId === params.actorId) return; // Don't notify yourself
 
@@ -26,6 +27,7 @@ export const createNotification = async (params: {
       type: params.type,
       videoId: params.videoId,
       videoTitle: params.videoTitle,
+      contentType: params.contentType || 'video',
       isRead: false
     });
   } catch (err) {

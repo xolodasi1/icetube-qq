@@ -496,7 +496,8 @@ export default function Watch() {
             actorAvatar: profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}`,
             type: 'like',
             videoId: video.id,
-            videoTitle: video.title
+            videoTitle: video.title,
+            contentType: video.contentType
           });
         }
         else setDislikesCount(prev => prev + 1);
@@ -558,7 +559,8 @@ export default function Watch() {
           actorAvatar: profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}`,
           type: 'snowflake',
           videoId: video.id,
-          videoTitle: video.title
+          videoTitle: video.title,
+          contentType: video.contentType
         });
       }
     } catch (err: any) {
@@ -685,7 +687,8 @@ export default function Watch() {
           actorAvatar: authorAvatar,
           type: 'comment',
           videoId: video.id,
-          videoTitle: video.title
+          videoTitle: video.title,
+          contentType: video.contentType
         });
       }
     } catch (err: any) {

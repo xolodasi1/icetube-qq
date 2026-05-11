@@ -151,7 +151,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
               actorAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
               type: 'upload',
               videoId: createdVideoDoc?.$id || '',
-              videoTitle: title.trim() || 'Untitled Video'
+              videoTitle: title.trim() || 'Untitled Video',
+              contentType: isShorts ? 'shorts' : 'video'
             });
           }
         }
