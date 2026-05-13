@@ -49,7 +49,17 @@ export default function AdminPanel() {
         if (usersColId) {
           try {
             const response = await databases.listDocuments(dbId, usersColId, [Query.limit(100)]);
-            setDbUsers(response.documents);
+            setDbUsers(response.documents.map((doc: any) => ({
+              $id: doc.$id,
+              userId: doc.userId,
+              name: doc.name || doc.displayName || 'Anonymous',
+              avatar: doc.avatar || doc.photoUrl,
+              subscribersCount: doc.subscribersCount,
+              likesCount: doc.likesCount,
+              viewsCount: doc.viewsCount,
+              videosCount: doc.videosCount,
+              snowflakesCount: doc.snowflakesCount
+            })));
           } catch (err: any) {
             console.error("Users Fetch Error:", err);
             setErrorDetails({ message: err.message, collection: "Users/Profiles" });
@@ -60,7 +70,13 @@ export default function AdminPanel() {
         if (reportsColId) {
           try {
             const response = await databases.listDocuments(dbId, reportsColId, [Query.limit(100)]);
-            setReports(response.documents);
+            setReports(response.documents.map((doc: any) => ({
+              $id: doc.$id,
+              videoId: doc.videoId,
+              reason: doc.reason,
+              userId: doc.userId,
+              timestamp: doc.$createdAt
+            })));
           } catch (err: any) {
             console.warn("Reports Fetch Error:", err);
           }
@@ -70,7 +86,16 @@ export default function AdminPanel() {
         if (videosColId) {
           try {
             const response = await databases.listDocuments(dbId, videosColId, [Query.limit(100)]);
-            setDbVideos(response.documents);
+            setDbVideos(response.documents.map((doc: any) => ({
+              $id: doc.$id,
+              title: doc.title,
+              uploaderId: doc.uploaderId,
+              uploaderName: doc.uploaderName,
+              views: doc.views || 0,
+              contentType: doc.contentType,
+              isShort: doc.isShort,
+              isShorts: doc.isShorts
+            })));
           } catch (err: any) {
             console.error("Videos Fetch Error:", err);
             if (!errorDetails) setErrorDetails({ message: err.message, collection: "Videos" });
@@ -97,11 +122,11 @@ export default function AdminPanel() {
     
     // Calculate leaderboards
     const leaderboards = {
-      subscribers: [...dbUsers].sort((a, b) => (b.subscribersCount || 0) - (a.subscribersCount || 0)).slice(0, 5),
-      likes: [...dbUsers].sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0)).slice(0, 5),
-      views: [...dbUsers].sort((a, b) => (b.viewsCount || 0) - (a.viewsCount || 0)).slice(0, 5),
-      videos: [...dbUsers].sort((a, b) => (b.videosCount || 0) - (a.videosCount || 0)).slice(0, 5),
-      snowflakes: [...dbUsers].sort((a, b) => (b.snowflakesCount || 0) - (a.snowflakesCount || 0)).slice(0, 5),
+      subscribers: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, subscribersCount: u.subscribersCount || 0 })).sort((a, b) => (b.subscribersCount || 0) - (a.subscribersCount || 0)).slice(0, 5),
+      likes: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, likesCount: u.likesCount || 0 })).sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0)).slice(0, 5),
+      views: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, viewsCount: u.viewsCount || 0 })).sort((a, b) => (b.viewsCount || 0) - (a.viewsCount || 0)).slice(0, 5),
+      videos: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, videosCount: u.videosCount || 0 })).sort((a, b) => (b.videosCount || 0) - (a.videosCount || 0)).slice(0, 5),
+      snowflakes: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, snowflakesCount: u.snowflakesCount || 0 })).sort((a, b) => (b.snowflakesCount || 0) - (a.snowflakesCount || 0)).slice(0, 5),
     };
     
     return {

@@ -3,6 +3,7 @@ import { useLanguage } from '../lib/LanguageContext';
 import { VideoCard } from '../components/VideoCard';
 import { Bookmark, BookmarkX } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { SafeStorage } from '../lib/storage';
 
 export default function Favorites() {
   const { t } = useLanguage();
@@ -10,7 +11,7 @@ export default function Favorites() {
 
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem('saved_videos') || '[]');
+      const saved = SafeStorage.get('saved_videos', []);
       setSavedVideos(saved);
     } catch (e) {
       console.error(e);
@@ -21,9 +22,9 @@ export default function Favorites() {
     e.preventDefault();
     e.stopPropagation();
     try {
-      let saved = JSON.parse(localStorage.getItem('saved_videos') || '[]');
+      let saved = SafeStorage.get('saved_videos', []);
       saved = saved.filter((v: any) => v.id !== videoId);
-      localStorage.setItem('saved_videos', JSON.stringify(saved));
+      SafeStorage.set('saved_videos', saved);
       setSavedVideos(saved);
     } catch(err) {
       console.error(err);

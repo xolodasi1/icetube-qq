@@ -3,6 +3,7 @@ import { useLanguage } from '../lib/LanguageContext';
 import { VideoCard } from '../components/VideoCard';
 import { Clock, Play, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { SafeStorage } from '../lib/storage';
 
 export default function WatchLater() {
   const { t, language } = useLanguage();
@@ -10,7 +11,7 @@ export default function WatchLater() {
 
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem('watch_later') || '[]');
+      const saved = SafeStorage.get('watch_later', []);
       setVideos(saved);
     } catch (e) {
       console.error(e);
@@ -22,7 +23,7 @@ export default function WatchLater() {
     e.stopPropagation();
     try {
       const updated = videos.filter(v => v.id !== id);
-      localStorage.setItem('watch_later', JSON.stringify(updated));
+      SafeStorage.set('watch_later', updated);
       setVideos(updated);
     } catch (err) {
       console.error(err);
@@ -32,7 +33,7 @@ export default function WatchLater() {
   const handleClearAll = () => {
     if (!window.confirm(language === 'ru' ? 'Очистить список "Смотреть позже"?' : 'Clear all Watch Later videos?')) return;
     try {
-      localStorage.setItem('watch_later', '[]');
+      SafeStorage.set('watch_later', []);
       setVideos([]);
     } catch (err) {
       console.error(err);

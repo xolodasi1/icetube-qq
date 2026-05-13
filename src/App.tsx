@@ -21,6 +21,7 @@ import ChannelEditor from "./pages/ChannelEditor";
 import Shorts from "./pages/Shorts";
 import Subscriptions from "./pages/Subscriptions";
 import ContinueWatching from "./pages/ContinueWatching";
+import Videos from "./pages/Videos";
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/videos" element={<Videos />} />
           <Route path="/shorts/:id?" element={<Shorts />} />
           <Route path="/watch/:id" element={<Watch />} />
           <Route path="/channel/:id" element={<Channel />} />

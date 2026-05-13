@@ -77,8 +77,25 @@ export const getOptimizedThumbnail = (url: string | undefined): string => {
       newUrl = newUrl.replace('/video/upload/', '/video/upload/so_auto/');
     }
     // Ensure the extension is .jpg for images
-    if (newUrl.match(/\.(mp4|webm|mov|ogg)$/i)) {
+    if (newUrl.match(/\.(mp4|webm|mov|ogg|avi|wmv)$/i)) {
       newUrl = newUrl.replace(/\.[^/.]+$/, ".jpg");
+    }
+    return newUrl;
+  }
+  return url;
+};
+
+export const getOptimizedVideoUrl = (url: string | undefined): string => {
+  if (!url) return '';
+  if (url.includes('res.cloudinary.com') && url.includes('/video/upload/')) {
+    let newUrl = url;
+    // Inject q_auto,f_auto if not present
+    if (!newUrl.match(/\/q_auto/)) {
+      newUrl = newUrl.replace('/video/upload/', '/video/upload/q_auto,f_auto/');
+    }
+    // Change any weird extension to .mp4 for playback compatibility if f_auto fails
+    if (newUrl.match(/\.(mov|avi|wmv|mkv|flv)$/i)) {
+      newUrl = newUrl.replace(/\.[^/.]+$/, ".mp4");
     }
     return newUrl;
   }

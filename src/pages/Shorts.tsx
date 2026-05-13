@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { ThumbsUp, ThumbsDown, MessageSquare, Share2, MoreHorizontal, X, Loader2, Send } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageSquare, Share2, MoreHorizontal, X, Loader2, Send, AlertTriangle } from 'lucide-react';
 import { databases } from '../lib/appwrite';
 import { Query, ID } from 'appwrite';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { useLanguage } from '../lib/LanguageContext';
 import { createNotification } from '../lib/notifications';
-import { getOptimizedThumbnail } from '../lib/cloudinary';
+import { SafeStorage } from '../lib/storage';
+import { getOptimizedThumbnail, getOptimizedVideoUrl } from '../lib/cloudinary';
 
 export default function Shorts() {
   const { id } = useParams();
@@ -14,6 +15,9 @@ export default function Shorts() {
   const { user, profile } = useAuth();
   const { t, language } = useLanguage();
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
   
   // Interaction State
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -32,28 +36,60 @@ export default function Shorts() {
 
   useEffect(() => {
     const fetchShorts = async () => {
-      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-      const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
-      if (!dbId || !colId) return;
-
       try {
+        setIsLoading(true);
+        setError(null);
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+        if (!dbId || !colId) {
+          setError("Database configuration missing.");
+          return;
+        }
+
         let docs: any[] = [];
+        
+        // Priority 1: If an ID is provided, try to fetch it first
+        if (id) {
+          try {
+            const specificDoc = await databases.getDocument(dbId, colId, id);
+            if (specificDoc) {
+              docs.push(specificDoc);
+            }
+          } catch (e) {
+            console.error("Could not fetch specific short:", e);
+          }
+        }
+
         try {
           const res = await databases.listDocuments(dbId, colId, [
              Query.equal('contentType', 'shorts'), // Prefer shorts if marked
-             Query.limit(50)
+             Query.limit(50),
+             Query.orderDesc('$createdAt')
           ]);
-          docs = res.documents;
+          
+          // Merge and de-duplicate
+          const existingIds = new Set(docs.map(d => d.$id));
+          res.documents.forEach(doc => {
+            if (!existingIds.has(doc.$id)) docs.push(doc);
+          });
         } catch (queryErr: any) {
           console.log("Query by contentType failed, fetching all and filtering manually");
-          const allRes = await databases.listDocuments(dbId, colId, [Query.limit(100)]);
-          docs = allRes.documents.filter((d: any) => d.contentType === 'shorts' || d.title?.toLowerCase().includes('#shorts') || d.description?.toLowerCase().includes('#shorts'));
+          const allRes = await databases.listDocuments(dbId, colId, [Query.limit(100), Query.orderDesc('$createdAt')]);
+          const filtered = allRes.documents.filter((d: any) => d.contentType === 'shorts' || d.title?.toLowerCase().includes('#shorts') || d.description?.toLowerCase().includes('#shorts'));
+          
+          const existingIds = new Set(docs.map(d => d.$id));
+          filtered.forEach(doc => {
+            if (!existingIds.has(doc.$id)) docs.push(doc);
+          });
         }
 
         if (docs.length === 0) {
-          // Fallback to any videos if no shorts found
-          const allRes = await databases.listDocuments(dbId, colId, [Query.limit(50)]);
-          docs = allRes.documents;
+          // Fallback to any videos if no shorts found (maybe they are vertical but not tagged)
+          const fallbackRes = await databases.listDocuments(dbId, colId, [Query.limit(50), Query.orderDesc('$createdAt')]);
+          const existingIds = new Set(docs.map(d => d.$id));
+          fallbackRes.documents.forEach(doc => {
+            if (!existingIds.has(doc.$id)) docs.push(doc);
+          });
         }
 
         // Fetch user profiles to enrich avatars
@@ -78,19 +114,41 @@ export default function Shorts() {
           }
         }
         
-        const finalDocs = docs.reverse();
+        const finalDocs = docs.map(doc => ({
+          id: doc.$id,
+          $id: doc.$id,
+          title: doc.title,
+          videoUrl: doc.videoUrl,
+          thumbnailUrl: doc.thumbnailUrl,
+          uploaderId: doc.uploaderId,
+          uploaderName: doc.uploaderName,
+          uploaderAvatar: doc.uploaderAvatar,
+          views: doc.views || 0,
+          description: doc.description,
+          contentType: doc.contentType || 'short'
+        }));
+
+        if (finalDocs.length === 0) {
+          setError(language === 'ru' ? "Шортсы не найдены." : "No shorts found.");
+          setVideos([]);
+          return;
+        }
+
         setVideos(finalDocs);
 
         if (id) {
           const index = finalDocs.findIndex(v => v.$id === id);
           if (index !== -1) setCurrentVideoIndex(index);
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error(e);
+        setError(e.message || "Failed to load shorts.");
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchShorts();
-  }, []);
+  }, [id, language]);
 
   const fetchInteractions = async (videoId: string, uploaderId: string) => {
     try {
@@ -159,6 +217,28 @@ export default function Shorts() {
       const current = videos[currentVideoIndex];
       fetchInteractions(current.$id, current.uploaderId);
       if (showComments) fetchComments(current.$id);
+
+      // Add to History
+      try {
+        let history = SafeStorage.get('watch_history', []);
+        history = history.filter((v: any) => v.id !== current.$id);
+        history.unshift({
+          id: current.$id,
+          title: current.title,
+          channelName: current.uploaderName,
+          channelAvatar: current.uploaderAvatar,
+          views: current.views || 0,
+          thumbnailUrl: current.thumbnailUrl,
+          videoUrl: current.videoUrl,
+          uploadDate: 'Recently',
+          timestamp: Date.now(),
+          contentType: 'shorts'
+        });
+        if (history.length > 100) history = history.slice(0, 100);
+        SafeStorage.set('watch_history', history);
+      } catch (e) {
+        console.error("Failed to save to history", e);
+      }
     }
   }, [currentVideoIndex, videos, user, language]);
 
@@ -326,11 +406,29 @@ export default function Shorts() {
     }
   };
 
-  if (videos.length === 0) {
+  if (isLoading) {
     return (
-      <div className="flex h-[calc(100vh-64px)] items-center justify-center">
+      <div className="flex flex-col h-[calc(100vh-64px)] items-center justify-center bg-black">
          <Loader2 className="w-8 h-8 animate-spin text-[#70d6ff]" />
-         <p className="text-slate-400 ml-3">Loading Shorts...</p>
+         <p className="text-slate-400 mt-4 tracking-wide">{language === 'ru' ? 'Загрузка Шортсов...' : 'Loading Shorts...'}</p>
+      </div>
+    );
+  }
+
+  if (error || videos.length === 0) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-64px)] items-center justify-center bg-black text-center px-6">
+         <div className="w-20 h-20 bg-white/5 ice-border border rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(112,214,255,0.1)]">
+            <X className="w-10 h-10 text-red-400/80" />
+         </div>
+         <h2 className="text-2xl font-bold text-white mb-2">{language === 'ru' ? 'Ошибка' : 'Error'}</h2>
+         <p className="text-slate-400 mb-8 max-w-sm leading-relaxed">{error || (language === 'ru' ? 'Видео не найдены. Попробуйте загрузить что-нибудь!' : 'No videos found. Try uploading something!')}</p>
+         <Link 
+           to="/"
+           className="px-8 py-3 bg-[#70d6ff] text-black hover:bg-[#5bc0e6] rounded-full transition-all duration-300 font-bold shadow-lg shadow-[#70d6ff]/20 active:scale-95"
+         >
+           {language === 'ru' ? 'На главную' : 'Back Home'}
+         </Link>
       </div>
     );
   }
@@ -346,13 +444,34 @@ export default function Shorts() {
         
         <video 
           key={current.$id}
-          src={current.videoUrl} 
+          src={getOptimizedVideoUrl(current.videoUrl)} 
           poster={getOptimizedThumbnail(current.thumbnailUrl)}
           loop 
           autoPlay 
           playsInline
           className="w-full h-full object-cover"
+          onError={(e) => {
+            const videoEl = e.target as HTMLVideoElement;
+            const errCode = videoEl.error?.code;
+            const errMsg = videoEl.error?.message;
+            console.error("Shorts Playback Error details:", errCode, errMsg, "URL:", current.videoUrl);
+            setPlaybackError(language === 'ru' ? `Ошибка: ${errCode} ${errMsg || ''}` : `Playback Error: ${errCode} ${errMsg || ''}`);
+          }}
+          onLoadedData={() => setPlaybackError(null)}
         />
+
+        {playbackError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md z-30 p-6 text-center">
+            <AlertTriangle className="w-10 h-10 text-red-500 mb-2" />
+            <span className="text-white font-bold text-sm tracking-tighter italic uppercase">{playbackError}</span>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-1.5 bg-white/10 hover:bg-white/20 text-white text-[10px] uppercase font-black tracking-widest rounded-lg transition-all"
+            >
+              {language === 'ru' ? 'Обновить' : 'Reload'}
+            </button>
+          </div>
+        )}
 
         {/* Interaction Side Overlay (Right) */}
         <div className="absolute right-3 bottom-24 flex flex-col items-center gap-5 z-20">

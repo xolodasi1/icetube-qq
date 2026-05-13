@@ -1,10 +1,11 @@
-import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert, Settings, LayoutDashboard } from "lucide-react";
+import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert, Settings, LayoutDashboard, Mic, Box, Snowflake } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../lib/AuthContext";
 import { useLanguage } from "../lib/LanguageContext";
 import { databases } from "../lib/appwrite";
 import { Query } from "appwrite";
+import { UploadModal } from "./UploadModal";
 
 export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
   const { user, profile, login, logoutUser } = useAuth();
@@ -14,6 +15,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotification, setShowNotification] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -130,15 +132,17 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
           <div className="w-8 h-8 rounded shrink-0 overflow-hidden bg-white/5 border ice-border shadow-[0_0_15px_rgba(112,214,255,0.15)]">
              <img src="https://res.cloudinary.com/du6zw4m8g/image/upload/v1776451556/5395585251976877323_gkvgwj.jpg" alt="Icetube 2.0" className="w-full h-full object-cover" />
           </div>
-          <div className="ice-logo hidden sm:flex">
+          <div className="ice-logo hidden sm:flex items-center gap-1">
+            <Snowflake className="w-3.5 h-3.5 text-[#70d6ff] animate-pulse" />
             <span>ICETUBE</span>
             <div className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded border border-blue-500/30 tracking-normal font-medium leading-none">2.0</div>
+            <Snowflake className="w-3.5 h-3.5 text-[#70d6ff] animate-pulse" style={{ animationDelay: '1s' }} />
           </div>
         </Link>
       </div>
 
-      <div className="flex-1 max-w-2xl px-4 sm:px-8 hidden md:block">
-        <form onSubmit={handleSearchSubmit} className="relative group">
+      <div className="flex-1 max-w-2xl px-4 sm:px-8 hidden md:flex items-center gap-2">
+        <form onSubmit={handleSearchSubmit} className="relative group flex-1">
           <button type="submit" className="absolute inset-y-0 left-0 pl-3 flex items-center shrink-0">
             <Search className="w-4 h-4 text-slate-500 group-focus-within:text-[#70d6ff] transition-colors" />
           </button>
@@ -150,19 +154,31 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
             className="w-full bg-white/5 border ice-border rounded-full py-2 px-6 pl-10 text-sm focus:outline-none focus:border-blue-400/50 transition-colors placeholder:text-slate-500 text-slate-200"
           />
         </form>
+        <button 
+          type="button"
+          className="w-10 h-10 shrink-0 rounded-full bg-white/5 hover:bg-[rgba(112,214,255,0.08)] border ice-border flex items-center justify-center transition-colors text-slate-300 hover:text-[#70d6ff]"
+          title={language === 'ru' ? 'Голосовой поиск' : 'Voice Search'}
+        >
+          <Mic className="w-5 h-5" />
+        </button>
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
         {user && (
-          <Link 
-            to="/studio"
-            className="hidden sm:flex items-center gap-2 px-4 py-2 hover:bg-[rgba(112,214,255,0.08)] rounded-full text-slate-300 transition-colors border border-white/10 hover:border-[#70d6ff]/40 group"
-            title={language === 'ru' ? 'Создать' : 'Create'}
+          <button 
+            onClick={() => setIsUploadOpen(true)}
+            className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#70d6ff]/20 to-blue-600/20 hover:from-[#70d6ff]/30 hover:to-blue-600/30 rounded-full text-slate-100 transition-all border border-[#70d6ff]/30 hover:border-[#70d6ff]/60 group shadow-[0_0_15px_rgba(112,214,255,0.1)] active:scale-95"
+            title={language === 'ru' ? 'Загрузить ролик' : 'Upload Video'}
           >
             <Video className="w-5 h-5 group-hover:text-[#70d6ff] transition-colors" />
-            <span className="text-sm font-bold hidden lg:inline">{language === 'ru' ? 'Загрузить' : 'Upload'}</span>
-          </Link>
+            <span className="text-sm font-black italic uppercase tracking-tighter hidden lg:inline">{language === 'ru' ? 'Загрузить' : 'Upload'}</span>
+          </button>
         )}
+
+        <UploadModal 
+          isOpen={isUploadOpen} 
+          onClose={() => setIsUploadOpen(false)}
+        />
 
         <button 
           onClick={() => setMobileSearchOpen(true)}
@@ -313,9 +329,9 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
           ) : (
             <button 
               onClick={login}
-              className="flex items-center gap-2 border border-[#70d6ff]/40 text-[#70d6ff] hover:bg-[#70d6ff]/10 px-3 sm:px-4 py-1.5 rounded-full transition-colors text-sm font-medium whitespace-nowrap"
+              className="flex items-center gap-2 bg-white/5 border border-[#70d6ff]/20 text-[#70d6ff] hover:bg-[#70d6ff]/10 hover:border-[#70d6ff]/40 px-3 sm:px-4 py-1.5 rounded-full transition-all text-sm font-medium whitespace-nowrap shadow-[0_0_10px_rgba(112,214,255,0.05)]"
             >
-              <User className="w-4 h-4" />
+              <Box className="w-4 h-4" />
               <span className="hidden sm:inline">{t('nav_sign_in')}</span>
             </button>
           )}

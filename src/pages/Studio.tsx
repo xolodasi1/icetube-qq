@@ -103,8 +103,7 @@ export default function Studio() {
         thumbnailUrl: v.thumbnailUrl,
         views: v.views || 0,
         uploadDate: new Date(v.$createdAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'),
-        status: 'Published',
-        ...v
+        status: 'Published'
       }));
 
       setVideos(userVids.reverse());

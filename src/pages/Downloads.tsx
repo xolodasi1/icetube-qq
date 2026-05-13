@@ -3,6 +3,7 @@ import { useLanguage } from '../lib/LanguageContext';
 import { VideoCard } from '../components/VideoCard';
 import { Download, Trash2, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { SafeStorage } from '../lib/storage';
 
 export default function Downloads() {
   const { t, language } = useLanguage();
@@ -10,7 +11,7 @@ export default function Downloads() {
 
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem('downloaded_videos') || '[]');
+      const saved = SafeStorage.get('downloaded_videos', []);
       setVideos(saved);
     } catch (e) {
       console.error(e);
@@ -23,10 +24,10 @@ export default function Downloads() {
     if (!window.confirm(language === 'ru' ? 'Удалить видео из скачанных?' : 'Remove video from downloads?')) return;
     try {
       const updated = videos.filter(v => v.id !== id);
-      localStorage.setItem('downloaded_videos', JSON.stringify(updated));
+       SafeStorage.set('downloaded_videos', updated);
       setVideos(updated);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to update downloaded videos list:", err);
     }
   };
 

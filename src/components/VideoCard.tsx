@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Video } from "../data";
 import clsx from "clsx";
 import { useLanguage } from "../lib/LanguageContext";
-import { Check, Zap } from "lucide-react";
+import { Check, Zap, MoreVertical } from "lucide-react";
 import { getOptimizedThumbnail } from "../lib/cloudinary";
 
 interface VideoCardProps {
@@ -95,10 +95,15 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
             />
           </Link>
         )}
-        <div className="flex flex-col overflow-hidden">
-          <Link to={targetUrl} className={clsx("text-slate-200 font-bold line-clamp-2 group-hover:text-[#70d6ff] transition-colors leading-tight mb-1", isList ? "text-sm sm:text-base" : "text-sm")}>
-            {video.title}
-          </Link>
+        <div className="flex flex-col overflow-hidden w-full relative">
+          <div className="flex justify-between items-start gap-2">
+            <Link to={targetUrl} className={clsx("text-slate-200 font-bold line-clamp-2 group-hover:text-[#70d6ff] transition-colors leading-tight mb-1", isList ? "text-sm sm:text-base" : "text-sm")}>
+              {video.title}
+            </Link>
+            <button className="text-slate-400 hover:text-white shrink-0 p-1 -mr-2">
+              <MoreVertical className="w-4 h-4" />
+            </button>
+          </div>
           <div className="text-slate-500 text-xs sm:text-sm flex flex-col gap-0.5">
             <Link to={`/channel/${video.uploaderId}`} className="hover:text-slate-300 transition-colors truncate flex items-center gap-1 w-full">
               <span className="truncate">{video.channelName}</span>

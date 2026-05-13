@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Moon, Sun, Globe, Check, Settings as SettingsIcon } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageContext';
 
+import { SafeStorage } from '../lib/storage';
+
 export default function Settings() {
   const { language, setLanguage, t } = useLanguage();
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
+  const [theme, setTheme] = useState(() => SafeStorage.get('theme', 'dark'));
 
   useEffect(() => {
-    localStorage.setItem('theme', theme);
+    SafeStorage.set('theme', theme);
     if (theme === 'light') {
       document.body.classList.add('light-mode');
     } else {

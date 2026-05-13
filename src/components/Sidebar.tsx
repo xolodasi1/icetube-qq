@@ -53,6 +53,7 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
   const navItems = [
     { icon: Home, label: t('nav_home'), path: "/" },
     { icon: Compass, label: t('nav_shorts'), path: "/shorts" },
+    { icon: Video, label: t('nav_videos'), path: "/videos" },
     { icon: PlaySquare, label: t('nav_subscriptions'), path: "/subscriptions" },
     { divider: true },
     ...(user ? [{ header: t('nav_you'), path: `/channel/${user.$id}` }] : []),

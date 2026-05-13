@@ -1,15 +1,18 @@
-import { Clock } from "lucide-react";
+import { Clock, UserPlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "../lib/LanguageContext";
 import { useEffect, useState } from "react";
+import { useAuth } from "../lib/AuthContext";
+import { SafeStorage } from "../lib/storage";
 
 export default function ContinueWatching() {
   const { t, language } = useLanguage();
+  const { user, login } = useAuth();
   const [videos, setVideos] = useState<any[]>([]);
 
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem('watching_progress') || '{}');
+      const saved = SafeStorage.get('watching_progress', {});
       const videoArray = Object.values(saved)
         .sort((a: any, b: any) => b.timestamp - a.timestamp); // Sort by most recent
       setVideos(videoArray);
@@ -29,7 +32,27 @@ export default function ContinueWatching() {
         </h1>
       </div>
 
-      {videos.length === 0 ? (
+      {!user ? (
+        <div className="flex flex-col items-center justify-center h-full min-h-[50vh] text-center bg-white/[0.02] border ice-border rounded-3xl p-8 animate-in fade-in slide-in-from-bottom-4">
+          <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mb-6">
+            <UserPlus className="w-8 h-8 text-blue-400" />
+          </div>
+          <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter mb-4">
+            {language === 'ru' ? 'НУЖНА РЕГИСТРАЦИЯ' : 'REGISTRATION REQUIRED'}
+          </h2>
+          <p className="text-slate-400 max-w-sm mb-8 font-medium">
+            {language === 'ru' 
+              ? 'Зарегистрируйтесь или войдите в аккаунт, чтобы сохранять прогресс просмотра и возвращаться к любимым роликам.' 
+              : 'Sign in to save your viewing progress and pick up where you left off across all your devices.'}
+          </p>
+          <button 
+            onClick={login}
+            className="px-8 py-3 bg-[#70d6ff] text-black font-black uppercase tracking-widest rounded-xl hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(112,214,255,0.4)]"
+          >
+            {language === 'ru' ? 'ВОЙТИ / СОЗДАТЬ АККАУНТ' : 'LOGIN / REGISTER'}
+          </button>
+        </div>
+      ) : videos.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full min-h-[50vh] text-center">
           <Clock className="w-12 h-12 text-slate-500 mb-4 opacity-50" />
           <h2 className="text-xl font-bold text-slate-300 mb-2">

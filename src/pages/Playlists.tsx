@@ -3,6 +3,7 @@ import { useLanguage } from '../lib/LanguageContext';
 import { VideoCard } from '../components/VideoCard';
 import { Trash2, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { SafeStorage } from '../lib/storage';
 
 export default function Playlists() {
   const { t, language } = useLanguage();
@@ -11,7 +12,7 @@ export default function Playlists() {
 
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem('user_playlists') || '[]');
+      const saved = SafeStorage.get('user_playlists', []);
       setPlaylists(saved);
     } catch (e) {
       console.error(e);
@@ -23,7 +24,7 @@ export default function Playlists() {
     if (!window.confirm(language === 'ru' ? 'Вы уверены, что хотите удалить этот плейлист?' : 'Are you sure you want to delete this playlist?')) return;
     try {
       const saved = playlists.filter(pl => pl.id !== id);
-      localStorage.setItem('user_playlists', JSON.stringify(saved));
+      SafeStorage.set('user_playlists', saved);
       setPlaylists(saved);
       if (activePlaylist?.id === id) setActivePlaylist(null);
     } catch (err) {
@@ -38,7 +39,7 @@ export default function Playlists() {
       const newVideos = activePlaylist.videos.filter((v: any) => v.id !== videoId);
       const updatedPlaylist = { ...activePlaylist, videos: newVideos };
       const updatedPlaylists = playlists.map(pl => pl.id === activePlaylist.id ? updatedPlaylist : pl);
-      localStorage.setItem('user_playlists', JSON.stringify(updatedPlaylists));
+      SafeStorage.set('user_playlists', updatedPlaylists);
       setPlaylists(updatedPlaylists);
       setActivePlaylist(updatedPlaylist);
     } catch(err) {

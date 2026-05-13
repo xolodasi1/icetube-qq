@@ -1,5 +1,5 @@
-import { useParams, Link } from "react-router-dom";
-import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock, AlertTriangle } from "lucide-react";
 import { VideoCard } from "../components/VideoCard";
 import React, { useState, useEffect } from "react";
 import { databases, Permission, Role } from "../lib/appwrite";
@@ -7,11 +7,13 @@ import { Query, ID } from "appwrite";
 import { useAuth } from "../lib/AuthContext";
 import { useLanguage } from "../lib/LanguageContext";
 import { createNotification } from "../lib/notifications";
+import { SafeStorage } from "../lib/storage";
 
-import { getOptimizedThumbnail } from '../lib/cloudinary';
+import { getOptimizedThumbnail, getOptimizedVideoUrl } from '../lib/cloudinary';
 
 export default function Watch() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user, profile } = useAuth();
   const { t, language } = useLanguage();
   
@@ -44,6 +46,33 @@ export default function Watch() {
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
+
+  const handleVideoError = (e: any) => {
+    console.error("Video Playback Error");
+    const videoElement = e.target as HTMLVideoElement;
+    let message = language === 'ru' ? 'Ошибка загрузки видео' : 'Error loading video';
+    
+    if (videoElement.error) {
+      switch (videoElement.error.code) {
+        case 1: message = language === 'ru' ? 'Загрузка прервана' : 'Loading aborted'; break;
+        case 2: message = language === 'ru' ? 'Ошибка сети' : 'Network error'; break;
+        case 3: message = language === 'ru' ? 'Ошибка декодирования (файл может быть поврежден)' : 'Decode error (file might be corrupted)'; break;
+        case 4: message = language === 'ru' ? 'Формат видео не поддерживается' : 'Video format not supported'; break;
+      }
+    }
+    setVideoError(message);
+  };
+
+  const retryLoad = () => {
+    setVideoError(null);
+    const video = document.getElementById('main-video-player') as HTMLVideoElement;
+    if (video) {
+      video.load();
+      video.play().catch(err => console.error("Play error:", err.message || err));
+    }
+  };
+  const [isVideoEnded, setIsVideoEnded] = useState(false);
   const [activeSuggestionFilter, setActiveSuggestionFilter] = useState<'all' | 'category' | 'author'>('all');
   const [showNextFloating, setShowNextFloating] = useState(true);
   
@@ -75,17 +104,17 @@ export default function Watch() {
   useEffect(() => {
     if (video) {
       try {
-        const saved = JSON.parse(localStorage.getItem('saved_videos') || '[]');
+        const saved = SafeStorage.get('saved_videos', []);
         setIsSaved(saved.some((v: any) => v.id === video.id));
         
-        const watchLater = JSON.parse(localStorage.getItem('watch_later') || '[]');
+        const watchLater = SafeStorage.get('watch_later', []);
         setIsWatchLater(watchLater.some((v: any) => v.id === video.id));
 
-        const downloaded = JSON.parse(localStorage.getItem('downloaded_videos') || '[]');
+        const downloaded = SafeStorage.get('downloaded_videos', []);
         setIsDownloaded(downloaded.some((v: any) => v.id === video.id));
 
         // Add to History
-        let history = JSON.parse(localStorage.getItem('watch_history') || '[]');
+        let history = SafeStorage.get('watch_history', []);
         // Remove existing entry for this video to move it to the top
         history = history.filter((v: any) => v.id !== video.id);
         history.unshift({
@@ -101,14 +130,14 @@ export default function Watch() {
         });
         // Limit history to 100 items
         if (history.length > 100) history = history.slice(0, 100);
-        localStorage.setItem('watch_history', JSON.stringify(history));
+        SafeStorage.set('watch_history', history);
       } catch(e) {}
     }
   }, [video]);
 
   useEffect(() => {
     try {
-      const savedPlaylists = JSON.parse(localStorage.getItem('user_playlists') || '[]');
+      const savedPlaylists = SafeStorage.get('user_playlists', []);
       setPlaylists(savedPlaylists);
     } catch(e) {}
   }, []);
@@ -122,7 +151,7 @@ export default function Watch() {
         videos: []
       };
       const updatedPlaylists = [...playlists, newPlaylist];
-      localStorage.setItem('user_playlists', JSON.stringify(updatedPlaylists));
+      SafeStorage.set('user_playlists', updatedPlaylists);
       setPlaylists(updatedPlaylists);
       setNewPlaylistName('');
     } catch(err) {
@@ -156,7 +185,7 @@ export default function Watch() {
         }
         return pl;
       });
-      localStorage.setItem('user_playlists', JSON.stringify(updatedPlaylists));
+      SafeStorage.set('user_playlists', updatedPlaylists);
       setPlaylists(updatedPlaylists);
     } catch(err) {
       console.error('Failed to update playlist', err);
@@ -176,7 +205,7 @@ export default function Watch() {
   const handleSave = () => {
     if (!video) return;
     try {
-      let saved = JSON.parse(localStorage.getItem('saved_videos') || '[]');
+      let saved = SafeStorage.get('saved_videos', []);
       if (isSaved) {
         saved = saved.filter((v: any) => v.id !== video.id);
         setIsSaved(false);
@@ -194,7 +223,7 @@ export default function Watch() {
         });
         setIsSaved(true);
       }
-      localStorage.setItem('saved_videos', JSON.stringify(saved));
+      SafeStorage.set('saved_videos', saved);
     } catch(err) {
       console.error("Failed to save video:", err);
     }
@@ -203,7 +232,7 @@ export default function Watch() {
   const handleToggleWatchLater = () => {
     if (!video) return;
     try {
-      let watchLater = JSON.parse(localStorage.getItem('watch_later') || '[]');
+      let watchLater = SafeStorage.get('watch_later', []);
       if (isWatchLater) {
         watchLater = watchLater.filter((v: any) => v.id !== video.id);
         setIsWatchLater(false);
@@ -221,7 +250,7 @@ export default function Watch() {
         });
         setIsWatchLater(true);
       }
-      localStorage.setItem('watch_later', JSON.stringify(watchLater));
+      SafeStorage.set('watch_later', watchLater);
     } catch(err) {
       console.error("Failed to update watch later:", err);
     }
@@ -230,7 +259,7 @@ export default function Watch() {
   const handleDownload = () => {
     if (!video) return;
     try {
-      let downloaded = JSON.parse(localStorage.getItem('downloaded_videos') || '[]');
+      let downloaded = SafeStorage.get('downloaded_videos', []);
       if (isDownloaded) {
         if (!window.confirm(language === 'ru' ? 'Удалить из скачанных?' : 'Remove from downloads?')) return;
         downloaded = downloaded.filter((v: any) => v.id !== video.id);
@@ -249,7 +278,7 @@ export default function Watch() {
         });
         setIsDownloaded(true);
       }
-      localStorage.setItem('downloaded_videos', JSON.stringify(downloaded));
+      SafeStorage.set('downloaded_videos', downloaded);
     } catch(err) {
       console.error("Failed to update downloads:", err);
     }
@@ -367,83 +396,102 @@ export default function Watch() {
         
         if (!dbId || !colId || !id) return;
 
-        const response = await databases.listDocuments(dbId, colId);
-        
-        let allFormatted = response.documents;
-        
-        // Fetch users/profiles to get freshest avatars
-        const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
-        if (profilesCol && allFormatted.length > 0) {
-          try {
-            const profilesResult = await databases.listDocuments(dbId, profilesCol);
-            const profilesMap = new Map(profilesResult.documents.map(p => [p.userId, p]));
-            allFormatted = allFormatted.map(v => {
-               const profile = profilesMap.get(v.uploaderId);
-               if (profile) {
-                 return {
-                   ...v,
-                   uploaderName: profile.name || v.uploaderName,
-                   uploaderAvatar: profile.avatar || v.uploaderAvatar
-                 }
-               }
-               return v;
-            });
-          } catch (e) {
-            console.error("Could not fetch profiles for Watch avatars", e);
-          }
+        // Fetch the specific video directly by ID
+        let currentDoc: any;
+        try {
+          currentDoc = await databases.getDocument(dbId, colId, id);
+        } catch (docErr) {
+          console.error("Could not fetch specific video document:", docErr);
+          // Fallback: list all and find (not ideal but better than nothing)
+          const response = await databases.listDocuments(dbId, colId);
+          currentDoc = response.documents.find(v => v.$id === id);
         }
-
-        const formattedVideos = allFormatted.map(v => ({
-            id: v.$id,
-            uploaderId: v.uploaderId,
-            title: v.title,
-            thumbnailUrl: v.thumbnailUrl,
-            videoUrl: v.videoUrl,
-            channelName: v.uploaderName,
-            channelAvatar: v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
-            views: v.views || 0,
-            uploadDate: t('video_recently'),
-            description: v.description || t('video_no_description'),
-            category: v.category || 'All',
-            contentType: v.contentType || 'video',
-            duration: v.duration || '0:00'
-        }));
-
-        const currentVideo = formattedVideos.find(v => v.id === id);
         
-        if (currentVideo) {
+        if (currentDoc) {
+          // Fetch users/profiles to get freshest avatars for this uploader
+          const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+          let uploaderProfile: any = null;
+          if (profilesCol) {
+             try {
+                const profileRes = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', currentDoc.uploaderId)]);
+                if (profileRes.documents.length > 0) {
+                  uploaderProfile = profileRes.documents[0];
+                }
+             } catch (pErr) {
+               console.warn("Could not fetch uploader profile", pErr);
+             }
+          }
+
+          const currentVideo = {
+            id: currentDoc.$id,
+            uploaderId: currentDoc.uploaderId,
+            title: currentDoc.title,
+            thumbnailUrl: currentDoc.thumbnailUrl,
+            videoUrl: currentDoc.videoUrl,
+            channelName: uploaderProfile?.name || currentDoc.uploaderName,
+            channelAvatar: uploaderProfile?.avatar || currentDoc.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentDoc.uploaderName || 'User')}`,
+            views: currentDoc.views || 0,
+            uploadDate: t('video_recently'),
+            description: currentDoc.description || t('video_no_description'),
+            category: currentDoc.category || 'All',
+            contentType: currentDoc.contentType || 'video',
+            duration: currentDoc.duration || '0:00'
+          };
+
+          // Redirect shorts to the shorts player
+          if (currentVideo.contentType === 'shorts' || 
+              currentDoc.title?.toLowerCase().includes('#shorts') || 
+              currentDoc.description?.toLowerCase().includes('#shorts')) {
+             navigate(`/shorts/${currentDoc.$id}`, { replace: true });
+             return;
+          }
+
           setVideo(currentVideo);
-          setSuggestedVideos(formattedVideos.filter(v => v.id !== id && (!v.contentType || v.contentType === 'video')).reverse());
           fetchInteractions(currentVideo.id, currentVideo.uploaderId);
+
+          // Fetch suggested videos separately
+          try {
+            const suggestedRes = await databases.listDocuments(dbId, colId, [
+              Query.orderDesc('$createdAt'),
+              Query.limit(20)
+            ]);
+            
+            const suggested = suggestedRes.documents
+              .filter(v => v.$id !== id && (!v.contentType || v.contentType === 'video'))
+              .map(v => ({
+                id: v.$id,
+                uploaderId: v.uploaderId,
+                title: v.title,
+                thumbnailUrl: v.thumbnailUrl,
+                videoUrl: v.videoUrl,
+                channelName: v.uploaderName,
+                channelAvatar: v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
+                views: v.views || 0,
+                uploadDate: t('video_recently'),
+                category: v.category || 'All'
+              }));
+            setSuggestedVideos(suggested);
+          } catch (sErr) {
+            console.error("Failed to fetch suggested videos:", sErr);
+          }
           
           // Increment View Count
-          try {
-          // Increment views (non-blocking)
           const runUpdate = async () => {
             try {
               await databases.updateDocument(dbId, colId, currentVideo.id, {
                 views: (currentVideo.views || 0) + 1
               });
 
-              // Increment viewsCount in author profile
-              const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
-              if (profilesCol) {
-                const authorRes = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', currentVideo.uploaderId)]);
-                if (authorRes.documents.length > 0) {
-                  const authorProfile = authorRes.documents[0];
-                  await databases.updateDocument(dbId, profilesCol, authorProfile.$id, {
-                    viewsCount: (authorProfile.viewsCount || 0) + 1
-                  });
-                }
+              if (profilesCol && uploaderProfile) {
+                await databases.updateDocument(dbId, profilesCol, uploaderProfile.$id, {
+                  viewsCount: (uploaderProfile.viewsCount || 0) + 1
+                });
               }
             } catch (viewErr) {
               console.error("View increment background update failed:", viewErr);
             }
           };
           runUpdate();
-          } catch (viewErr) {
-            console.error("View increment failed:", viewErr);
-          }
         }
 
       } catch (err) {
@@ -966,7 +1014,7 @@ export default function Watch() {
     // Only save if watched between 5% and 95%
     if (progress > 0.05 && progress < 0.95) {
       try {
-        const saved = JSON.parse(localStorage.getItem('watching_progress') || '{}');
+        const saved = SafeStorage.get('watching_progress', {});
         saved[video.id] = {
           videoId: video.id,
           title: video.title,
@@ -980,17 +1028,17 @@ export default function Watch() {
           currentTime: target.currentTime,
           timestamp: Date.now()
         };
-        localStorage.setItem('watching_progress', JSON.stringify(saved));
+        SafeStorage.set('watching_progress', saved);
       } catch(err) {
          console.error('Error saving progress', err);
       }
     } else if (progress >= 0.95) {
       // Remove it if watched to completion
       try {
-        const saved = JSON.parse(localStorage.getItem('watching_progress') || '{}');
+        const saved = SafeStorage.get('watching_progress', {});
         if (saved[video.id]) {
           delete saved[video.id];
-          localStorage.setItem('watching_progress', JSON.stringify(saved));
+          SafeStorage.set('watching_progress', saved);
         }
       } catch(err) {}
     }
@@ -1018,17 +1066,48 @@ export default function Watch() {
 
       {/* Primary Video Section */}
       <div className="flex-1 lg:w-[70%]">
-        <div className="w-full relative pt-[56.25%] bg-black sm:rounded-xl overflow-hidden sm:border ice-border sm:shadow-2xl">
+        <div className="w-full relative pt-[56.25%] bg-black sm:rounded-2xl overflow-hidden sm:border-2 border-white/5 sm:shadow-[0_20px_50px_rgba(0,0,0,0.7)] group">
+          {videoError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-sm z-50 p-6 text-center animate-in fade-in zoom-in-95 duration-300">
+              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+                <AlertTriangle className="w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2 uppercase tracking-tighter italic">
+                {language === 'ru' ? 'ОШИБКА ДЕКОДИРОВАНИЯ' : 'DECODE ERROR'}
+              </h3>
+              <p className="text-slate-400 text-sm mb-6 max-w-sm font-medium leading-relaxed">
+                {videoError}<br/>
+                <span className="text-[10px] text-slate-600 mt-2 block opacity-50">Code: NS_ERROR_DOM_MEDIA_METADATA_ERR</span>
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-all active:scale-95 text-xs uppercase tracking-widest"
+                >
+                  {language === 'ru' ? 'Обновить страницу' : 'Reload Page'}
+                </button>
+                <button 
+                  onClick={retryLoad}
+                  className="px-6 py-2 bg-[#70d6ff] text-black font-black rounded-xl transition-all hover:scale-105 active:scale-95 text-xs uppercase tracking-widest shadow-lg shadow-[#70d6ff]/30"
+                >
+                  {language === 'ru' ? 'Холодный перезапуск' : 'Cold Retry'}
+                </button>
+              </div>
+            </div>
+          )}
           <video 
+            id="main-video-player"
             autoPlay 
             controls 
-            className="absolute top-0 left-0 w-full h-full object-contain"
+            className="absolute top-0 left-0 w-full h-full object-contain bg-black"
             poster={getOptimizedThumbnail(video.thumbnailUrl)}
-            src={video.videoUrl} 
+            src={getOptimizedVideoUrl(video.videoUrl)} 
             onTimeUpdate={handleTimeUpdate}
+            onEnded={() => setIsVideoEnded(true)}
+            onError={handleVideoError}
             onLoadedData={(e) => {
               try {
-                const saved = JSON.parse(localStorage.getItem('watching_progress') || '{}');
+                const saved = SafeStorage.get('watching_progress', {});
                 if (saved[video.id] && saved[video.id].currentTime) {
                   (e.target as HTMLVideoElement).currentTime = saved[video.id].currentTime;
                 }

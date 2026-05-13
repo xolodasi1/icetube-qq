@@ -5,8 +5,10 @@ import './index.css';
 import { AuthProvider } from './lib/AuthContext.tsx';
 import { LanguageProvider } from './lib/LanguageContext.tsx';
 
+import { SafeStorage } from './lib/storage';
+
 // Initialize theme
-const savedTheme = localStorage.getItem('theme') || 'dark';
+const savedTheme = SafeStorage.get<'dark' | 'light'>('theme', 'dark');
 if (savedTheme === 'light') {
   document.body.classList.add('light-mode');
 }

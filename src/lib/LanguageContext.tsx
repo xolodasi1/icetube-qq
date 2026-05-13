@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
+import { SafeStorage } from './storage';
+
 type Language = 'en' | 'ru';
 
 interface Translations {
@@ -13,6 +15,7 @@ export const translations: Translations = {
     nav_home: 'Home',
     nav_explore: 'Explore',
     nav_shorts: 'Shorts',
+    nav_videos: 'Videos',
     nav_subscriptions: 'Subscriptions',
     nav_trending: 'Trending',
     nav_library: 'Library',
@@ -188,6 +191,7 @@ export const translations: Translations = {
     nav_home: 'Главная',
     nav_explore: 'Навигатор',
     nav_shorts: 'Shorts',
+    nav_videos: 'Видео',
     nav_subscriptions: 'Подписки',
     nav_trending: 'В тренде',
     nav_library: 'Библиотека',
@@ -371,12 +375,12 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
-    return (localStorage.getItem('language') as Language) || 'en';
+    return (SafeStorage.get('language', 'en') as Language) || 'en';
   });
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
-    localStorage.setItem('language', lang);
+    SafeStorage.set('language', lang);
   };
 
   const t = (key: string) => {

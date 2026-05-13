@@ -5,7 +5,7 @@ import { databases } from "../lib/appwrite";
 import { Loader2, ServerCrash, Video } from "lucide-react";
 import { useLanguage } from "../lib/LanguageContext";
 
-export default function Home() {
+export default function Videos() {
   const { t, language } = useLanguage();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -95,9 +95,9 @@ export default function Home() {
 
   const handleTagClick = (tagLabel: string) => {
     if (tagLabel === 'Все' || tagLabel === 'All') {
-      navigate("/");
+      navigate("/videos");
     } else {
-      navigate(`/?category=${tagLabel}`);
+      navigate(`/videos?category=${tagLabel}`);
     }
   };
 
@@ -110,7 +110,6 @@ export default function Home() {
 
   const isShort = (v: any) => v.contentType === 'shorts' || v.title?.toLowerCase().includes('#shorts') || v.description?.toLowerCase().includes('#shorts');
   const regularVideos = filteredVideos.filter(v => !isShort(v));
-  const shortsVideos = filteredVideos.filter(v => isShort(v));
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6 pt-2 sm:pt-0 pb-4 sm:pb-0">
@@ -153,31 +152,19 @@ export default function Home() {
             </div>
         ) : filteredVideos.length > 0 ? (
           <>
-            {regularVideos.length > 0 && (
-              <div className="mt-2">
-                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2 px-4 sm:px-0">
-                  <span className="text-[#70d6ff]">{t('nav_videos')}</span>
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-2 sm:gap-y-8 gap-x-4 px-0 sm:px-0">
-                  {regularVideos.map(video => (
-                    <VideoCard key={video.id} video={video} />
-                  ))}
-                </div>
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2 px-4 sm:px-0">
+              <span className="text-[#70d6ff]">{t('nav_videos')}</span>
+            </h3>
+            {regularVideos.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-2 sm:gap-y-8 gap-x-4 px-0 sm:px-0">
+                {regularVideos.map(video => (
+                  <VideoCard key={video.id} video={video} />
+                ))}
               </div>
-            )}
-            
-            {shortsVideos.length > 0 && (
-              <div className="mt-10">
-                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2 px-4 sm:px-0">
-                  <span className="text-[#70d6ff]">Shorts</span>
-                </h3>
-                <div className="flex overflow-x-auto gap-4 custom-scrollbar pb-6 px-4 sm:px-0 hide-scrollbar snap-x">
-                  {shortsVideos.map(video => (
-                    <div key={video.id} className="w-[180px] sm:w-[200px] shrink-0 snap-start">
-                      <VideoCard video={video} layout="clip" />
-                    </div>
-                  ))}
-                </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                <p className="text-xl font-medium">{t('video_no_results')}</p>
+                <p className="text-sm mt-2 text-slate-500">{t('video_search_try_again')}</p>
               </div>
             )}
           </>
