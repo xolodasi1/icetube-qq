@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { uploadImageToCloudinary } from '../lib/cloudinary';
 import { useAuth } from '../lib/AuthContext';
 import { databases, account } from '../lib/appwrite';
@@ -21,7 +22,12 @@ export default function ChannelEditor() {
     handle: '',
     description: '',
     avatar: '',
-    bannerUrl: ''
+    bannerUrl: '',
+    website: '',
+    youtube: '',
+    tiktok: '',
+    telegram: '',
+    vk: ''
   });
 
   const [dbDocId, setDbDocId] = useState<string | null>(null);
@@ -92,7 +98,12 @@ export default function ChannelEditor() {
             handle: doc.handle || '',
             description: doc.description || doc.bio || '',
             avatar: doc.avatar || doc.photoUrl || '',
-            bannerUrl: doc.bannerUrl || ''
+            bannerUrl: doc.bannerUrl || '',
+            website: doc.website || '',
+            youtube: doc.youtube || '',
+            tiktok: doc.tiktok || '',
+            telegram: doc.telegram || '',
+            vk: doc.vk || ''
           });
         } else {
           // No doc yet, use account info
@@ -101,7 +112,11 @@ export default function ChannelEditor() {
             handle: '',
             description: '',
             avatar: '',
-            bannerUrl: ''
+            bannerUrl: '',
+            website: '',
+            twitter: '',
+            instagram: '',
+            facebook: ''
           });
         }
       } catch (err: any) {
@@ -137,7 +152,12 @@ export default function ChannelEditor() {
         handle: formData.handle,
         description: formData.description,
         avatar: formData.avatar,
-        bannerUrl: formData.bannerUrl
+        bannerUrl: formData.bannerUrl,
+        website: formData.website,
+        youtube: formData.youtube,
+        tiktok: formData.tiktok,
+        telegram: formData.telegram,
+        vk: formData.vk
       };
 
       try {
@@ -380,9 +400,38 @@ export default function ChannelEditor() {
               placeholder="Tell viewers about your channel"
             />
           </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">Website</label>
+                <input type="url" value={formData.website} onChange={(e) => setFormData({...formData, website: e.target.value})} className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white" placeholder="https://" />
+             </div>
+             <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">YouTube</label>
+                <input type="url" value={formData.youtube} onChange={(e) => setFormData({...formData, youtube: e.target.value})} className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white" placeholder="https://" />
+             </div>
+             <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">TikTok</label>
+                <input type="url" value={formData.tiktok} onChange={(e) => setFormData({...formData, tiktok: e.target.value})} className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white" placeholder="https://" />
+             </div>
+             <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">Telegram</label>
+                <input type="url" value={formData.telegram} onChange={(e) => setFormData({...formData, telegram: e.target.value})} className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white" placeholder="https://" />
+             </div>
+             <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">VK</label>
+                <input type="url" value={formData.vk} onChange={(e) => setFormData({...formData, vk: e.target.value})} className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white" placeholder="https://" />
+             </div>
+          </div>
         </div>
 
         <div className="flex items-center justify-end gap-4">
+          <Link
+            to="/channel/me"
+            className="px-6 py-3 rounded-xl font-bold bg-white/5 text-slate-300 hover:bg-white/10 transition-all"
+          >
+            {language === 'ru' ? 'Вернуться на канал' : 'Back to channel'}
+          </Link>
           <button
             type="button"
             onClick={() => window.history.back()}

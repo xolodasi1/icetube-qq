@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { databases } from "../lib/appwrite";
 import { Query } from "appwrite";
 import { Loader2, User, AlertCircle, Video } from "lucide-react";
@@ -9,9 +9,11 @@ import { VideoCard } from "../components/VideoCard";
 import { createNotification } from "../lib/notifications";
 
 export default function Channel() {
-  const { id } = useParams();
+  const { id: paramId } = useParams();
   const { t, language } = useLanguage();
   const { user } = useAuth();
+  
+  const id = paramId === 'me' && user ? user.$id : paramId;
 
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
@@ -20,6 +22,7 @@ export default function Channel() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isSubbing, setIsSubbing] = useState(false);
   const [activeTab, setActiveTab] = useState<'home' | 'videos' | 'shorts' | 'about'>('home');
+  const [videoSort, setVideoSort] = useState<'newest' | 'popular' | 'oldest'>('newest');
 
   useEffect(() => {
     const fetchChannelData = async () => {
@@ -61,7 +64,8 @@ export default function Channel() {
           views: v.views || 0,
           uploadDate: t('video_recently'),
           duration: "10:00",
-          contentType: v.contentType || 'video'
+          contentType: v.contentType || 'video',
+          createdAt: v.$createdAt
         }));
 
         setVideos(formattedVideos);
@@ -207,8 +211,11 @@ export default function Channel() {
   const channelHandle = profile.handle ? `@${profile.handle}` : `@${channelName.replace(/\s+/g, '').toLowerCase() || "user"}`;
   const bannerUrl = profile.bannerUrl;
 
-  const regularVideos = videos.filter(v => typeof v.contentType === 'undefined' || v.contentType === 'video');
-  const shortsVideos = videos.filter(v => v.contentType === 'shorts');
+  const sortedVideos = [...videos].sort((a, b) => {
+    if (videoSort === 'popular') return b.views - a.views;
+    if (videoSort === 'oldest') return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -262,12 +269,17 @@ export default function Channel() {
           )}
 
           {user && user.$id === id && (
-            <button 
-              disabled
-              className="bg-white/10 text-slate-300 px-6 py-2.5 rounded-full border border-white/10 cursor-default"
-            >
-              {t('channel_your_channel')}
-            </button>
+            <div className="flex gap-2">
+              <button 
+                disabled
+                className="bg-white/10 text-slate-300 px-6 py-2.5 rounded-full border border-white/10 cursor-default"
+              >
+                {t('channel_your_channel')}
+              </button>
+              <Link to="/studio/editor" className="bg-[#70d6ff] text-black px-6 py-2.5 rounded-full font-bold hover:bg-[#5bc0e6] transition-colors">
+                {language === 'ru' ? 'Редактор канала' : 'Channel Editor'}
+              </Link>
+            </div>
           )}
         </div>
       </div>
@@ -285,12 +297,6 @@ export default function Channel() {
           className={`px-6 py-4 font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'videos' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
         >
           {language === 'ru' ? 'Видео' : 'Videos'}
-        </button>
-        <button 
-          onClick={() => setActiveTab('shorts')}
-          className={`px-6 py-4 font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'shorts' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
-        >
-          Shorts
         </button>
         <button 
           onClick={() => setActiveTab('about')}
@@ -341,35 +347,32 @@ export default function Channel() {
 
         {activeTab === 'videos' && (
           <div>
-            {regularVideos.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/5 border border-white/10 rounded-2xl">
-                <Video className="w-12 h-12 text-slate-500 mb-4" />
-                <p className="text-lg">{language === 'ru' ? 'Нет обычных видео.' : 'No regular videos.'}</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-8 gap-x-4">
-                {regularVideos.map(video => (
-                  <VideoCard key={video.id} video={video} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'shorts' && (
-          <div>
-            {shortsVideos.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/5 border border-white/10 rounded-2xl">
-                <Video className="w-12 h-12 text-slate-500 mb-4" />
-                <p className="text-lg">{language === 'ru' ? 'Нет Shorts.' : 'No Shorts.'}</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-y-6 gap-x-4">
-                {shortsVideos.map(video => (
-                  <VideoCard key={video.id} video={video} layout="clip" />
-                ))}
-              </div>
-            )}
+            <div className="mb-10">
+              <h3 className="text-xl font-bold text-white mb-6 flex items-center justify-between">
+                <span>{language === 'ru' ? 'Контент' : 'Content'}</span>
+                <select 
+                  value={videoSort} 
+                  onChange={(e) => setVideoSort(e.target.value as any)}
+                  className="bg-black/40 text-white border border-slate-700 rounded-xl px-4 py-2 text-sm font-normal"
+                >
+                  <option value="newest">{language === 'ru' ? 'Новые' : 'Newest'}</option>
+                  <option value="popular">{language === 'ru' ? 'Популярные' : 'Popular'}</option>
+                  <option value="oldest">{language === 'ru' ? 'Старые' : 'Oldest'}</option>
+                </select>
+              </h3>
+              {sortedVideos.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-slate-400 bg-white/5 border border-white/10 rounded-2xl">
+                  <Video className="w-10 h-10 text-slate-500 mb-4" />
+                  <p>{t('channel_no_videos')}</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-8 gap-x-4">
+                  {sortedVideos.map(video => (
+                    <VideoCard key={video.id} video={video} layout={video.contentType === 'shorts' ? 'clip' : 'video'} />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -387,8 +390,24 @@ export default function Channel() {
               <ul className="text-slate-300 space-y-2">
                 <li>{new Intl.NumberFormat().format(subsCount)} {t('channel_subscribers')}</li>
                 <li>{videos.length} {t('channel_videos')}</li>
+                {profile.$createdAt && (
+                    <li>{language === 'ru' ? 'Создан:' : 'Created:'} {new Date(profile.$createdAt).toLocaleDateString()}</li>
+                )}
               </ul>
             </div>
+            
+            {(profile.website || profile.youtube || profile.tiktok || profile.telegram || profile.vk) && (
+              <div className="pt-6 border-t border-white/10">
+                <h3 className="text-xl font-bold text-white mb-4">{language === 'ru' ? 'Ссылки' : 'Links'}</h3>
+                <div className="flex flex-wrap gap-4 text-slate-300">
+                    {profile.website && <a href={profile.website} target="_blank" rel="noopener noreferrer" className="hover:text-[#70d6ff]">Website</a>}
+                    {profile.youtube && <a href={profile.youtube} target="_blank" rel="noopener noreferrer" className="hover:text-[#70d6ff]">YouTube</a>}
+                    {profile.tiktok && <a href={profile.tiktok} target="_blank" rel="noopener noreferrer" className="hover:text-[#70d6ff]">TikTok</a>}
+                    {profile.telegram && <a href={profile.telegram} target="_blank" rel="noopener noreferrer" className="hover:text-[#70d6ff]">Telegram</a>}
+                    {profile.vk && <a href={profile.vk} target="_blank" rel="noopener noreferrer" className="hover:text-[#70d6ff]">VK</a>}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -30,6 +30,7 @@ export const createNotification = async (params: {
       contentType: params.contentType || 'video',
       isRead: false
     });
+    console.log("Notification created successfully");
   } catch (err) {
     console.error("Failed to create notification:", err);
   }

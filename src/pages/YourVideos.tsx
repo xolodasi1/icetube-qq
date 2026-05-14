@@ -7,7 +7,7 @@ import { UploadModal } from '../components/UploadModal';
 import { useLanguage } from '../lib/LanguageContext';
 
 export default function YourVideos() {
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, login, isLoading: isAuthLoading } = useAuth();
   const { t, language } = useLanguage();
   const [videos, setVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);

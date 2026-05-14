@@ -65,7 +65,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const checkUserStatus = async () => {
         setIsLoading(true);
+        console.log("Checking user status...");
         const currentUser = await getCurrentUser();
+        // Log ID instead of the full user object to avoid serialization issues
+        console.log("Current user ID:", currentUser?.$id || "No user found");
         setUser(currentUser);
         if (currentUser) {
             await ensureUserProfile(currentUser);

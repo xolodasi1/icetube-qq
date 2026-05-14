@@ -16,6 +16,24 @@ export default function Studio() {
   const [editingVideo, setEditingVideo] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [stats, setStats] = useState({ totalViews: 0, totalVideos: 0 });
+  const [videoSort, setVideoSort] = useState<'newest' | 'popular' | 'oldest'>('newest');
+  const [mainTab, setMainTab] = useState<'analytics' | 'content'>('analytics');
+  const [contentTab, setContentTab] = useState<'videos' | 'shorts'>('videos');
+
+  const regularVideos = videos.filter(v => v.contentType !== 'shorts');
+  const shortsVideos = videos.filter(v => v.contentType === 'shorts');
+
+  const sortVideos = (vids: any[]) => {
+    return [...vids].sort((a, b) => {
+      if (videoSort === 'popular') return b.views - a.views;
+      if (videoSort === 'oldest') return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
+  };
+
+  const sortedRegularVideos = sortVideos(regularVideos);
+  const sortedShortsVideos = sortVideos(shortsVideos);
+  const sortedAllVideos = sortVideos(videos);
 
   const handleDelete = async (videoId: string) => {
     if (!window.confirm(language === 'ru' ? 'Вы уверены, что хотите удалить это видео? Это действие нельзя отменить.' : 'Are you sure you want to delete this video? This action cannot be undone.')) return;
@@ -103,6 +121,7 @@ export default function Studio() {
         thumbnailUrl: v.thumbnailUrl,
         views: v.views || 0,
         uploadDate: new Date(v.$createdAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'),
+        createdAt: v.$createdAt,
         status: 'Published'
       }));
 
@@ -175,104 +194,269 @@ export default function Studio() {
         </div>
       </div>
 
+      {/* Studio Navigation Tabs */}
+      <div className="flex items-center gap-2 mb-8 bg-white/5 p-1.5 rounded-2xl border ice-border w-fit">
+        <button 
+          onClick={() => setMainTab('analytics')}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${mainTab === 'analytics' ? 'bg-[#70d6ff] text-[#05070a] shadow-[0_4px_15px_rgba(112,214,255,0.3)]' : 'text-slate-400 hover:text-white'}`}
+        >
+          <TrendingUp className="w-4 h-4" />
+          <span>{language === 'ru' ? 'Аналитика' : 'Analytics'}</span>
+        </button>
+        <button 
+          onClick={() => setMainTab('content')}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${mainTab === 'content' ? 'bg-[#70d6ff] text-[#05070a] shadow-[0_4px_15px_rgba(112,214,255,0.3)]' : 'text-slate-400 hover:text-white'}`}
+        >
+          <Film className="w-4 h-4" />
+          <span>{language === 'ru' ? 'Контент' : 'Content'}</span>
+        </button>
+      </div>
+
       <UploadModal 
         isOpen={isUploadModalOpen} 
         onClose={() => setIsUploadModalOpen(false)} 
         onUploadSuccess={fetchStats}
       />
 
-      {/* Stats Dashboard */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-        <div className="bg-white/5 border ice-border rounded-2xl p-6 relative overflow-hidden group">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#70d6ff]/10 rounded-full blur-2xl group-hover:bg-[#70d6ff]/20 transition-all"></div>
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-[#70d6ff]/10 rounded-xl">
-              <TrendingUp className="w-6 h-6 text-[#70d6ff]" />
+      {mainTab === 'analytics' ? (
+        <div className="space-y-8">
+          {/* Stats Dashboard */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="bg-white/5 border ice-border rounded-2xl p-6 relative overflow-hidden group">
+              <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#70d6ff]/10 rounded-full blur-2xl group-hover:bg-[#70d6ff]/20 transition-all"></div>
+              <div className="flex items-center gap-4 mb-4">
+                <div className="p-3 bg-[#70d6ff]/10 rounded-xl">
+                  <TrendingUp className="w-6 h-6 text-[#70d6ff]" />
+                </div>
+                <span className="text-slate-400 font-medium">{t('studio_total_views')}</span>
+              </div>
+              <div className="text-4xl font-bold text-white">
+                {new Intl.NumberFormat().format(stats.totalViews)}
+              </div>
             </div>
-            <span className="text-slate-400 font-medium">{t('studio_total_views')}</span>
-          </div>
-          <div className="text-4xl font-bold text-white">
-            {new Intl.NumberFormat().format(stats.totalViews)}
-          </div>
-        </div>
 
-        <div className="bg-white/5 border ice-border rounded-2xl p-6 relative overflow-hidden group">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all"></div>
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-blue-500/10 rounded-xl">
-              <Film className="w-6 h-6 text-blue-500" />
+            <div className="bg-white/5 border ice-border rounded-2xl p-6 relative overflow-hidden group">
+              <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all"></div>
+              <div className="flex items-center gap-4 mb-4">
+                <div className="p-3 bg-blue-500/10 rounded-xl">
+                  <Film className="w-6 h-6 text-blue-500" />
+                </div>
+                <span className="text-slate-400 font-medium">{t('studio_total_videos')}</span>
+              </div>
+              <div className="text-4xl font-bold text-white">
+                {stats.totalVideos}
+              </div>
             </div>
-            <span className="text-slate-400 font-medium">{t('studio_total_videos')}</span>
           </div>
-          <div className="text-4xl font-bold text-white">
-            {stats.totalVideos}
-          </div>
-        </div>
-      </div>
 
-      {/* Video Content Table */}
-      <div className="bg-white/5 border ice-border rounded-2xl overflow-hidden">
-        <div className="p-6 border-b ice-border flex justify-between items-center">
-          <h2 className="text-xl font-bold text-white">{t('studio_content')}</h2>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b ice-border bg-white/[0.02]">
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Video</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Date</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Views</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y ice-border">
-              {videos.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-slate-500 italic">
-                    No videos found. Upload your first clip to start tracking!
-                  </td>
-                </tr>
-              ) : (
-                videos.map((vid) => (
-                  <tr key={vid.id} className="hover:bg-white/[0.03] transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-4">
-                        <img 
-                          src={vid.thumbnailUrl} 
-                          className="w-20 h-12 object-cover rounded-lg border ice-border shrink-0" 
-                          alt={vid.title}
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-white font-medium truncate max-w-[200px] sm:max-w-[300px]">{vid.title}</span>
-                          <span className="text-xs text-[#70d6ff]/70">{vid.status}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center text-sm text-slate-400">
-                      {vid.uploadDate}
-                    </td>
-                    <td className="px-6 py-4 text-center text-white font-medium">
-                      {vid.views}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => setEditingVideo(vid)} className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors" title={t('studio_edit')}>
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDelete(vid.id)} disabled={isDeleting === vid.id} className="p-2 hover:bg-red-500/10 rounded-lg text-slate-400 hover:text-red-400 transition-colors disabled:opacity-50" title={t('studio_delete')}>
-                          {isDeleting === vid.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </td>
+          {/* Unified Performance List */}
+          <div className="bg-white/5 border ice-border rounded-2xl overflow-hidden">
+            <div className="p-6 border-b ice-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h2 className="text-xl font-bold text-white">{language === 'ru' ? 'Эффективность видео' : 'Video Performance'}</h2>
+              <select 
+                value={videoSort} 
+                onChange={(e) => setVideoSort(e.target.value as any)}
+                className="bg-black/40 text-white border border-slate-700 rounded-xl px-4 py-2 text-sm font-normal focus:border-[#70d6ff]/50 transition-colors"
+              >
+                <option value="newest">{language === 'ru' ? 'Новые' : 'Newest'}</option>
+                <option value="popular">{language === 'ru' ? 'Популярные' : 'Popular'}</option>
+                <option value="oldest">{language === 'ru' ? 'Старые' : 'Oldest'}</option>
+              </select>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b ice-border bg-white/[0.02]">
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{language === 'ru' ? 'Весь контент' : 'All Content'}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">{language === 'ru' ? 'Дата' : 'Date'}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">{language === 'ru' ? 'Просмотры' : 'Views'}</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="divide-y ice-border">
+                  {sortedAllVideos.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-6 py-12 text-center text-slate-500 italic">
+                        {language === 'ru' ? 'Контент не найден.' : 'No content found.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedAllVideos.map((vid) => (
+                      <tr key={vid.id} className="hover:bg-white/[0.03] transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-4">
+                            <img 
+                              src={vid.thumbnailUrl} 
+                              className={`object-cover rounded-lg border ice-border shrink-0 ${vid.contentType === 'shorts' ? 'w-10 h-16' : 'w-20 h-12'}`} 
+                              alt={vid.title}
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-white font-medium truncate max-w-[200px] sm:max-w-[300px]">{vid.title}</span>
+                              <span className="text-[10px] uppercase tracking-wider text-[#70d6ff]/70 font-bold">{vid.contentType === 'shorts' ? 'Shorts' : 'Video'}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center text-sm text-slate-400">
+                          {vid.uploadDate}
+                        </td>
+                        <td className="px-6 py-4 text-center text-white font-medium">
+                          {vid.views}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Video Content Table */
+        <div className="bg-white/5 border ice-border rounded-2xl overflow-hidden">
+          <div className="p-6 border-b ice-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-6">
+              <button 
+                onClick={() => setContentTab('videos')}
+                className={`text-xl font-bold pb-2 transition-all relative ${contentTab === 'videos' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                {language === 'ru' ? 'Видео' : 'Videos'}
+                {contentTab === 'videos' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#70d6ff] rounded-t-full shadow-[0_-2px_10px_rgba(112,214,255,0.5)]" />}
+              </button>
+              <button 
+                onClick={() => setContentTab('shorts')}
+                className={`text-xl font-bold pb-2 transition-all relative ${contentTab === 'shorts' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                Shorts
+                {contentTab === 'shorts' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#70d6ff] rounded-t-full shadow-[0_-2px_10px_rgba(112,214,255,0.5)]" />}
+              </button>
+            </div>
+            
+            <select 
+              value={videoSort} 
+              onChange={(e) => setVideoSort(e.target.value as any)}
+              className="bg-black/40 text-white border border-slate-700 rounded-xl px-4 py-2 text-sm font-normal focus:border-[#70d6ff]/50 transition-colors"
+            >
+              <option value="newest">{language === 'ru' ? 'Новые' : 'Newest'}</option>
+              <option value="popular">{language === 'ru' ? 'Популярные' : 'Popular'}</option>
+              <option value="oldest">{language === 'ru' ? 'Старые' : 'Oldest'}</option>
+            </select>
+          </div>
+          
+          <div className="overflow-x-auto">
+            {contentTab === 'videos' ? (
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b ice-border bg-white/[0.02]">
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{language === 'ru' ? 'Видео' : 'Video'}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">{language === 'ru' ? 'Дата' : 'Date'}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">{language === 'ru' ? 'Просмотры' : 'Views'}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">{language === 'ru' ? 'Действия' : 'Actions'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y ice-border">
+                  {sortedRegularVideos.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center text-slate-500 italic">
+                        {language === 'ru' ? 'Видео не найдены.' : 'No videos found.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedRegularVideos.map((vid) => (
+                      <tr key={vid.id} className="hover:bg-white/[0.03] transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-4">
+                            <img 
+                              src={vid.thumbnailUrl} 
+                              className="w-20 h-12 object-cover rounded-lg border ice-border shrink-0" 
+                              alt={vid.title}
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-white font-medium truncate max-w-[200px] sm:max-w-[300px]">{vid.title}</span>
+                              <span className="text-xs text-[#70d6ff]/70">{vid.status}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center text-sm text-slate-400">
+                          {vid.uploadDate}
+                        </td>
+                        <td className="px-6 py-4 text-center text-white font-medium">
+                          {vid.views}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => setEditingVideo(vid)} className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors" title={t('studio_edit')}>
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => handleDelete(vid.id)} disabled={isDeleting === vid.id} className="p-2 hover:bg-red-500/10 rounded-lg text-slate-400 hover:text-red-400 transition-colors disabled:opacity-50" title={t('studio_delete')}>
+                              {isDeleting === vid.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            ) : (
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b ice-border bg-white/[0.02]">
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{language === 'ru' ? 'Шортс' : 'Shorts'}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">{language === 'ru' ? 'Дата' : 'Date'}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">{language === 'ru' ? 'Просмотры' : 'Views'}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">{language === 'ru' ? 'Действия' : 'Actions'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y ice-border">
+                  {sortedShortsVideos.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center text-slate-500 italic">
+                        {language === 'ru' ? 'Shorts не найдены.' : 'No Shorts found.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedShortsVideos.map((vid) => (
+                      <tr key={vid.id} className="hover:bg-white/[0.03] transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-4">
+                            <img 
+                              src={vid.thumbnailUrl} 
+                              className="w-12 h-20 object-cover rounded-lg border ice-border shrink-0" 
+                              alt={vid.title}
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-white font-medium truncate max-w-[200px] sm:max-w-[300px]">{vid.title}</span>
+                              <span className="text-xs text-[#70d6ff]/70">{vid.status}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center text-sm text-slate-400">
+                          {vid.uploadDate}
+                        </td>
+                        <td className="px-6 py-4 text-center text-white font-medium">
+                          {vid.views}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => setEditingVideo(vid)} className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors" title={t('studio_edit')}>
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => handleDelete(vid.id)} disabled={isDeleting === vid.id} className="p-2 hover:bg-red-500/10 rounded-lg text-slate-400 hover:text-red-400 transition-colors disabled:opacity-50" title={t('studio_delete')}>
+                              {isDeleting === vid.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Edit Video Modal */}
       {editingVideo && (

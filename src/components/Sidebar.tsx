@@ -44,7 +44,9 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
           }
         }
       } catch (err) {
+        // NetworkError is often transient or caused by blocking (e.g. adblocker)
         console.error("Error fetching sidebar data:", err);
+        // Silently fail to avoid disrupting user experience for sidebar nav
       }
     };
     fetchUserData();

@@ -7,7 +7,7 @@ import { useAuth } from "../lib/AuthContext";
 export function StudioSidebar({ isOpen, onClose }: { isOpen: boolean, onClose?: () => void }) {
   const location = useLocation();
   const { t, language } = useLanguage();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const studioItems = [
     { icon: LayoutDashboard, label: t('studio_title'), path: "/studio" },
