@@ -211,11 +211,43 @@ export default function Channel() {
   const channelHandle = profile.handle ? `@${profile.handle}` : `@${channelName.replace(/\s+/g, '').toLowerCase() || "user"}`;
   const bannerUrl = profile.bannerUrl;
 
-  const sortedVideos = [...videos].sort((a, b) => {
+  const regularVideos = videos.filter(v => v.contentType !== 'shorts');
+  const shortsVideos = videos.filter(v => v.contentType === 'shorts');
+
+  const sortedRegularVideos = [...regularVideos].sort((a, b) => {
     if (videoSort === 'popular') return b.views - a.views;
     if (videoSort === 'oldest') return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
     return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
   });
+
+  const sortedShortsVideos = [...shortsVideos].sort((a, b) => {
+    if (videoSort === 'popular') return b.views - a.views;
+    if (videoSort === 'oldest') return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  });
+
+  const SortPills = () => (
+    <div className="flex gap-2 mb-6">
+      <button 
+        onClick={() => setVideoSort('newest')}
+        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${videoSort === 'newest' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}`}
+      >
+        {language === 'ru' ? 'Новые' : 'Newest'}
+      </button>
+      <button 
+        onClick={() => setVideoSort('popular')}
+        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${videoSort === 'popular' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}`}
+      >
+        {language === 'ru' ? 'Популярные' : 'Popular'}
+      </button>
+      <button 
+        onClick={() => setVideoSort('oldest')}
+        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${videoSort === 'oldest' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}`}
+      >
+        {language === 'ru' ? 'Старые' : 'Oldest'}
+      </button>
+    </div>
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -299,6 +331,12 @@ export default function Channel() {
           {language === 'ru' ? 'Видео' : 'Videos'}
         </button>
         <button 
+          onClick={() => setActiveTab('shorts')}
+          className={`px-6 py-4 font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'shorts' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+        >
+          Shorts
+        </button>
+        <button 
           onClick={() => setActiveTab('about')}
           className={`px-6 py-4 font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'about' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
         >
@@ -347,32 +385,37 @@ export default function Channel() {
 
         {activeTab === 'videos' && (
           <div>
-            <div className="mb-10">
-              <h3 className="text-xl font-bold text-white mb-6 flex items-center justify-between">
-                <span>{language === 'ru' ? 'Контент' : 'Content'}</span>
-                <select 
-                  value={videoSort} 
-                  onChange={(e) => setVideoSort(e.target.value as any)}
-                  className="bg-black/40 text-white border border-slate-700 rounded-xl px-4 py-2 text-sm font-normal"
-                >
-                  <option value="newest">{language === 'ru' ? 'Новые' : 'Newest'}</option>
-                  <option value="popular">{language === 'ru' ? 'Популярные' : 'Popular'}</option>
-                  <option value="oldest">{language === 'ru' ? 'Старые' : 'Oldest'}</option>
-                </select>
-              </h3>
-              {sortedVideos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-slate-400 bg-white/5 border border-white/10 rounded-2xl">
-                  <Video className="w-10 h-10 text-slate-500 mb-4" />
-                  <p>{t('channel_no_videos')}</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-8 gap-x-4">
-                  {sortedVideos.map(video => (
-                    <VideoCard key={video.id} video={video} layout={video.contentType === 'shorts' ? 'clip' : 'video'} />
-                  ))}
-                </div>
-              )}
-            </div>
+            <SortPills />
+            {sortedRegularVideos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/5 border border-white/10 rounded-2xl">
+                <Video className="w-12 h-12 text-slate-500 mb-4" />
+                <p className="text-lg">{language === 'ru' ? 'Нет видео.' : 'No videos.'}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-8 gap-x-4">
+                {sortedRegularVideos.map(video => (
+                  <VideoCard key={video.id} video={video} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'shorts' && (
+          <div>
+            <SortPills />
+            {sortedShortsVideos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/5 border border-white/10 rounded-2xl">
+                <Video className="w-12 h-12 text-slate-500 mb-4" />
+                <p className="text-lg">{language === 'ru' ? 'Нет Shorts.' : 'No Shorts.'}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-y-6 gap-x-4">
+                {sortedShortsVideos.map(video => (
+                  <VideoCard key={video.id} video={video} layout="clip" />
+                ))}
+              </div>
+            )}
           </div>
         )}
 

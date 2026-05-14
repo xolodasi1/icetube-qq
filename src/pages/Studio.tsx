@@ -141,6 +141,29 @@ export default function Studio() {
     fetchStats();
   }, [user, language]);
 
+  const SortPills = () => (
+    <div className="flex gap-2">
+      <button 
+        onClick={() => setVideoSort('newest')}
+        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${videoSort === 'newest' ? 'bg-[#70d6ff] text-black shadow-[0_0_10px_rgba(112,214,255,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border border-white/5'}`}
+      >
+        {language === 'ru' ? 'Новые' : 'Newest'}
+      </button>
+      <button 
+        onClick={() => setVideoSort('popular')}
+        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${videoSort === 'popular' ? 'bg-[#70d6ff] text-black shadow-[0_0_10px_rgba(112,214,255,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border border-white/5'}`}
+      >
+        {language === 'ru' ? 'Популярные' : 'Popular'}
+      </button>
+      <button 
+        onClick={() => setVideoSort('oldest')}
+        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${videoSort === 'oldest' ? 'bg-[#70d6ff] text-black shadow-[0_0_10px_rgba(112,214,255,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border border-white/5'}`}
+      >
+        {language === 'ru' ? 'Старые' : 'Oldest'}
+      </button>
+    </div>
+  );
+
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center p-20 text-center text-slate-400">
@@ -205,7 +228,7 @@ export default function Studio() {
         </button>
         <button 
           onClick={() => setMainTab('content')}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${mainTab === 'content' ? 'bg-[#70d6ff] text-[#05070a] shadow-[0_4px_15px_rgba(112,214,255,0.3)]' : 'text-slate-400 hover:text-white'}`}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${mainTab === 'content' ? 'bg-[#70d6ff] text-[#05070a] shadow-[0_4px_15_rgba(112,214,255,0.3)]' : 'text-slate-400 hover:text-white'}`}
         >
           <Film className="w-4 h-4" />
           <span>{language === 'ru' ? 'Контент' : 'Content'}</span>
@@ -252,16 +275,8 @@ export default function Studio() {
           {/* Unified Performance List */}
           <div className="bg-white/5 border ice-border rounded-2xl overflow-hidden">
             <div className="p-6 border-b ice-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h2 className="text-xl font-bold text-white">{language === 'ru' ? 'Эффективность видео' : 'Video Performance'}</h2>
-              <select 
-                value={videoSort} 
-                onChange={(e) => setVideoSort(e.target.value as any)}
-                className="bg-black/40 text-white border border-slate-700 rounded-xl px-4 py-2 text-sm font-normal focus:border-[#70d6ff]/50 transition-colors"
-              >
-                <option value="newest">{language === 'ru' ? 'Новые' : 'Newest'}</option>
-                <option value="popular">{language === 'ru' ? 'Популярные' : 'Popular'}</option>
-                <option value="oldest">{language === 'ru' ? 'Старые' : 'Oldest'}</option>
-              </select>
+              <h2 className="text-xl font-bold text-white">{language === 'ru' ? 'Эффективность контента' : 'Content Performance'}</h2>
+              <SortPills />
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -311,10 +326,10 @@ export default function Studio() {
           </div>
         </div>
       ) : (
-        /* Video Content Table */
+        /* Content Table */
         <div className="bg-white/5 border ice-border rounded-2xl overflow-hidden">
-          <div className="p-6 border-b ice-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center gap-6">
+          <div className="p-6 border-b ice-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+            <div className="flex items-center gap-6 border-b border-white/5 sm:border-none pb-2 sm:pb-0 w-full sm:w-auto">
               <button 
                 onClick={() => setContentTab('videos')}
                 className={`text-xl font-bold pb-2 transition-all relative ${contentTab === 'videos' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
@@ -330,16 +345,7 @@ export default function Studio() {
                 {contentTab === 'shorts' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#70d6ff] rounded-t-full shadow-[0_-2px_10px_rgba(112,214,255,0.5)]" />}
               </button>
             </div>
-            
-            <select 
-              value={videoSort} 
-              onChange={(e) => setVideoSort(e.target.value as any)}
-              className="bg-black/40 text-white border border-slate-700 rounded-xl px-4 py-2 text-sm font-normal focus:border-[#70d6ff]/50 transition-colors"
-            >
-              <option value="newest">{language === 'ru' ? 'Новые' : 'Newest'}</option>
-              <option value="popular">{language === 'ru' ? 'Популярные' : 'Popular'}</option>
-              <option value="oldest">{language === 'ru' ? 'Старые' : 'Oldest'}</option>
-            </select>
+            <SortPills />
           </div>
           
           <div className="overflow-x-auto">
