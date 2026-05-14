@@ -141,6 +141,19 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         try {
           const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
           if (profilesCol) {
+            // Try to fetch by document ID first (the new standard)
+            try {
+              const doc = await databases.getDocument(dbId, profilesCol, user.$id);
+              if (doc) {
+                await databases.updateDocument(dbId, profilesCol, user.$id, {
+                  videosCount: (doc.videosCount || 0) + 1
+                });
+                return;
+              }
+            } catch (e) {
+              // Continue to list if not found
+            }
+
             const profileRes = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', user.$id)]);
             if (profileRes.documents.length > 0) {
               const profileDoc = profileRes.documents[0];

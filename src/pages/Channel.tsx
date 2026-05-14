@@ -122,6 +122,7 @@ export default function Channel() {
           await databases.deleteDocument(dbId, subsCol, res.documents[0].$id);
           setIsSubscribed(false);
           setSubsCount(prev => prev - 1);
+          updateProfileStat(id, 'subscribersCount', -1);
         }
       } else {
         await databases.createDocument(dbId, subsCol, "unique()", {
@@ -130,6 +131,7 @@ export default function Channel() {
         });
         setIsSubscribed(true);
         setSubsCount(prev => prev + 1);
+        updateProfileStat(id, 'subscribersCount', 1);
 
         createNotification({
           userId: id,
@@ -143,6 +145,41 @@ export default function Channel() {
       console.error("Subscribe failed:", err);
     } finally {
       setIsSubbing(false);
+    }
+  };
+
+  const updateProfileStat = async (userId: string, field: string, increment: number) => {
+    try {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+      if (!dbId || !profilesCol) return;
+
+      // Try to fetch by document ID first (the new standard)
+      try {
+        const doc = await databases.getDocument(dbId, profilesCol, userId);
+        if (doc) {
+          await databases.updateDocument(dbId, profilesCol, userId, {
+            [field]: (doc[field] || 0) + increment
+          });
+          return;
+        }
+      } catch (e) {
+        // Continue to query if not found by ID
+      }
+
+      const res = await databases.listDocuments(dbId, profilesCol, [
+        Query.equal('userId', userId),
+        Query.orderDesc(field),
+        Query.limit(1)
+      ]);
+      
+      if (res.documents.length > 0) {
+        const doc = res.documents[0];
+        const newValue = (doc[field] || 0) + increment;
+        await databases.updateDocument(dbId, profilesCol, doc.$id, { [field]: newValue }); 
+      }
+    } catch (err) {
+      console.error("Failed to update profile stat", err);
     }
   };
 

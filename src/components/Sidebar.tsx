@@ -58,16 +58,16 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
     { divider: true },
     ...(user ? [{ header: t('nav_you'), path: `/channel/${user.$id}` }] : []),
     ...(user ? [{ icon: User, label: t('nav_your_channel'), path: `/channel/${user.$id}` }] : []),
-    { icon: History, label: t('nav_history'), path: "/history" },
+    { icon: History, label: t('nav_history'), path: "/history", requiresAuth: true },
     { icon: Trophy, label: t('nav_top_channels'), path: "/top-channels" },
     { icon: PlaySquare, label: t('nav_continue_watching'), path: "/continue-watching" },
     { icon: Bookmark, label: t('nav_favorites'), path: "/favorites" },
     { icon: ListVideo, label: t('nav_playlists'), path: "/playlists" },
     { icon: Clock, label: t('nav_watch_later'), path: "/watch-later" },
     { icon: ThumbsUp, label: t('nav_liked'), path: "/liked" },
-    { icon: Video, label: t('nav_your_videos'), path: "/your-videos" },
-    { icon: Download, label: t('nav_downloads'), path: "/downloads" },
-    { icon: Scissors, label: t('nav_clips'), path: "/clips" },
+    { icon: Video, label: t('nav_your_videos'), path: "/your-videos", requiresAuth: true },
+    { icon: Download, label: t('nav_downloads'), path: "/downloads", requiresAuth: true },
+    { icon: Scissors, label: t('nav_clips'), path: "/clips", requiresAuth: true },
     
     { divider: true },
     { header_text: t('nav_navigator') },
@@ -122,7 +122,9 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
           }
 
           if (!('label' in item) || !item.icon) return null;
-
+          
+          if (item.requiresAuth && !user) return null;
+          
           const isActive = !item.isExternal && (location.pathname === item.path || location.search === item.path?.replace('/', ''));
           
           const LinkComponent = item.isExternal ? 'a' : Link;

@@ -126,6 +126,7 @@ export default function Watch() {
           uploaderId: video.uploaderId,
           views: video.views,
           uploadDate: video.uploadDate,
+          contentType: video.contentType || 'video',
           timestamp: Date.now()
         });
         // Limit history to 100 items
@@ -178,6 +179,7 @@ export default function Watch() {
                 uploaderId: video.uploaderId,
                 views: video.views,
                 uploadDate: video.uploadDate,
+                contentType: video.contentType || 'video',
                 timestamp: Date.now()
             });
           }
@@ -219,6 +221,7 @@ export default function Watch() {
           uploaderId: video.uploaderId,
           views: video.views,
           uploadDate: video.uploadDate,
+          contentType: video.contentType || 'video',
           timestamp: Date.now()
         });
         setIsSaved(true);
@@ -246,6 +249,7 @@ export default function Watch() {
           uploaderId: video.uploaderId,
           views: video.views,
           uploadDate: video.uploadDate,
+          contentType: video.contentType || 'video',
           timestamp: Date.now()
         });
         setIsWatchLater(true);
@@ -274,6 +278,7 @@ export default function Watch() {
             uploaderId: video.uploaderId,
             views: video.views,
             uploadDate: video.uploadDate,
+            contentType: video.contentType || 'video',
             timestamp: Date.now()
         });
         setIsDownloaded(true);
@@ -596,7 +601,26 @@ export default function Watch() {
         const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
         if (!dbId || !profilesCol) return;
 
-        const res = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', userId)]);
+        // Try to fetch by document ID first (the new standard)
+        try {
+          const doc = await databases.getDocument(dbId, profilesCol, userId);
+          if (doc) {
+            await databases.updateDocument(dbId, profilesCol, userId, {
+              [field]: (doc[field] || 0) + increment
+            });
+            return;
+          }
+        } catch (e) {
+          // Continue to query if not found by ID
+        }
+
+        // Fallback: list and update the one with the highest current value (most likely the one in leaderboard)
+        const res = await databases.listDocuments(dbId, profilesCol, [
+          Query.equal('userId', userId),
+          Query.orderDesc(field),
+          Query.limit(1)
+        ]);
+        
         if (res.documents.length > 0) {
           const doc = res.documents[0];
           await databases.updateDocument(dbId, profilesCol, doc.$id, {

@@ -248,6 +248,45 @@ export default function Shorts() {
     }
   }, [showComments]);
 
+  const updateProfileStat = (userId: string, field: string, increment: number) => {
+    // Non-blocking background update
+    (async () => {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+        if (!dbId || !profilesCol) return;
+
+        // Try to fetch by document ID first (the new standard)
+        try {
+          const doc = await databases.getDocument(dbId, profilesCol, userId);
+          if (doc) {
+            await databases.updateDocument(dbId, profilesCol, userId, {
+              [field]: (doc[field] || 0) + increment
+            });
+            return;
+          }
+        } catch (e) {
+          // Continue to query if not found by ID
+        }
+
+        const res = await databases.listDocuments(dbId, profilesCol, [
+          Query.equal('userId', userId),
+          Query.orderDesc(field),
+          Query.limit(1)
+        ]);
+
+        if (res.documents.length > 0) {
+          const doc = res.documents[0];
+          await databases.updateDocument(dbId, profilesCol, doc.$id, {
+            [field]: (doc[field] || 0) + increment
+          });
+        }
+      } catch (err) {
+        console.error(`Failed to update profile stat ${field} in background (Shorts):`, err);
+      }
+    })();
+  };
+
   const handleLike = async (isLike: boolean) => {
     if (!user) {
       alert(language === 'ru' ? 'Вам нужно войти в аккаунт, чтобы ставить оценки' : 'You must log in to rate videos');
@@ -274,12 +313,21 @@ export default function Shorts() {
         if (existingType === actionType) {
           await databases.deleteDocument(dbId, likesCol, existingDoc.$id);
           setLikeState('none');
-          if (isLike) setLikesCount(prev => prev - 1);
+          if (isLike) {
+            setLikesCount(prev => prev - 1);
+            updateProfileStat(current.uploaderId, 'likesCount', -1);
+          }
         } else {
           await databases.updateDocument(dbId, likesCol, existingDoc.$id, { type: actionType });
           setLikeState(actionType as 'liked' | 'disliked');
-          if (isLike) setLikesCount(prev => prev + 1);
-          else setLikesCount(prev => prev - 1);
+          if (isLike) {
+            setLikesCount(prev => prev + 1);
+            updateProfileStat(current.uploaderId, 'likesCount', 1);
+          }
+          else {
+            setLikesCount(prev => prev - 1);
+            updateProfileStat(current.uploaderId, 'likesCount', -1);
+          }
         }
       } else {
         await databases.createDocument(dbId, likesCol, ID.unique(), {
@@ -290,6 +338,7 @@ export default function Shorts() {
         setLikeState(actionType as 'liked' | 'disliked');
         if (isLike) {
           setLikesCount(prev => prev + 1);
+          updateProfileStat(current.uploaderId, 'likesCount', 1);
           createNotification({
             userId: current.uploaderId,
             actorId: user.$id,
@@ -330,6 +379,7 @@ export default function Shorts() {
         if (res.total > 0) {
           await databases.deleteDocument(dbId, subsCol, res.documents[0].$id);
           setIsSubscribed(false);
+          updateProfileStat(current.uploaderId, 'subscribersCount', -1);
         }
       } else {
         await databases.createDocument(dbId, subsCol, ID.unique(), {
@@ -337,6 +387,7 @@ export default function Shorts() {
           subscriberId: user.$id
         });
         setIsSubscribed(true);
+        updateProfileStat(current.uploaderId, 'subscribersCount', 1);
 
         createNotification({
           userId: current.uploaderId,
@@ -352,6 +403,7 @@ export default function Shorts() {
       setIsSubbing(false);
     }
   };
+
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -514,7 +566,7 @@ export default function Shorts() {
                 <span className="text-white text-xs font-bold drop-shadow-md">{language === 'ru' ? 'Поделиться' : 'Share'}</span>
             </div>
 
-            <button className="w-10 h-10 rounded-lg overflow-hidden border-2 border-[#70d6ff]/30 shadow-lg mt-2 animate-pulse">
+            <Link to={`/channel/${current.uploaderId}`} className="w-10 h-10 rounded-lg overflow-hidden border-2 border-[#70d6ff]/30 shadow-lg mt-2 animate-pulse block">
                 <img 
                   src={uploaderAvatar} 
                   alt="audio" 
@@ -523,7 +575,7 @@ export default function Shorts() {
                     (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`;
                   }}
                 />
-            </button>
+            </Link>
         </div>
 
         {/* Content Info (Bottom) */}

@@ -64,6 +64,7 @@ export default function Liked() {
             channelAvatar: v.channelAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${v.uploaderId}`,
             views: v.views || 0,
             uploadDate: v.$createdAt,
+            contentType: v.contentType || 'video'
           }))
           // Sort according to like order
           .sort((a, b) => videoIds.indexOf(a.id) - videoIds.indexOf(b.id));

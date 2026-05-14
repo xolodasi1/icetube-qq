@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../lib/LanguageContext';
 import { Users, Eye, ThumbsUp, Trophy, Loader2, Video, Snowflake } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { databases } from '../lib/appwrite';
+import { databases, client } from '../lib/appwrite';
 import { Query } from 'appwrite';
 
 export default function TopChannels() {
@@ -16,37 +16,112 @@ export default function TopChannels() {
     { id: 'viewsCount', label: language === 'ru' ? 'Топ по просмотрам' : 'By Views', icon: Eye, color: 'text-[#ffb703]' },
     { id: 'likesCount', label: language === 'ru' ? 'Топ по лайкам' : 'By Likes', icon: ThumbsUp, color: 'text-[#ff70a6]' },
     { id: 'snowflakesCount', label: language === 'ru' ? 'Топ по снежинкам' : 'By Snowflakes', icon: Snowflake, color: 'text-[#9bf6ff]' },
-    { id: 'videosCount', label: language === 'ru' ? 'Топ по видео' : 'By Videos', icon: Video, color: 'text-[#00f5d4]' },
+    { id: 'videosCount', label: language === 'ru' ? 'Топ по видео и Shorts' : 'By Videos & Shorts', icon: Video, color: 'text-[#00f5d4]' },
   ];
 
-  useEffect(() => {
-    const fetchTopData = async () => {
-      try {
-        setIsLoading(true);
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+  const fetchTopData = React.useCallback(async (isBackground = false) => {
+    try {
+      if (!isBackground) setIsLoading(true);
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
 
-        if (!dbId || !profilesCol) return;
+      if (!dbId || !profilesCol) return;
 
-        const res = await databases.listDocuments(
-          dbId,
-          profilesCol,
-          [
-            Query.orderDesc(sortBy),
-            Query.limit(50)
-          ]
-        );
-        
-        setChannels(res.documents);
-      } catch (err) {
-        console.error("Leaderboard fetch failed:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      // Fetch more than limit to allow for deduplication
+      const res = await databases.listDocuments(
+        dbId,
+        profilesCol,
+        [
+          Query.orderDesc(sortBy),
+          Query.limit(100)
+        ]
+      );
+      
+      const seen = new Set();
+      const uniqueChannels = res.documents.filter(doc => {
+        if (!doc.userId || seen.has(doc.userId)) return false;
+        seen.add(doc.userId);
+        return true;
+      }).map(doc => ({
+        ...doc,
+        subscribersCount: doc.subscribersCount || 0,
+        viewsCount: doc.viewsCount || 0,
+        likesCount: doc.likesCount || 0,
+        videosCount: doc.videosCount || 0,
+        snowflakesCount: doc.snowflakesCount || 0,
+      })).slice(0, 50);
 
-    fetchTopData();
+      // Background sync: recount videos for all profiles to ensure shorts are included
+      (async () => {
+        try {
+          const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+          if (!videosColId) return;
+
+          let allVideos: any[] = [];
+          let offset = 0;
+          while(true) {
+            const vids = await databases.listDocuments(dbId, videosColId, [Query.limit(100), Query.offset(offset)]);
+            allVideos.push(...vids.documents);
+            if (vids.documents.length < 100 || offset >= 1000) break; // Limit to 1000 videos for performance
+            offset += 100;
+          }
+
+          const countsByUploader: Record<string, number> = {};
+          allVideos.forEach((v: any) => {
+            if (v.uploaderId) {
+              countsByUploader[v.uploaderId] = (countsByUploader[v.uploaderId] || 0) + 1;
+            }
+          });
+
+          for (const [uid, count] of Object.entries(countsByUploader)) {
+            try {
+              const doc = await databases.getDocument(dbId, profilesCol, uid);
+              if (doc && doc.videosCount !== count) {
+                await databases.updateDocument(dbId, profilesCol, uid, { videosCount: count });
+              }
+            } catch (e) {
+              const profileRes = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', uid)]);
+              if (profileRes.documents.length > 0 && profileRes.documents[0].videosCount !== count) {
+                await databases.updateDocument(dbId, profilesCol, profileRes.documents[0].$id, { videosCount: count });
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Background sync failed", e);
+        }
+      })();
+
+      setChannels(uniqueChannels);
+    } catch (err) {
+      console.error("Leaderboard fetch failed:", err);
+    } finally {
+      if (!isBackground) setIsLoading(false);
+    }
   }, [sortBy]);
+
+  // Use a ref to keep the latest fetchTopData accessible to the subscription
+  const fetchRef = React.useRef(fetchTopData);
+  React.useEffect(() => {
+    fetchRef.current = fetchTopData;
+  }, [fetchTopData]);
+
+  useEffect(() => {
+    fetchTopData();
+  }, [fetchTopData]);
+
+  useEffect(() => {
+    // Set up real-time subscription once and KEEP it alive
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+    
+    if (dbId && profilesCol) {
+      const unsubscribe = client.subscribe(`databases.${dbId}.collections.${profilesCol}.documents`, () => {
+        // Always call the most recent version of fetchTopData
+        fetchRef.current(true);
+      });
+      return () => unsubscribe();
+    }
+  }, []); // Truly empty dependency array - connected once
 
   const formatCount = (num: number) => {
     return new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(num || 0);

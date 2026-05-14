@@ -49,7 +49,16 @@ export default function AdminPanel() {
         if (usersColId) {
           try {
             const response = await databases.listDocuments(dbId, usersColId, [Query.limit(100)]);
-            setDbUsers(response.documents.map((doc: any) => ({
+            
+            // Deduplicate users by userId
+            const seenUsers = new Set();
+            const dedupedUsers = response.documents.filter((doc: any) => {
+              if (seenUsers.has(doc.userId)) return false;
+              seenUsers.add(doc.userId);
+              return true;
+            });
+
+            setDbUsers(dedupedUsers.map((doc: any) => ({
               $id: doc.$id,
               userId: doc.userId,
               name: doc.name || doc.displayName || 'Anonymous',
