@@ -8,7 +8,7 @@ import { UploadModal } from '../components/UploadModal';
 import { Link } from 'react-router-dom';
 
 export default function Studio() {
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const { t, language } = useLanguage();
   const [videos, setVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -127,7 +127,13 @@ export default function Studio() {
       <div className="flex flex-col items-center justify-center p-20 text-center text-slate-400">
         <AlertCircle className="w-16 h-16 mb-4 text-slate-600" />
         <h1 className="text-2xl font-bold text-white mb-2">{t('your_vids_login_req')}</h1>
-        <p className="max-w-sm">{t('your_vids_login_desc')}</p>
+        <p className="max-w-sm mb-6">{t('your_vids_login_desc')}</p>
+        <button 
+          onClick={login}
+          className="px-8 py-3 bg-[#70d6ff] text-[#05070a] font-bold rounded-xl hover:opacity-90 transition-opacity"
+        >
+          {language === 'ru' ? 'Войти' : 'Sign In'}
+        </button>
       </div>
     );
   }

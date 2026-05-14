@@ -14,7 +14,7 @@ import { Query } from 'appwrite';
 type AdminTab = 'dashboard' | 'analytics' | 'users' | 'reports' | 'content';
 
 export default function AdminPanel() {
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, profile, isLoading: isAuthLoading } = useAuth();
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   
@@ -63,6 +63,8 @@ export default function AdminPanel() {
               userId: doc.userId,
               name: doc.name || doc.displayName || 'Anonymous',
               avatar: doc.avatar || doc.photoUrl,
+              email: doc.email,
+              role: doc.role || 'user',
               subscribersCount: doc.subscribersCount,
               likesCount: doc.likesCount,
               viewsCount: doc.viewsCount,
@@ -158,7 +160,7 @@ export default function AdminPanel() {
     );
   }
 
-  if (!user || user.email !== 'xolodtop889@gmail.com') {
+  if (!user || (!['admin', 'moderator', 'proprietor'].includes(profile?.role || '') && user.email !== 'xolodtop889@gmail.com')) {
     return (
       <div className="flex flex-col items-center justify-center p-10 mt-10 text-center">
         <div className="w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mb-6">
@@ -462,6 +464,29 @@ function LeaderboardColumn({ title, icon: Icon, data, metric }: any) {
 }
 
 function UsersSection({ dbUsers, t, language }: any) {
+  const { user, profile } = useAuth();
+  const isProprietor = user?.email === 'xolodtop889@gmail.com' || profile?.role === 'proprietor';
+  const isAdmin = isProprietor || profile?.role === 'admin';
+  const [localUsers, setLocalUsers] = useState(dbUsers);
+
+  useEffect(() => {
+    setLocalUsers(dbUsers);
+  }, [dbUsers]);
+
+  const changeUserRole = async (userId: string, newRole: string) => {
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const usersColId = import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+    if (!dbId || !usersColId) return;
+
+    try {
+      await databases.updateDocument(dbId, usersColId, userId, { role: newRole });
+      setLocalUsers(localUsers.map((u: any) => u.$id === userId ? { ...u, role: newRole } : u));
+    } catch (err: any) {
+      console.error("Failed to update user role:", err);
+      alert("Failed to update user role. Please ensure you have added a string attribute named 'role' to your 'users' collection in Appwrite.");
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
       <div className="flex items-center justify-between">
@@ -483,7 +508,7 @@ function UsersSection({ dbUsers, t, language }: any) {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-slate-300">
-              {dbUsers.map((usr: any) => (
+              {localUsers.map((usr: any) => (
                 <tr key={usr.$id} className="hover:bg-white/5 transition-all group">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -499,17 +524,29 @@ function UsersSection({ dbUsers, t, language }: any) {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 bg-white/5 border border-white/5 text-[10px] font-black uppercase rounded ${usr.email === 'xolodtop889@gmail.com' ? 'text-purple-400 border-purple-400/20' : 'text-slate-400'}`}>
-                      {usr.email === 'xolodtop889@gmail.com' ? 'Proprietor' : 'Creator'}
+                    <span className={`px-2.5 py-1 bg-white/5 border border-white/5 text-[10px] font-black uppercase rounded ${usr.email === 'xolodtop889@gmail.com' ? 'text-purple-400 border-purple-400/20' : usr.role === 'admin' ? 'text-red-400 border-red-400/20' : usr.role === 'moderator' ? 'text-yellow-400 border-yellow-400/20' : 'text-slate-400'}`}>
+                      {usr.email === 'xolodtop889@gmail.com' ? 'Proprietor' : (usr.role || 'user')}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-xs font-mono text-slate-500">
-                     {new Date(usr.$createdAt).toLocaleDateString()}
+                     {new Date(usr.$createdAt || Date.now()).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 text-right">
-                     <button className="p-2 hover:bg-white/10 rounded-xl transition-all text-slate-400">
-                        <MoreHorizontal className="w-4 h-4" />
-                     </button>
+                     {isAdmin && usr.email !== 'xolodtop889@gmail.com' ? (
+                        <select 
+                          value={usr.role || 'user'}
+                          onChange={(e) => changeUserRole(usr.$id, e.target.value)}
+                          className="bg-black/50 border border-white/10 text-xs rounded-lg p-2 text-slate-300 focus:outline-none focus:border-[#70d6ff]"
+                        >
+                           <option value="user">User</option>
+                           <option value="moderator">Moderator</option>
+                           {isProprietor && <option value="admin">Admin</option>}
+                        </select>
+                     ) : (
+                        <button className="p-2 hover:bg-white/10 rounded-xl transition-all text-slate-400 hidden">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+                     )}
                   </td>
                 </tr>
               ))}

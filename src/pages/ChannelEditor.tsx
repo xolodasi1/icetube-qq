@@ -7,7 +7,7 @@ import { Wand2, Save, X, Loader2, Image as ImageIcon, User, AlignLeft, AlertCirc
 import { Query } from 'appwrite';
 
 export default function ChannelEditor() {
-  const { user, refreshProfile } = useAuth();
+  const { user, login, refreshProfile } = useAuth();
   const { t, language } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -214,7 +214,13 @@ export default function ChannelEditor() {
       <div className="flex flex-col items-center justify-center p-20 text-center text-slate-400">
         <AlertCircle className="w-16 h-16 mb-4 text-slate-600" />
         <h1 className="text-2xl font-bold text-white mb-2">{t('your_vids_login_req')}</h1>
-        <p className="max-w-sm">{t('your_vids_login_desc')}</p>
+        <p className="max-w-sm mb-6">{t('your_vids_login_desc')}</p>
+        <button 
+          onClick={login}
+          className="px-8 py-3 bg-[#70d6ff] text-[#05070a] font-bold rounded-xl hover:opacity-90 transition-opacity"
+        >
+          {language === 'ru' ? 'Войти' : 'Sign In'}
+        </button>
       </div>
     );
   }

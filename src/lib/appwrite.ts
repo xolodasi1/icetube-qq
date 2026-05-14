@@ -1,8 +1,8 @@
-import { Client, Account, OAuthProvider, Databases, Permission, Role } from 'appwrite';
+import { Client, Account, OAuthProvider, Databases, Permission, Role, ID } from 'appwrite';
 
 export const client = new Client();
 
-export { Permission, Role };
+export { Permission, Role, ID };
 
 const endpoint = import.meta.env.VITE_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
 const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID || '';

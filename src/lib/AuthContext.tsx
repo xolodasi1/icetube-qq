@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getCurrentUser, loginWithGoogle, logout, databases } from './appwrite';
 import { Models, Query } from 'appwrite';
+import AuthModal from '../components/AuthModal';
 
 export interface UserProfile {
     name: string;
     avatar: string;
     description: string;
+    role?: string;
 }
 
 interface AuthContextType {
@@ -15,6 +17,7 @@ interface AuthContextType {
     login: () => void;
     logoutUser: () => Promise<void>;
     refreshProfile: () => Promise<void>;
+    checkUserStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -24,12 +27,14 @@ const AuthContext = createContext<AuthContextType>({
     login: () => {},
     logoutUser: async () => {},
     refreshProfile: async () => {},
+    checkUserStatus: async () => {}
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<Models.User<Models.Preferences> | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
     useEffect(() => {
         checkUserStatus();
@@ -48,7 +53,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     setProfile({
                         name: doc.name || doc.displayName || '',
                         avatar: doc.avatar || doc.photoUrl || '',
-                        description: doc.description || doc.bio || ''
+                        description: doc.description || doc.bio || '',
+                        role: doc.role || 'user'
                     });
                 }
             }
@@ -79,7 +85,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 setProfile({
                     name: doc.name || doc.displayName || u.name || 'User',
                     avatar: doc.avatar || doc.photoUrl || '',
-                    description: doc.description || doc.bio || ''
+                    description: doc.description || doc.bio || '',
+                    role: doc.role || 'user'
                 });
                 return;
             } catch (err: any) {
@@ -97,7 +104,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 setProfile({
                     name: doc.name || doc.displayName || u.name || 'User',
                     avatar: doc.avatar || doc.photoUrl || '',
-                    description: doc.description || doc.bio || ''
+                    description: doc.description || doc.bio || '',
+                    role: doc.role || 'user'
                 });
                 
                 // If we have duplicates or the ID is not the userId, we should ideally fix it
@@ -112,21 +120,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     const newDoc = await databases.createDocument(dbId, usersColId, u.$id, {
                         userId: u.$id,
                         name: u.name || 'User',
+                        email: u.email || '',
                         avatar: '',
                         description: '',
                         subscribersCount: 0,
                         viewsCount: 0,
                         likesCount: 0,
                         videosCount: 0,
-                        snowflakesCount: 0
+                        snowflakesCount: 0,
+                        role: 'user'
                     });
                     setProfile({
                         name: newDoc.name,
                         avatar: newDoc.avatar,
-                        description: newDoc.description
+                        description: newDoc.description,
+                        role: 'user'
                     });
                 } catch (createErr: any) {
-                    if (createErr.code !== 409) console.error("Profile creation failed:", createErr);
+                    if (createErr.code === 400 && createErr.message.includes('role')) {
+                        console.warn("Retrying profile creation without 'role' attribute...");
+                        const fallbackDoc = await databases.createDocument(dbId, usersColId, u.$id, {
+                            userId: u.$id,
+                            name: u.name || 'User',
+                            avatar: '',
+                            description: '',
+                            subscribersCount: 0,
+                            viewsCount: 0,
+                            likesCount: 0,
+                            videosCount: 0,
+                            snowflakesCount: 0
+                        });
+                        setProfile({
+                            name: fallbackDoc.name,
+                            avatar: fallbackDoc.avatar,
+                            description: fallbackDoc.description,
+                            role: 'user'
+                        });
+                    } else if (createErr.code !== 409) {
+                        console.error("Profile creation failed:", createErr);
+                    }
                 }
             }
         } catch (err) {
@@ -146,9 +178,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setProfile(null);
     };
 
+    const login = () => {
+        setIsAuthModalOpen(true);
+    };
+
     return (
-        <AuthContext.Provider value={{ user, profile, isLoading, login: loginWithGoogle, logoutUser, refreshProfile }}>
+        <AuthContext.Provider value={{ user, profile, isLoading, login, logoutUser, refreshProfile, checkUserStatus }}>
             {children}
+            {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} />}
         </AuthContext.Provider>
     );
 };

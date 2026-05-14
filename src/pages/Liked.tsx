@@ -9,7 +9,7 @@ import { useAuth } from '../lib/AuthContext';
 
 export default function Liked() {
   const { t, language } = useLanguage();
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const [likedVideos, setLikedVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -91,7 +91,7 @@ export default function Liked() {
           {t('liked_login_required')}
         </p>
         <button 
-          onClick={() => (window as any).loginWithGoogle?.()}
+          onClick={login}
           className="px-8 py-3 bg-[#70d6ff] text-[#05070a] font-bold rounded-xl hover:opacity-90 transition-opacity"
         >
           {language === 'ru' ? 'Войти' : 'Sign In'}

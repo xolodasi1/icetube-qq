@@ -17,8 +17,8 @@ export function StudioSidebar({ isOpen, onClose }: { isOpen: boolean, onClose?: 
     { icon: Home, label: t('nav_home'), path: "/" },
   ];
 
-  // If admin, show admin panel
-  if (user?.email === 'xolodtop889@gmail.com') {
+  // If admin or moderator, show admin panel
+  if (user?.email === 'xolodtop889@gmail.com' || ['admin', 'moderator', 'proprietor'].includes(profile?.role || '')) {
     studioItems.push({ divider: true } as any);
     studioItems.push({ icon: ShieldAlert, label: t('nav_admin'), path: "/admin" } as any);
   }

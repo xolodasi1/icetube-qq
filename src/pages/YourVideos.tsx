@@ -74,9 +74,15 @@ export default function YourVideos() {
       <div className="flex flex-col items-center justify-center p-20 text-center">
         <AlertCircle className="w-16 h-16 text-slate-500 mb-6" />
         <h1 className="text-2xl font-bold text-white mb-2">{t('your_vids_login_req')}</h1>
-        <p className="text-slate-400 max-w-sm mx-auto">
+        <p className="text-slate-400 max-w-sm mx-auto mb-6">
           {t('your_vids_login_desc')}
         </p>
+        <button 
+          onClick={login}
+          className="px-8 py-3 bg-[#70d6ff] text-[#05070a] font-bold rounded-xl hover:opacity-90 transition-opacity"
+        >
+          {language === 'ru' ? 'Войти' : 'Sign In'}
+        </button>
       </div>
     );
   }

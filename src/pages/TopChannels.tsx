@@ -51,46 +51,6 @@ export default function TopChannels() {
         snowflakesCount: doc.snowflakesCount || 0,
       })).slice(0, 50);
 
-      // Background sync: recount videos for all profiles to ensure shorts are included
-      (async () => {
-        try {
-          const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
-          if (!videosColId) return;
-
-          let allVideos: any[] = [];
-          let offset = 0;
-          while(true) {
-            const vids = await databases.listDocuments(dbId, videosColId, [Query.limit(100), Query.offset(offset)]);
-            allVideos.push(...vids.documents);
-            if (vids.documents.length < 100 || offset >= 1000) break; // Limit to 1000 videos for performance
-            offset += 100;
-          }
-
-          const countsByUploader: Record<string, number> = {};
-          allVideos.forEach((v: any) => {
-            if (v.uploaderId) {
-              countsByUploader[v.uploaderId] = (countsByUploader[v.uploaderId] || 0) + 1;
-            }
-          });
-
-          for (const [uid, count] of Object.entries(countsByUploader)) {
-            try {
-              const doc = await databases.getDocument(dbId, profilesCol, uid);
-              if (doc && doc.videosCount !== count) {
-                await databases.updateDocument(dbId, profilesCol, uid, { videosCount: count });
-              }
-            } catch (e) {
-              const profileRes = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', uid)]);
-              if (profileRes.documents.length > 0 && profileRes.documents[0].videosCount !== count) {
-                await databases.updateDocument(dbId, profilesCol, profileRes.documents[0].$id, { videosCount: count });
-              }
-            }
-          }
-        } catch (e) {
-          console.error("Background sync failed", e);
-        }
-      })();
-
       setChannels(uniqueChannels);
     } catch (err) {
       console.error("Leaderboard fetch failed:", err);
