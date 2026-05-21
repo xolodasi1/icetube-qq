@@ -1,4 +1,4 @@
-import { databases } from './appwrite';
+import { databases, Permission, Role } from './appwrite';
 import { ID } from 'appwrite';
 
 export const createNotification = async (params: {
@@ -19,6 +19,16 @@ export const createNotification = async (params: {
   if (!dbId || !notifCol) return;
 
   try {
+    const permissions = params.userId ? [
+      Permission.read(Role.any()),
+      Permission.update(Role.user(params.userId)),
+      Permission.delete(Role.user(params.userId))
+    ] : [
+      Permission.read(Role.any()),
+      Permission.update(Role.any()),
+      Permission.delete(Role.any())
+    ];
+
     await databases.createDocument(dbId, notifCol, ID.unique(), {
       userId: params.userId,
       actorId: params.actorId,
@@ -29,9 +39,9 @@ export const createNotification = async (params: {
       videoTitle: params.videoTitle,
       contentType: params.contentType || 'video',
       isRead: false
-    });
+    }, permissions);
     console.log("Notification created successfully");
   } catch (err) {
-    console.error("Failed to create notification:", err);
+    console.warn("Failed to create notification (Appwrite permissions block):", err);
   }
 };

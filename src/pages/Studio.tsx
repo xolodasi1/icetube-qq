@@ -272,58 +272,7 @@ export default function Studio() {
             </div>
           </div>
 
-          {/* Unified Performance List */}
-          <div className="bg-white/5 border ice-border rounded-2xl overflow-hidden">
-            <div className="p-6 border-b ice-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h2 className="text-xl font-bold text-white">{language === 'ru' ? 'Эффективность контента' : 'Content Performance'}</h2>
-              <SortPills />
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b ice-border bg-white/[0.02]">
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{language === 'ru' ? 'Весь контент' : 'All Content'}</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">{language === 'ru' ? 'Дата' : 'Date'}</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">{language === 'ru' ? 'Просмотры' : 'Views'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y ice-border">
-                  {sortedAllVideos.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="px-6 py-12 text-center text-slate-500 italic">
-                        {language === 'ru' ? 'Контент не найден.' : 'No content found.'}
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedAllVideos.map((vid) => (
-                      <tr key={vid.id} className="hover:bg-white/[0.03] transition-colors group">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-4">
-                            <img 
-                              src={vid.thumbnailUrl} 
-                              className={`object-cover rounded-lg border ice-border shrink-0 ${vid.contentType === 'shorts' ? 'w-10 h-16' : 'w-20 h-12'}`} 
-                              alt={vid.title}
-                              referrerPolicy="no-referrer"
-                            />
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-white font-medium truncate max-w-[200px] sm:max-w-[300px]">{vid.title}</span>
-                              <span className="text-[10px] uppercase tracking-wider text-[#70d6ff]/70 font-bold">{vid.contentType === 'shorts' ? 'Shorts' : 'Video'}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center text-sm text-slate-400">
-                          {vid.uploadDate}
-                        </td>
-                        <td className="px-6 py-4 text-center text-white font-medium">
-                          {vid.views}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+
         </div>
       ) : (
         /* Content Table */

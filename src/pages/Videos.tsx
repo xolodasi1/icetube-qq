@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { databases, withTimeout, getOfflineFlag, setOfflineFlag } from "../lib/appwrite";
 import { Loader2, ServerCrash, Video } from "lucide-react";
 import { useLanguage } from "../lib/LanguageContext";
-import { mockVideos } from "../data";
 
 export default function Videos() {
   const { t, language } = useLanguage();
@@ -37,18 +36,11 @@ export default function Videos() {
       setIsLoading(true);
       setError(null);
 
-      if (getOfflineFlag()) {
-        console.log("Videos offline mode bypass activated.");
-        setDbVideos(mockVideos);
-        setIsLoading(false);
-        return;
-      }
-
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
         if (dbId && colId) {
-            const response = await withTimeout(databases.listDocuments(dbId, colId), 3500);
+            const response = await withTimeout(databases.listDocuments(dbId, colId), 4000);
             
             // Fetch users/profiles to get freshest avatars
             const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
@@ -57,8 +49,7 @@ export default function Videos() {
               if (profilesCol) {
                 const uploaderIds = Array.from(new Set(response.documents.map(v => v.uploaderId)));
                 if (uploaderIds.length > 0) {
-                  // If we have a lot, this might need pagination, but for now just fetch all profiles
-                  const profilesResult = await withTimeout(databases.listDocuments(dbId, profilesCol), 2000);
+                  const profilesResult = await withTimeout(databases.listDocuments(dbId, profilesCol), 2500);
                   profilesResult.documents.forEach(p => {
                     if (p.userId) {
                       profilesMap[p.userId] = {
@@ -92,12 +83,17 @@ export default function Videos() {
             });
             setDbVideos(formatted.reverse()); 
         } else {
-             setDbVideos(mockVideos);
+             setDbVideos([]);
         }
       } catch (err) {
-         console.warn("Appwrite lookup failed/timed out, setting offline mode and loading mock videos:", err);
+         console.warn("Appwrite lookup failed/timed out:", err);
          setOfflineFlag(true);
-         setDbVideos(mockVideos);
+         setError(
+           language === 'ru' 
+             ? "Не удалось загрузить видео из базы данных. Проверьте подключение VPN." 
+             : "Failed to load videos from server. Please check your VPN connection."
+         );
+         setDbVideos([]); 
       } finally {
          setIsLoading(false);
       }

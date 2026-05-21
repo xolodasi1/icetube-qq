@@ -2,9 +2,8 @@ import { VideoCard } from "../components/VideoCard";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { databases, withTimeout, getOfflineFlag, setOfflineFlag } from "../lib/appwrite";
-import { Loader2, ServerCrash, Video, Snowflake, Wifi } from "lucide-react";
+import { Loader2, ServerCrash, Video, Wifi, ShieldAlert } from "lucide-react";
 import { useLanguage } from "../lib/LanguageContext";
-import { mockVideos } from "../data";
 
 export default function Home() {
   const { t, language } = useLanguage();
@@ -29,7 +28,6 @@ export default function Home() {
   const handleRetryConnection = () => {
     setOfflineFlag(false);
     setIsLoading(true);
-    // Trigger a window refresh or re-run fetch to check link again
     setTimeout(() => {
       window.location.reload();
     }, 150);
@@ -57,18 +55,11 @@ export default function Home() {
       setIsLoading(true);
       setError(null);
 
-      if (getOfflineFlag()) {
-        console.log("Offline mode detected, loading mock videos directly.");
-        setDbVideos(mockVideos);
-        setIsLoading(false);
-        return;
-      }
-
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
         if (dbId && colId) {
-            const response = await withTimeout(databases.listDocuments(dbId, colId), 3500);
+            const response = await withTimeout(databases.listDocuments(dbId, colId), 4000);
             
             // Fetch users/profiles to get freshest avatars
             const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
@@ -77,8 +68,7 @@ export default function Home() {
               if (profilesCol) {
                 const uploaderIds = Array.from(new Set(response.documents.map(v => v.uploaderId)));
                 if (uploaderIds.length > 0) {
-                  // If we have a lot, this might need pagination, but for now just fetch all profiles
-                  const profilesResult = await withTimeout(databases.listDocuments(dbId, profilesCol), 2000);
+                  const profilesResult = await withTimeout(databases.listDocuments(dbId, profilesCol), 2500);
                   profilesResult.documents.forEach(p => {
                     if (p.userId) {
                       profilesMap[p.userId] = {
@@ -111,13 +101,19 @@ export default function Home() {
                 };
             });
             setDbVideos(formatted.reverse()); 
+            setOfflineFlag(false);
         } else {
-             setDbVideos(mockVideos);
+             setDbVideos([]);
         }
       } catch (err) {
-         console.warn("Appwrite error or timeout, loading mock videos fallback:", err);
+         console.warn("Appwrite network/timeout error:", err);
          setOfflineFlag(true);
-         setDbVideos(mockVideos);
+         setError(
+           language === 'ru' 
+             ? "Соединение с сервером базы данных заблокировано или истекло. Пожалуйста, включите VPN и попробуйте снова." 
+             : "Database connection blocked or timed out. Please turn on your VPN and try again."
+         );
+         setDbVideos([]); 
       } finally {
          setIsLoading(false);
       }
@@ -147,19 +143,19 @@ export default function Home() {
   return (
     <div className="flex flex-col gap-4 sm:gap-6 pt-2 sm:pt-0 pb-4 sm:pb-0">
       {offlineMode && (
-        <div className="mx-4 sm:mx-0 p-4 rounded-2xl bg-gradient-to-r from-blue-950/80 to-slate-900/90 border border-[#70d6ff]/40 shadow-[0_0_20px_rgba(112,214,255,0.15)] backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="mx-4 sm:mx-0 p-4 rounded-2xl bg-gradient-to-r from-red-950/40 to-slate-900/90 border border-red-500/30 shadow-[0_0_20px_rgba(239,68,68,0.1)] backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex items-center gap-3 text-left">
-            <div className="w-10 h-10 rounded-full bg-[#70d6ff]/10 flex items-center justify-center shrink-0 border border-[#70d6ff]/30 text-[#70d6ff]">
-              <Snowflake className="w-5 h-5 animate-spin" style={{ animationDuration: '8s' }} />
+            <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0 border border-red-500/30 text-red-400">
+              <ShieldAlert className="w-5 h-5 animate-pulse" />
             </div>
             <div>
               <h4 className="text-sm font-bold text-white tracking-wider uppercase">
-                {language === 'ru' ? '🧊 Морозный автономный демо-режим' : '🧊 Frosty Offline Demo Mode'}
+                {language === 'ru' ? '⚠️ Соединение заблокировано' : '⚠️ Connection Blocked'}
               </h4>
               <p className="text-xs text-slate-300 mt-0.5 max-w-xl">
                 {language === 'ru' 
-                  ? 'Хост Appwrite заблокирован или недоступен без VPN. Включен быстрый автономный демо-режим с локальной базой данных!' 
-                  : 'Appwrite server is restricted or offline without VPN. Active local demo mode with cached videos is running!'}
+                  ? 'Сервер базы данных Appwrite недоступен без VPN. Пожалуйста, включите VPN для просмотра и публикации видео.' 
+                  : 'Appwrite database is unreachable without VPN. Please turn on your VPN to view and upload videos.'}
               </p>
             </div>
           </div>
@@ -167,8 +163,8 @@ export default function Home() {
             onClick={handleRetryConnection}
             className="flex items-center gap-2 bg-[#70d6ff] text-black hover:scale-105 active:scale-95 text-xs font-bold py-2 px-4 rounded-xl shadow-lg transition-all shrink-0 cursor-pointer"
           >
-            <Wifi className="w-4 h-4 hover:animate-pulse" />
-            {language === 'ru' ? 'Проверить соединение' : 'Retry Connection'}
+            <Wifi className="w-4 h-4" />
+            {language === 'ru' ? 'Проверить еще раз' : 'Retry Connection'}
           </button>
         </div>
       )}
