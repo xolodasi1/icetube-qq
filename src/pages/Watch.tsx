@@ -1,13 +1,14 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock, AlertTriangle } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock, AlertTriangle, MessageCircle, Send } from "lucide-react";
 import { VideoCard } from "../components/VideoCard";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { databases, Permission, Role } from "../lib/appwrite";
 import { Query, ID } from "appwrite";
 import { useAuth } from "../lib/AuthContext";
 import { useLanguage } from "../lib/LanguageContext";
 import { createNotification } from "../lib/notifications";
 import { SafeStorage } from "../lib/storage";
+import { getXP, getLevelInfo, addXP } from "../lib/achievements";
 
 import { getOptimizedThumbnail, getOptimizedVideoUrl } from '../lib/cloudinary';
 
@@ -16,7 +17,99 @@ export default function Watch() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const { t, language } = useLanguage();
-  
+
+  const [isFloating, setIsFloating] = useState(false);
+  const [isMiniClosed, setIsMiniClosed] = useState(false);
+  const [xpAlert, setXpAlert] = useState<{ show: boolean, msg: string } | null>(null);
+
+  const [activeDiscussionTab, setActiveDiscussionTab] = useState<'comments' | 'icechat'>('comments');
+  const [iceMessages, setIceMessages] = useState<any[]>([
+    { id: 1, author: "FrostyNights", avatarSlug: 'f', badge: "🧭", text: "Атмосфера льда просто бомбическая! Снежный Трейлер просто класс 🔥🧊", level: 1, color: "text-[#a5f3fc]" },
+    { id: 2, author: "SiberiaChill", avatarSlug: 's', badge: "🏔️", text: "Ахаха, этот ледяной мини плеер просто космос! Сворачивается без фризов 👍", level: 2, color: "text-[#38bdf8]" },
+    { id: 3, author: "CaptainFreeze", avatarSlug: 'c', badge: "❄️", text: "ICETUBE 2.0 заслуживает стать главным хабом зимней аудитории 🏔️❄️🥶", level: 3, color: "text-[#70d6ff]" },
+  ]);
+  const [iceInput, setIceInput] = useState("");
+  const [floatingStickers, setFloatingStickers] = useState<any[]>([]);
+
+  // Periodic simulated Ice Chat comments
+  useEffect(() => {
+    if (activeDiscussionTab !== 'icechat') return;
+
+    const presetMsgs = [
+      { author: "GlacierSlayer", badge: "🧊", text: "Ледокол Скорпион крушит тренды! 🧊🚀", level: 4, color: "text-amber-400" },
+      { author: "NeonPolar", badge: "🧭", text: "Этот плеер во льду - лучшее изобретение года 🌟", level: 2, color: "text-[#38bdf8]" },
+      { author: "AuroraQueen", badge: "🏔️", text: "Привет с Крайнего Севера! Тут у нас полярное сияние 🌨️", level: 5, color: "text-purple-400" },
+      { author: "TrendHunter", badge: "🧭", text: "Ловите морозный лайк! Рад запустить проект! 🧊❄️", level: 3, color: "text-[#70d6ff]" },
+      { author: "Icebreaker99", badge: "❄️", text: "ICETUBE 2.0 – топовый дизайн! 🏔️💎", level: 6, color: "text-[#a5f3fc]" },
+      { author: "FrostyPenguin", badge: "🐧", text: "У меня уже 3 уровень Охотника за трендами! 🧭❄️", level: 3, color: "text-[#70d6ff]" },
+      { author: "BlizzardKing", badge: "🔥", text: "Стикеры огонь во льду 🔥🧊 Реакции летят вверх!", level: 7, color: "text-red-400" },
+    ];
+
+    const interval = setInterval(() => {
+      const idx = Math.floor(Math.random() * presetMsgs.length);
+      const chosen = presetMsgs[idx];
+      const newMsg = {
+        id: Date.now() + Math.random(),
+        author: chosen.author,
+        avatarSlug: chosen.author.charAt(0).toLowerCase(),
+        badge: chosen.badge,
+        text: chosen.text,
+        level: chosen.level,
+        color: chosen.color
+      };
+      setIceMessages(prev => [...prev.slice(-30), newMsg]); // Keep last 30
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [activeDiscussionTab]);
+
+  const emitSticker = (emoji: string) => {
+    const sId = Date.now() + Math.random();
+    const leftOffset = Math.floor(Math.random() * 60) + 20;
+    setFloatingStickers(prev => [...prev, { id: sId, emoji, left: leftOffset }]);
+    setTimeout(() => {
+      setFloatingStickers(prev => prev.filter(s => s.id !== sId));
+    }, 2000);
+    triggerXpEarned(5, language === 'ru' ? 'Стикер-реакция' : 'Sticker reaction');
+  };
+
+  const handleSendIceMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!iceInput.trim()) return;
+
+    const userProfileName = user ? (profile?.name || user.name) : (language === 'ru' ? 'Снежный Гость' : 'Ice Guest');
+    const userLvl = getLevelInfo(getXP(user?.$id || "guest"));
+
+    const newMsg = {
+      id: Date.now(),
+      author: userProfileName,
+      avatarSlug: 'u',
+      badge: userLvl.badge,
+      text: iceInput,
+      level: userLvl.level,
+      color: userLvl.color
+    };
+
+    setIceMessages(prev => [...prev, newMsg]);
+    setIceInput("");
+    triggerXpEarned(20, language === 'ru' ? 'Сообщение в ледяной чат' : 'Ice Chat live message');
+  };
+
+  const triggerXpEarned = (points: number, reason: string) => {
+    const res = addXP(points, user?.$id || "guest");
+    setXpAlert({
+      show: true,
+      msg: language === 'ru' 
+        ? `🧊 +${points} XP (${reason})! ${res.leveledUp ? `🧭 НОВЫЙ РАНГ: ${getLevelInfo(res.currentXP).title}!` : ''}`
+        : `🧊 +${points} XP (${reason})! ${res.leveledUp ? `🧭 NEW LEVEL: ${getLevelInfo(res.currentXP).title}!` : ''}`
+    });
+    // Sync points
+    window.dispatchEvent(new CustomEvent('icetube_xp_changed', { detail: { xp: res.currentXP, userId: user?.$id || "guest" } }));
+    setTimeout(() => {
+      setXpAlert(null);
+    }, 4500);
+  };
+
   const [video, setVideo] = useState<any | null>(null);
   const [suggestedVideos, setSuggestedVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -509,6 +602,52 @@ export default function Watch() {
     fetchVideoData();
   }, [id, user, language]);
 
+  const lastAwardedVideoId = useRef<string | null>(null);
+  
+  useEffect(() => {
+    if (video?.id && lastAwardedVideoId.current !== video.id) {
+      lastAwardedVideoId.current = video.id;
+      setTimeout(() => {
+        triggerXpEarned(10, language === 'ru' ? 'Просмотр видео' : 'Started watching');
+      }, 1000);
+    }
+  }, [video?.id]);
+
+  useEffect(() => {
+    const mainContainer = document.querySelector('main');
+    
+    const handleScroll = () => {
+      if (!mainContainer) return;
+      if (mainContainer.scrollTop > 320) {
+        setIsFloating(true);
+      } else {
+        setIsFloating(false);
+        setIsMiniClosed(false);
+      }
+    };
+
+    if (mainContainer) {
+      mainContainer.addEventListener('scroll', handleScroll);
+    }
+
+    const handleWindowScroll = () => {
+      if (window.scrollY > 320) {
+        setIsFloating(true);
+      } else {
+        setIsFloating(false);
+        setIsMiniClosed(false);
+      }
+    };
+    window.addEventListener('scroll', handleWindowScroll);
+
+    return () => {
+      if (mainContainer) {
+        mainContainer.removeEventListener('scroll', handleScroll);
+      }
+      window.removeEventListener('scroll', handleWindowScroll);
+    };
+  }, []);
+
   const handleLike = async (isLike: boolean) => {
     if (!user) {
       alert(language === 'ru' ? 'Вам нужно войти в аккаунт, чтобы ставить оценки' : 'You must log in to rate videos');
@@ -578,6 +717,7 @@ export default function Watch() {
             videoTitle: video.title,
             contentType: video.contentType
           });
+          triggerXpEarned(15, language === 'ru' ? 'Оценка видео' : 'Rating a video');
         }
         else setDislikesCount(prev => prev + 1);
       }
@@ -683,6 +823,7 @@ export default function Watch() {
           videoTitle: video.title,
           contentType: video.contentType
         });
+        triggerXpEarned(50, language === 'ru' ? 'Ледяная снежинка' : 'Snowflake reaction');
       }
     } catch (err: any) {
       console.error("Snowflake failed:", err);
@@ -728,6 +869,7 @@ export default function Watch() {
           actorAvatar: profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}`,
           type: 'subscribe'
         });
+        triggerXpEarned(30, language === 'ru' ? 'Подписка на автора' : 'Channel subscription');
       }
     } catch (err) {
       console.error("Sub failed:", err);
@@ -784,6 +926,8 @@ export default function Watch() {
         },
         permissions
       );
+
+      triggerXpEarned(25, language === 'ru' ? 'Добавлен комментарий' : 'Comment added');
 
       setComments([
         {
@@ -1070,6 +1214,18 @@ export default function Watch() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 max-w-[1600px] mx-auto relative pb-16 lg:pb-0">
+      {/* Gamified XP Achievement alert toast */}
+      {xpAlert && (
+        <div className="fixed top-20 right-4 sm:right-6 md:right-10 z-[200] max-w-sm bg-[#061122]/95 border-2 border-[#70d6ff] rounded-2xl p-4 shadow-[0_4px_30px_rgba(112,214,255,0.4)] backdrop-blur-md animate-in slide-in-from-top-10 duration-300 flex items-center gap-3">
+          <div className="text-2xl select-none animate-bounce">🧊</div>
+          <div className="flex flex-col">
+            <span className="text-[10px] text-[#70d6ff] font-extrabold uppercase tracking-wider leading-none">
+              {language === 'ru' ? 'АРКТИЧЕСКОЕ ДОСТИЖЕНИЕ!' : 'ARCTIC ACHIEVEMENT!'}
+            </span>
+            <span className="text-xs font-semibold text-slate-200 mt-1 leading-snug">{xpAlert.msg}</span>
+          </div>
+        </div>
+      )}
       {/* Floating Next Video Bar (Mobile Only) */}
       {showNextFloating && filteredSuggestedVideos.length > 0 && (
         <div className="fixed bottom-14 left-0 right-0 z-40 bg-[#1e2025]/95 backdrop-blur-md border-t border-white/10 p-3 lg:hidden flex items-center justify-between shadow-t-xl rounded-t-xl">
@@ -1090,7 +1246,63 @@ export default function Watch() {
 
       {/* Primary Video Section */}
       <div className="flex-1 lg:w-[70%]">
-        <div className="w-full relative pt-[56.25%] bg-black sm:rounded-2xl overflow-hidden sm:border-2 border-white/5 sm:shadow-[0_20px_50px_rgba(0,0,0,0.7)] group">
+        {/* Static Space-filler Card when Video is in PiP Floating Mode */}
+        {isFloating && !isMiniClosed && (
+          <div className="w-full relative pt-[56.25%] bg-[#081222]/50 border border-[#70d6ff]/20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] sm:rounded-2xl overflow-hidden flex flex-col items-center justify-center p-6 text-center mb-4 transition-all duration-300">
+            <div className="absolute inset-0 bg-blue-950/10 backdrop-blur-[2px] z-0"></div>
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4">
+              <div className="w-12 h-12 rounded-full bg-[#70d6ff]/10 border border-[#70d6ff]/30 flex items-center justify-center animate-pulse text-[#70d6ff] mb-2">
+                <Snowflake className="w-6 h-6 animate-spin" style={{ animationDuration: '6s' }} />
+              </div>
+              <p className="text-xs sm:text-sm text-slate-200 font-bold tracking-tight">
+                {language === 'ru' ? 'Мини-плеер ICETUBE активен 🧊' : 'ICETUBE Picture-in-Picture Active 🧊'}
+              </p>
+              <button 
+                onClick={() => {
+                  document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+                  setIsFloating(false);
+                }}
+                className="mt-3 text-[10px] sm:text-xs text-[#70d6ff] font-bold hover:scale-105 active:scale-95 bg-white/5 hover:bg-[#70d6ff]/20 py-1.5 px-4 rounded-full border border-[#70d6ff]/30 shadow-md flex items-center gap-1.5 transition-all"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                {language === 'ru' ? 'Вернуть на главный экран' : 'Restore to center'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className={isFloating && !isMiniClosed
+          ? "fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[120] w-[300px] sm:w-[380px] aspect-video rounded-2xl overflow-hidden border-2 border-[#70d6ff]/80 bg-[#070b13]/95 shadow-[0_10px_45px_rgba(112,214,255,0.45)] backdrop-blur-md animate-in slide-in-from-bottom-5 duration-300 group"
+          : "w-full relative pt-[56.25%] bg-black sm:rounded-2xl overflow-hidden sm:border-2 border-white/5 sm:shadow-[0_20px_50px_rgba(0,0,0,0.7)] group"
+        }>
+          {/* PiP Cover Bar on hover */}
+          {isFloating && !isMiniClosed && (
+            <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-black/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 flex items-center justify-between px-3 text-white">
+              <span className="text-[10px] font-bold truncate max-w-[160px] text-[#70d6ff] drop-shadow-md">
+                {video.title}
+              </span>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => {
+                    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+                    setIsFloating(false);
+                  }}
+                  className="p-1 hover:bg-white/10 rounded-full transition-colors text-[#70d6ff]"
+                  title={language === 'ru' ? 'Вернуть на полный экран' : 'Restore'}
+                >
+                  <ListFilter className="w-3.5 h-3.5 rotate-90" />
+                </button>
+                <button 
+                  onClick={() => setIsMiniClosed(true)}
+                  className="p-1 hover:bg-red-500/20 hover:text-red-400 rounded-full transition-colors"
+                  title={language === 'ru' ? 'Закрыть' : 'Close'}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {videoError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-sm z-50 p-6 text-center animate-in fade-in zoom-in-95 duration-300">
               <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(239,68,68,0.2)]">
@@ -1512,19 +1724,44 @@ export default function Watch() {
         )}
 
         <div className="mt-8 mb-10 px-4 sm:px-0" id="comments-section">
-          <div className="flex items-center gap-6 mb-6">
-            <h2 className="text-xl font-bold flex items-center gap-2 pb-1 inline-flex text-white">
-              {comments.length} {language === 'ru' ? (
-                comments.length % 10 === 1 && comments.length % 100 !== 11 ? 'комментарий' :
-                [2, 3, 4].includes(comments.length % 10) && ![12, 13, 14].includes(comments.length % 100) ? 'комментария' :
-                'комментариев'
-              ) : (comments.length === 1 ? 'comment' : 'comments')}
-            </h2>
-            <button className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors font-medium text-sm">
-              <ListFilter className="w-5 h-5" />
-              {t('comment_sort')}
+          {/* Tabs Selector for Comments & Ice-Chat */}
+          <div className="flex border-b border-white/5 mb-6 gap-6">
+            <button 
+              onClick={() => setActiveDiscussionTab('comments')}
+              className={`pb-3 font-extrabold text-sm sm:text-base tracking-wider uppercase transition-all ${activeDiscussionTab === 'comments' ? 'border-b-2 border-[#70d6ff] text-[#70d6ff]' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              💬 {language === 'ru' ? `Комментарии (${comments.length})` : `Comments (${comments.length})`}
+            </button>
+            <button 
+              onClick={() => {
+                setActiveDiscussionTab('icechat');
+                triggerXpEarned(5, language === 'ru' ? 'Вход в Холодный чат' : 'Entered Ice Chat');
+              }}
+              className={`pb-3 font-extrabold text-sm sm:text-base tracking-wider uppercase transition-all flex items-center gap-2 ${activeDiscussionTab === 'icechat' ? 'border-b-2 border-[#70d6ff] text-[#70d6ff] animate-pulse' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              🧊 Ice-Chat (Live)
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
             </button>
           </div>
+
+          {activeDiscussionTab === 'comments' && (
+            <>
+              <div className="flex items-center gap-6 mb-6">
+                <h2 className="text-xl font-bold flex items-center gap-2 pb-1 inline-flex text-white">
+                  {comments.length} {language === 'ru' ? (
+                    comments.length % 10 === 1 && comments.length % 100 !== 11 ? 'комментарий' :
+                    [2, 3, 4].includes(comments.length % 10) && ![12, 13, 14].includes(comments.length % 100) ? 'комментария' :
+                    'комментариев'
+                  ) : (comments.length === 1 ? 'comment' : 'comments')}
+                </h2>
+                <button className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors font-medium text-sm">
+                  <ListFilter className="w-5 h-5" />
+                  {t('comment_sort')}
+                </button>
+              </div>
           
             <form onSubmit={handleAddComment} className="flex gap-4">
               <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-[#70d6ff] to-blue-600 flex items-center justify-center text-white font-bold shrink-0">
@@ -1744,6 +1981,101 @@ export default function Watch() {
               </div>
             ))}
           </div>
+          </>
+        )}
+
+        {activeDiscussionTab === 'icechat' && (
+          <div className="relative border ice-border rounded-2xl bg-[#09111e]/90 backdrop-blur-md p-4 flex flex-col h-[520px] shadow-lg animate-in fade-in duration-300 overflow-hidden mb-6">
+             {/* Keyframe inject */}
+             <style>{`
+               @keyframes iceFloatUp {
+                 0% {
+                   transform: translateY(0) scale(0.6) rotate(0deg);
+                   opacity: 0;
+                 }
+                 15% {
+                   opacity: 1;
+                   transform: translateY(-20px) scale(1.2) rotate(-10deg);
+                 }
+                 80% {
+                   opacity: 0.8;
+                 }
+                 100% {
+                   transform: translateY(-320px) scale(0.7) rotate(15deg);
+                   opacity: 0;
+                 }
+               }
+             `}</style>
+
+             {/* Floating stickers container */}
+             <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden">
+               {floatingStickers.map(s => (
+                 <span 
+                   key={s.id} 
+                   className="absolute text-4xl select-none"
+                   style={{ 
+                     left: `${s.left}%`, 
+                     bottom: '80px',
+                     animation: 'iceFloatUp 2.2s ease-out forwards'
+                   }}
+                 >
+                   {s.emoji}
+                 </span>
+               ))}
+             </div>
+
+             {/* Chat messages list */}
+             <div className="flex-1 overflow-y-auto pr-2 space-y-3 flex flex-col justify-end min-h-[300px]" style={{ scrollbarWidth: 'thin' }}>
+               <div className="text-center text-xs text-[#70d6ff]/60 border-b border-[#70d6ff]/10 pb-2.5 italic uppercase tracking-wider font-bold">
+                 ❄️ {language === 'ru' ? 'Добро пожаловать в Холодную Зону ICETUBE live!' : 'Welcome to the ICETUBE live Ice Zone!'} ❄️
+               </div>
+               <div className="space-y-3.5 max-h-[320px] overflow-y-auto">
+                 {iceMessages.map((msg) => (
+                   <div key={msg.id} className="flex items-start gap-2.5 text-xs py-1.5 border-b border-white/5 last:border-0 hover:bg-white/5 px-2 rounded-lg transition-colors">
+                     <span className="text-base select-none leading-none mt-0.5">{msg.badge}</span>
+                     <div className="flex-1">
+                       <div className="flex items-center gap-2 leading-none mb-1">
+                         <span className="font-bold text-slate-300">@{msg.author}</span>
+                         <span className={`inline-block text-[8px] px-1.5 py-0.5 rounded bg-blue-950/50 border border-[#70d6ff]/30 font-mono ${msg.color}`}>
+                           Lvl {msg.level}
+                         </span>
+                       </div>
+                       <p className="text-slate-100 font-medium leading-relaxed">{msg.text}</p>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             </div>
+
+             {/* Reactions panel */}
+             <div className="border-t ice-border pt-3 mt-3">
+               <div className="text-[10px] text-[#70d6ff] font-extrabold uppercase tracking-widest mb-2 flex items-center justify-between">
+                 <span>❄️ {language === 'ru' ? 'БЫСТРЫЕ РЕАКЦИИ (+5 XP)' : 'QUICK STICKERS (+5 XP)'}</span>
+               </div>
+               <div className="flex gap-2">
+                 <button type="button" onClick={() => emitSticker('🧊')} className="flex-1 py-1 px-1 rounded-xl bg-white/5 hover:bg-[#70d6ff]/20 hover:scale-105 active:scale-95 border border-[#70d6ff]/20 text-center text-2xl transition-all" title="Замороженный лайк">🧊</button>
+                 <button type="button" onClick={() => emitSticker('🔥')} className="flex-1 py-1 px-1 rounded-xl bg-white/5 hover:bg-orange-500/20 hover:scale-105 active:scale-95 border border-[#12ffba]/20 text-center text-2xl transition-all" title="Огонь во льду">🔥</button>
+                 <button type="button" onClick={() => emitSticker('❄️')} className="flex-1 py-1 px-1 rounded-xl bg-white/5 hover:bg-slate-300/20 hover:scale-105 active:scale-95 border border-white/10 text-center text-2xl transition-all" title="Кристалл">❄️</button>
+                 <button type="button" onClick={() => emitSticker('🥶')} className="flex-1 py-1 px-1 rounded-xl bg-white/5 hover:bg-cyan-500/20 hover:scale-105 active:scale-95 border border-cyan-400/20 text-center text-2xl transition-all" title="Мерзляк">🥶</button>
+                 <button type="button" onClick={() => emitSticker('🐧')} className="flex-1 py-1 px-1 rounded-xl bg-white/5 hover:bg-slate-300/20 hover:scale-105 active:scale-95 border border-slate-400/20 text-center text-2xl transition-all" title="Пингвин">🐧</button>
+               </div>
+             </div>
+
+             {/* Chat input box */}
+             <form onSubmit={handleSendIceMessage} className="mt-4 flex gap-2">
+               <input 
+                 type="text" 
+                 value={iceInput}
+                 onChange={(e) => setIceInput(e.target.value)}
+                 placeholder={language === 'ru' ? 'Отправьте сообщение в Холодный чат (+20 XP)...' : 'Send message to Ice Chat (+20 XP)...'}
+                 className="flex-1 bg-white/5 rounded-xl px-3 py-2.5 text-xs border ice-border outline-none focus:border-[#70d6ff]/50 text-slate-100 placeholder:text-slate-500"
+               />
+               <button type="submit" className="p-2.5 rounded-xl bg-[#70d6ff] text-black font-bold hover:scale-105 active:scale-95 transition-all">
+                 <Send className="w-4 h-4" />
+               </button>
+             </form>
+          </div>
+        )}
         </div>
       </div>
 
