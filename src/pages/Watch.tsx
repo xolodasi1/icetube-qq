@@ -2,7 +2,8 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock, AlertTriangle, MessageCircle, Send } from "lucide-react";
 import { VideoCard } from "../components/VideoCard";
 import React, { useState, useEffect, useRef } from "react";
-import { databases, Permission, Role } from "../lib/appwrite";
+import { databases, Permission, Role, withTimeout, getOfflineFlag, setOfflineFlag } from "../lib/appwrite";
+import { mockVideos } from "../data";
 import { Query, ID } from "appwrite";
 import { useAuth } from "../lib/AuthContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -489,6 +490,31 @@ export default function Watch() {
     const fetchVideoData = async () => {
       try {
         setIsLoading(true);
+
+        if (getOfflineFlag()) {
+          console.log("Offline mode, fetching custom mock video.");
+          const mVideo = mockVideos.find(v => v.id === id) || mockVideos[0];
+          setVideo(mVideo);
+          
+          const filteredSuggested = mockVideos
+            .filter(v => v.id !== mVideo.id && (!v.contentType || v.contentType === 'video'))
+            .map(v => ({
+              id: v.id,
+              uploaderId: v.uploaderId,
+              title: v.title,
+              thumbnailUrl: v.thumbnailUrl,
+              videoUrl: v.videoUrl,
+              channelName: v.channelName,
+              channelAvatar: v.channelAvatar,
+              views: v.views,
+              uploadDate: t('video_recently'),
+              category: v.category
+            }));
+          setSuggestedVideos(filteredSuggested);
+          setIsLoading(false);
+          return;
+        }
+
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
         
@@ -497,12 +523,17 @@ export default function Watch() {
         // Fetch the specific video directly by ID
         let currentDoc: any;
         try {
-          currentDoc = await databases.getDocument(dbId, colId, id);
+          currentDoc = await withTimeout(databases.getDocument(dbId, colId, id), 3500);
         } catch (docErr) {
-          console.error("Could not fetch specific video document:", docErr);
+          console.error("Could not fetch specific video document under timeout:", docErr);
           // Fallback: list all and find (not ideal but better than nothing)
-          const response = await databases.listDocuments(dbId, colId);
-          currentDoc = response.documents.find(v => v.$id === id);
+          try {
+            const response = await withTimeout(databases.listDocuments(dbId, colId), 3000);
+            currentDoc = response.documents.find(v => v.$id === id);
+          } catch (listErr) {
+            console.warn("Listing documents also failed, falling back to offline mode.");
+            setOfflineFlag(true);
+          }
         }
         
         if (currentDoc) {
@@ -511,7 +542,7 @@ export default function Watch() {
           let uploaderProfile: any = null;
           if (profilesCol) {
              try {
-                const profileRes = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', currentDoc.uploaderId)]);
+                const profileRes = await withTimeout(databases.listDocuments(dbId, profilesCol, [Query.equal('userId', currentDoc.uploaderId)]), 2000);
                 if (profileRes.documents.length > 0) {
                   uploaderProfile = profileRes.documents[0];
                 }
@@ -545,14 +576,18 @@ export default function Watch() {
           }
 
           setVideo(currentVideo);
-          fetchInteractions(currentVideo.id, currentVideo.uploaderId);
+          try {
+            await withTimeout(fetchInteractions(currentVideo.id, currentVideo.uploaderId), 2500);
+          } catch (e) {
+            console.warn("Skipping standard interaction updates due to timeout/offline mode");
+          }
 
           // Fetch suggested videos separately
           try {
-            const suggestedRes = await databases.listDocuments(dbId, colId, [
+            const suggestedRes = await withTimeout(databases.listDocuments(dbId, colId, [
               Query.orderDesc('$createdAt'),
               Query.limit(20)
-            ]);
+            ]), 2500);
             
             const suggested = suggestedRes.documents
               .filter(v => v.$id !== id && (!v.contentType || v.contentType === 'video'))
@@ -571,9 +606,24 @@ export default function Watch() {
             setSuggestedVideos(suggested);
           } catch (sErr) {
             console.error("Failed to fetch suggested videos:", sErr);
+            const fallbackSuggested = mockVideos
+              .filter(v => v.id !== currentVideo.id && (!v.contentType || v.contentType === 'video'))
+              .map(v => ({
+                id: v.id,
+                uploaderId: v.uploaderId,
+                title: v.title,
+                thumbnailUrl: v.thumbnailUrl,
+                videoUrl: v.videoUrl,
+                channelName: v.channelName,
+                channelAvatar: v.channelAvatar,
+                views: v.views,
+                uploadDate: t('video_recently'),
+                category: v.category
+              }));
+            setSuggestedVideos(fallbackSuggested);
           }
-          
-          // Increment View Count
+
+          // Increment View Count (Live mode only)
           const runUpdate = async () => {
             try {
               await databases.updateDocument(dbId, colId, currentVideo.id, {
@@ -590,6 +640,28 @@ export default function Watch() {
             }
           };
           runUpdate();
+
+        } else {
+          // Fallback to stock mock video
+          setOfflineFlag(true);
+          const mVideo = mockVideos.find(v => v.id === id) || mockVideos[0];
+          setVideo(mVideo);
+          
+          const filteredSuggested = mockVideos
+            .filter(v => v.id !== mVideo.id && (!v.contentType || v.contentType === 'video'))
+            .map(v => ({
+              id: v.id,
+              uploaderId: v.uploaderId,
+              title: v.title,
+              thumbnailUrl: v.thumbnailUrl,
+              videoUrl: v.videoUrl,
+              channelName: v.channelName,
+              channelAvatar: v.channelAvatar,
+              views: v.views,
+              uploadDate: t('video_recently'),
+              category: v.category
+            }));
+          setSuggestedVideos(filteredSuggested);
         }
 
       } catch (err) {

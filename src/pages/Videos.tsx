@@ -1,9 +1,10 @@
 import { VideoCard } from "../components/VideoCard";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import React, { useState, useEffect } from "react";
-import { databases } from "../lib/appwrite";
+import { databases, withTimeout, getOfflineFlag, setOfflineFlag } from "../lib/appwrite";
 import { Loader2, ServerCrash, Video } from "lucide-react";
 import { useLanguage } from "../lib/LanguageContext";
+import { mockVideos } from "../data";
 
 export default function Videos() {
   const { t, language } = useLanguage();
@@ -33,11 +34,21 @@ export default function Videos() {
 
   useEffect(() => {
     const fetchVideos = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      if (getOfflineFlag()) {
+        console.log("Videos offline mode bypass activated.");
+        setDbVideos(mockVideos);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
         if (dbId && colId) {
-            const response = await databases.listDocuments(dbId, colId);
+            const response = await withTimeout(databases.listDocuments(dbId, colId), 3500);
             
             // Fetch users/profiles to get freshest avatars
             const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
@@ -47,7 +58,7 @@ export default function Videos() {
                 const uploaderIds = Array.from(new Set(response.documents.map(v => v.uploaderId)));
                 if (uploaderIds.length > 0) {
                   // If we have a lot, this might need pagination, but for now just fetch all profiles
-                  const profilesResult = await databases.listDocuments(dbId, profilesCol);
+                  const profilesResult = await withTimeout(databases.listDocuments(dbId, profilesCol), 2000);
                   profilesResult.documents.forEach(p => {
                     if (p.userId) {
                       profilesMap[p.userId] = {
@@ -81,13 +92,14 @@ export default function Videos() {
             });
             setDbVideos(formatted.reverse()); 
         } else {
-             setDbVideos([]);
+             setDbVideos(mockVideos);
         }
       } catch (err) {
-         setError(language === 'ru' ? "Не удалось загрузить видео. Проверьте настройки Appwrite." : "Failed to load videos.");
-         setDbVideos([]); 
+         console.warn("Appwrite lookup failed/timed out, setting offline mode and loading mock videos:", err);
+         setOfflineFlag(true);
+         setDbVideos(mockVideos);
       } finally {
-        setIsLoading(false);
+         setIsLoading(false);
       }
     };
     fetchVideos();

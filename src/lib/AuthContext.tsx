@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getCurrentUser, loginWithGoogle, logout, databases } from './appwrite';
+import { getCurrentUser, loginWithGoogle, logout, databases, withTimeout } from './appwrite';
 import { Models, Query } from 'appwrite';
 import AuthModal from '../components/AuthModal';
 
@@ -45,9 +45,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
             const usersColId = import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
             if (dbId && usersColId) {
-                const res = await databases.listDocuments(dbId, usersColId, [
+                const res = await withTimeout(databases.listDocuments(dbId, usersColId, [
                     Query.equal('userId', userId)
-                ]);
+                ]), 2500);
                 if (res.documents.length > 0) {
                     const doc = res.documents[0];
                     setProfile({
@@ -66,14 +66,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const checkUserStatus = async () => {
         setIsLoading(true);
         console.log("Checking user status...");
-        const currentUser = await getCurrentUser();
-        // Log ID instead of the full user object to avoid serialization issues
-        console.log("Current user ID:", currentUser?.$id || "No user found");
-        setUser(currentUser);
-        if (currentUser) {
-            await ensureUserProfile(currentUser);
+        try {
+            const currentUser = await withTimeout(getCurrentUser(), 2500);
+            // Log ID instead of the full user object to avoid serialization issues
+            console.log("Current user ID:", currentUser?.$id || "No user found");
+            setUser(currentUser);
+            if (currentUser) {
+                try {
+                    await withTimeout(ensureUserProfile(currentUser), 2500);
+                } catch (profileErr) {
+                    console.warn("Could not load user profile in time:", profileErr);
+                }
+            }
+        } catch (err) {
+            console.warn("Auth check failed or timed out:", err);
+            setUser(null);
+            setProfile(null);
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     };
 
     const ensureUserProfile = async (u: Models.User<Models.Preferences>) => {

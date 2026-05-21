@@ -1,9 +1,10 @@
 import { VideoCard } from "../components/VideoCard";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import React, { useState, useEffect } from "react";
-import { databases } from "../lib/appwrite";
-import { Loader2, ServerCrash, Video } from "lucide-react";
+import { databases, withTimeout, getOfflineFlag, setOfflineFlag } from "../lib/appwrite";
+import { Loader2, ServerCrash, Video, Snowflake, Wifi } from "lucide-react";
 import { useLanguage } from "../lib/LanguageContext";
+import { mockVideos } from "../data";
 
 export default function Home() {
   const { t, language } = useLanguage();
@@ -13,6 +14,26 @@ export default function Home() {
   const [dbVideos, setDbVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [offlineMode, setOfflineMode] = useState(getOfflineFlag());
+
+  useEffect(() => {
+    const handleNetworkState = () => {
+      setOfflineMode(getOfflineFlag());
+    };
+    window.addEventListener('icetube_network_status_changed', handleNetworkState);
+    return () => {
+      window.removeEventListener('icetube_network_status_changed', handleNetworkState);
+    };
+  }, []);
+
+  const handleRetryConnection = () => {
+    setOfflineFlag(false);
+    setIsLoading(true);
+    // Trigger a window refresh or re-run fetch to check link again
+    setTimeout(() => {
+      window.location.reload();
+    }, 150);
+  };
 
   const dynamicCategories: string[] = Array.from(new Set(
     dbVideos
@@ -33,11 +54,21 @@ export default function Home() {
 
   useEffect(() => {
     const fetchVideos = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      if (getOfflineFlag()) {
+        console.log("Offline mode detected, loading mock videos directly.");
+        setDbVideos(mockVideos);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
         if (dbId && colId) {
-            const response = await databases.listDocuments(dbId, colId);
+            const response = await withTimeout(databases.listDocuments(dbId, colId), 3500);
             
             // Fetch users/profiles to get freshest avatars
             const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
@@ -47,7 +78,7 @@ export default function Home() {
                 const uploaderIds = Array.from(new Set(response.documents.map(v => v.uploaderId)));
                 if (uploaderIds.length > 0) {
                   // If we have a lot, this might need pagination, but for now just fetch all profiles
-                  const profilesResult = await databases.listDocuments(dbId, profilesCol);
+                  const profilesResult = await withTimeout(databases.listDocuments(dbId, profilesCol), 2000);
                   profilesResult.documents.forEach(p => {
                     if (p.userId) {
                       profilesMap[p.userId] = {
@@ -81,13 +112,14 @@ export default function Home() {
             });
             setDbVideos(formatted.reverse()); 
         } else {
-             setDbVideos([]);
+             setDbVideos(mockVideos);
         }
       } catch (err) {
-         setError(language === 'ru' ? "Не удалось загрузить видео. Проверьте настройки Appwrite." : "Failed to load videos.");
-         setDbVideos([]); 
+         console.warn("Appwrite error or timeout, loading mock videos fallback:", err);
+         setOfflineFlag(true);
+         setDbVideos(mockVideos);
       } finally {
-        setIsLoading(false);
+         setIsLoading(false);
       }
     };
     fetchVideos();
@@ -114,6 +146,33 @@ export default function Home() {
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6 pt-2 sm:pt-0 pb-4 sm:pb-0">
+      {offlineMode && (
+        <div className="mx-4 sm:mx-0 p-4 rounded-2xl bg-gradient-to-r from-blue-950/80 to-slate-900/90 border border-[#70d6ff]/40 shadow-[0_0_20px_rgba(112,214,255,0.15)] backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-3 text-left">
+            <div className="w-10 h-10 rounded-full bg-[#70d6ff]/10 flex items-center justify-center shrink-0 border border-[#70d6ff]/30 text-[#70d6ff]">
+              <Snowflake className="w-5 h-5 animate-spin" style={{ animationDuration: '8s' }} />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white tracking-wider uppercase">
+                {language === 'ru' ? '🧊 Морозный автономный демо-режим' : '🧊 Frosty Offline Demo Mode'}
+              </h4>
+              <p className="text-xs text-slate-300 mt-0.5 max-w-xl">
+                {language === 'ru' 
+                  ? 'Хост Appwrite заблокирован или недоступен без VPN. Включен быстрый автономный демо-режим с локальной базой данных!' 
+                  : 'Appwrite server is restricted or offline without VPN. Active local demo mode with cached videos is running!'}
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={handleRetryConnection}
+            className="flex items-center gap-2 bg-[#70d6ff] text-black hover:scale-105 active:scale-95 text-xs font-bold py-2 px-4 rounded-xl shadow-lg transition-all shrink-0 cursor-pointer"
+          >
+            <Wifi className="w-4 h-4 hover:animate-pulse" />
+            {language === 'ru' ? 'Проверить соединение' : 'Retry Connection'}
+          </button>
+        </div>
+      )}
+
       {/* Category Tags */}
       <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar hide-scrollbar px-4 sm:px-0 -mt-2">
         {tags.map((tag) => (

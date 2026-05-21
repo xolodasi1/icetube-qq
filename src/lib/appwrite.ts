@@ -14,6 +14,53 @@ client
 export const account = new Account(client);
 export const databases = new Databases(client);
 
+// Check if the user is in Russian network or without VPN
+export const getOfflineFlag = (): boolean => {
+    try {
+        return localStorage.getItem('icetube_offline_mode') === 'true';
+    } catch (e) {
+        return false;
+    }
+};
+
+export const setOfflineFlag = (val: boolean): void => {
+    try {
+        if (val) {
+            localStorage.setItem('icetube_offline_mode', 'true');
+        } else {
+            localStorage.removeItem('icetube_offline_mode');
+        }
+        window.dispatchEvent(new Event('icetube_network_status_changed'));
+    } catch (e) {}
+};
+
+// Custom timeout wrapper for Appwrite calls
+export const withTimeout = <T>(promise: Promise<T>, ms: number = 2500): Promise<T> => {
+    // If we already know we are offline, drop timeout to 800ms to fail immediately and show demo videos fast
+    const adjustedTimeout = getOfflineFlag() ? Math.min(ms, 800) : ms;
+    
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => {
+            // Signal offline mode so subsequent loads are extremely fast without waiting
+            setOfflineFlag(true);
+            reject(new Error("Timeout waiting for Appwrite response"));
+        }, adjustedTimeout);
+        
+        promise.then(
+            (res) => {
+                clearTimeout(timer);
+                // If we successfully get response, remove offline flag!
+                setOfflineFlag(false);
+                resolve(res);
+            },
+            (err) => {
+                clearTimeout(timer);
+                reject(err);
+            }
+        );
+    });
+};
+
 export const loginWithGoogle = () => {
     // Determine the redirect URL based on current environment
     const redirectUrl = window.location.origin;
@@ -43,3 +90,4 @@ export const getCurrentUser = async () => {
         return null;
     }
 };
+
