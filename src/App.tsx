@@ -22,6 +22,9 @@ import Shorts from "./pages/Shorts";
 import Subscriptions from "./pages/Subscriptions";
 import ContinueWatching from "./pages/ContinueWatching";
 import Videos from "./pages/Videos";
+import Premium from "./pages/Premium";
+import Live from "./pages/Live";
+import MusicPage from "./pages/Music";
 
 export default function App() {
   return (
@@ -48,11 +51,11 @@ export default function App() {
           <Route path="/liked" element={<Liked />} />
           <Route path="/top-channels" element={<TopChannels />} />
           <Route path="/clips" element={<Clips />} />
-          <Route path="/music" element={<ComingSoon />} />
+          <Route path="/music" element={<MusicPage />} />
           <Route path="/movies" element={<ComingSoon />} />
-          <Route path="/live" element={<ComingSoon />} />
-          <Route path="/premium" element={<ComingSoon />} />
-          <Route path="/yt-music" element={<ComingSoon />} />
+          <Route path="/live" element={<Live />} />
+          <Route path="/premium" element={<Premium />} />
+          <Route path="/yt-music" element={<MusicPage />} />
           <Route path="/yt-kids" element={<ComingSoon />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/settings" element={<Settings />} />

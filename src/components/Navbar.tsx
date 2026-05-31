@@ -1,4 +1,4 @@
-import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert, Settings, LayoutDashboard, Mic, Box, Snowflake } from "lucide-react";
+import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert, Settings, LayoutDashboard, Mic, Box, Snowflake, Crown } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../lib/AuthContext";
@@ -21,6 +21,18 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [userXp, setUserXp] = useState(0);
+  const [isPremium, setIsPremium] = useState(false);
+
+  useEffect(() => {
+    const checkPremium = () => {
+      setIsPremium(localStorage.getItem("icetube_premium_enabled") === "true");
+    };
+    checkPremium();
+    window.addEventListener("icetube_premium_changed", checkPremium);
+    return () => {
+      window.removeEventListener("icetube_premium_changed", checkPremium);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchInitialXp = () => {
@@ -327,7 +339,10 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
                          </span>
                       </div>
                       <div className="flex flex-col overflow-hidden min-w-0">
-                        <span className="font-bold text-white text-sm truncate">{profile?.name || user.name || "User"}</span>
+                        <span className="font-bold text-white text-sm truncate flex items-center gap-1.5">
+                          {profile?.name || user.name || "User"}
+                          {isPremium && <Crown className="w-4 h-4 text-yellow-400 shrink-0 fill-current animate-pulse drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]" />}
+                        </span>
                         <span className="text-xs text-slate-400 truncate">{user.email}</span>
                       </div>
                     </div>

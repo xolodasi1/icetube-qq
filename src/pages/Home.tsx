@@ -2,7 +2,7 @@ import { VideoCard } from "../components/VideoCard";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { databases, withTimeout, getOfflineFlag, setOfflineFlag } from "../lib/appwrite";
-import { Loader2, ServerCrash, Video, Wifi, ShieldAlert } from "lucide-react";
+import { Loader2, ServerCrash, Video, Wifi, ShieldAlert, RotateCw } from "lucide-react";
 import { useLanguage } from "../lib/LanguageContext";
 
 export default function Home() {
@@ -12,6 +12,7 @@ export default function Home() {
   
   const [dbVideos, setDbVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offlineMode, setOfflineMode] = useState(getOfflineFlag());
 
@@ -26,8 +27,8 @@ export default function Home() {
   }, []);
 
   const handleRetryConnection = () => {
-    setOfflineFlag(false);
     setIsLoading(true);
+    setOfflineFlag(false);
     setTimeout(() => {
       window.location.reload();
     }, 150);
@@ -50,76 +51,85 @@ export default function Home() {
     ? (language === 'ru' ? 'Все' : 'All') 
     : activeCategoryParam;
 
-  useEffect(() => {
-    const fetchVideos = async () => {
+  const fetchVideos = async (silent = false) => {
+    if (!silent) {
       setIsLoading(true);
-      setError(null);
+    }
+    setError(null);
 
-      try {
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
-        if (dbId && colId) {
-            const response = await withTimeout(databases.listDocuments(dbId, colId), 4000);
-            
-            // Fetch users/profiles to get freshest avatars
-            const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
-            let profilesMap: Record<string, {name: string, avatar: string}> = {};
-            try {
-              if (profilesCol) {
-                const uploaderIds = Array.from(new Set(response.documents.map(v => v.uploaderId)));
-                if (uploaderIds.length > 0) {
-                  const profilesResult = await withTimeout(databases.listDocuments(dbId, profilesCol), 2500);
-                  profilesResult.documents.forEach(p => {
-                    if (p.userId) {
-                      profilesMap[p.userId] = {
-                        name: p.name || '',
-                        avatar: p.avatar || ''
-                      };
-                    }
-                  });
-                }
+    try {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+      if (dbId && colId) {
+          const response = await withTimeout(databases.listDocuments(dbId, colId), 4000);
+          
+          // Fetch users/profiles to get freshest avatars
+          const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+          let profilesMap: Record<string, {name: string, avatar: string}> = {};
+          try {
+            if (profilesCol) {
+              const uploaderIds = Array.from(new Set(response.documents.map(v => v.uploaderId)));
+              if (uploaderIds.length > 0) {
+                const profilesResult = await withTimeout(databases.listDocuments(dbId, profilesCol), 2500);
+                profilesResult.documents.forEach(p => {
+                  if (p.userId) {
+                    profilesMap[p.userId] = {
+                      name: p.name || '',
+                      avatar: p.avatar || ''
+                    };
+                  }
+                });
               }
-            } catch (pErr) {
-              console.log("Could not fetch profiles for latest avatars", pErr);
             }
+          } catch (pErr) {
+            console.log("Could not fetch profiles for latest avatars", pErr);
+          }
 
-            const formatted = response.documents.map(v => {
-                const profile = profilesMap[v.uploaderId];
-                return {
-                  id: v.$id,
-                  uploaderId: v.uploaderId,
-                  title: v.title,
-                  thumbnailUrl: v.thumbnailUrl,
-                  videoUrl: v.videoUrl,
-                  channelName: profile?.name || v.uploaderName,
-                  channelAvatar: profile?.avatar || v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
-                  views: v.views || 0,
-                  uploadDate: t('video_recently'),
-                  category: v.category || 'All',
-                  contentType: v.contentType || 'video',
-                  description: v.description || ''
-                };
-            });
-            setDbVideos(formatted.reverse()); 
-            setOfflineFlag(false);
-        } else {
-             setDbVideos([]);
-        }
-      } catch (err) {
-         console.warn("Appwrite network/timeout error:", err);
-         setOfflineFlag(true);
-         setError(
-           language === 'ru' 
-             ? "Соединение с сервером базы данных заблокировано или истекло. Пожалуйста, включите VPN и попробуйте снова." 
-             : "Database connection blocked or timed out. Please turn on your VPN and try again."
-         );
-         setDbVideos([]); 
-      } finally {
-         setIsLoading(false);
+          const formatted = response.documents.map(v => {
+              const profile = profilesMap[v.uploaderId];
+              return {
+                id: v.$id,
+                uploaderId: v.uploaderId,
+                title: v.title,
+                thumbnailUrl: v.thumbnailUrl,
+                videoUrl: v.videoUrl,
+                channelName: profile?.name || v.uploaderName,
+                channelAvatar: profile?.avatar || v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
+                views: v.views || 0,
+                uploadDate: t('video_recently'),
+                category: v.category || 'All',
+                contentType: v.contentType || 'video',
+                description: v.description || ''
+              };
+          });
+          setDbVideos(formatted.reverse()); 
+          setOfflineFlag(false);
+      } else {
+           setDbVideos([]);
       }
-    };
+    } catch (err) {
+       console.warn("Appwrite network/timeout error:", err);
+       setOfflineFlag(true);
+       setError(
+         language === 'ru' 
+           ? "Соединение с сервером базы данных заблокировано или истекло. Пожалуйста, включите VPN и попробуйте снова." 
+           : "Database connection blocked or timed out. Please turn on your VPN and try again."
+       );
+       setDbVideos([]); 
+    } finally {
+       setIsLoading(false);
+       setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
     fetchVideos();
   }, [language]);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchVideos(true);
+  };
 
   const handleTagClick = (tagLabel: string) => {
     if (tagLabel === 'Все' || tagLabel === 'All') {
@@ -169,21 +179,33 @@ export default function Home() {
         </div>
       )}
 
-      {/* Category Tags */}
-      <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar hide-scrollbar px-4 sm:px-0 -mt-2">
-        {tags.map((tag) => (
-          <button 
-            key={tag}
-            onClick={() => handleTagClick(tag)}
-            className={`whitespace-nowrap px-4 py-1.5 rounded-lg text-sm transition-colors ${
-              tag === activeCategoryLabel 
-                ? "bg-blue-500 text-white font-medium shadow-[0_0_10px_rgba(59,130,246,0.5)]" 
-                : "bg-white/5 border ice-border text-slate-300 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff]"
-            }`}
-          >
-            {tag}
-          </button>
-        ))}
+      {/* Category Tags & Manual Refresh */}
+      <div className="flex items-center justify-between gap-4 px-4 sm:px-0 -mt-2">
+        <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar hide-scrollbar flex-1">
+          {tags.map((tag) => (
+            <button 
+              key={tag}
+              onClick={() => handleTagClick(tag)}
+              className={`whitespace-nowrap px-4 py-1.5 rounded-lg text-sm transition-all ${
+                tag === activeCategoryLabel 
+                  ? "bg-blue-500 text-white font-medium shadow-[0_0_10px_rgba(59,130,246,0.5)] scale-105" 
+                  : "bg-white/5 border ice-border text-slate-300 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff]"
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+        
+        <button 
+          onClick={handleManualRefresh}
+          disabled={isLoading || isRefreshing}
+          className="whitespace-nowrap flex items-center gap-2 bg-gradient-to-r from-blue-500/10 to-[#70d6ff]/10 hover:from-blue-500/20 hover:to-[#70d6ff]/20 border border-[#70d6ff]/20 hover:border-[#70d6ff]/40 text-slate-300 hover:text-[#70d6ff] px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer shadow-[0_0_12px_rgba(112,214,255,0.05)]"
+          title={language === 'ru' ? 'Обновить видео' : 'Refresh Feed'}
+        >
+          <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span className="hidden sm:inline">{language === 'ru' ? 'Обновить поток' : 'Update Feed'}</span>
+        </button>
       </div>
 
       {/* Video Grid */}

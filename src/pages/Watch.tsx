@@ -1,5 +1,5 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock, AlertTriangle, MessageCircle, Send } from "lucide-react";
+import { Params, useParams, Link, useNavigate } from "react-router-dom";
+import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock, AlertTriangle, MessageCircle, Send, Moon, Crown } from "lucide-react";
 import { VideoCard } from "../components/VideoCard";
 import React, { useState, useEffect, useRef } from "react";
 import { databases, Permission, Role, withTimeout, getOfflineFlag, setOfflineFlag } from "../lib/appwrite";
@@ -17,6 +17,55 @@ export default function Watch() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const { t, language } = useLanguage();
+
+  // Premium and Sleep Timer States
+  const [premiumEnabled, setPremiumEnabled] = useState(false);
+  const [ambientEnabled, setAmbientEnabled] = useState(true);
+  const [sleepTimerTime, setSleepTimerTime] = useState<number>(0); // in seconds
+  const [sleepTimerActive, setSleepTimerActive] = useState<boolean>(false);
+  const [showSleepTimerModal, setShowSleepTimerModal] = useState<boolean>(false);
+  const timerIntervalRef = useRef<any>(null);
+
+  useEffect(() => {
+    setPremiumEnabled(localStorage.getItem("icetube_premium_enabled") === "true");
+    setAmbientEnabled(localStorage.getItem("icetube_premium_ambient") !== "false");
+    
+    const handlePremiumToggle = () => {
+      setPremiumEnabled(localStorage.getItem("icetube_premium_enabled") === "true");
+      setAmbientEnabled(localStorage.getItem("icetube_premium_ambient") !== "false");
+    };
+    window.addEventListener("icetube_premium_changed", handlePremiumToggle);
+    window.addEventListener("icetube_ambient_changed", handlePremiumToggle);
+    return () => {
+      window.removeEventListener("icetube_premium_changed", handlePremiumToggle);
+      window.removeEventListener("icetube_ambient_changed", handlePremiumToggle);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (sleepTimerActive && sleepTimerTime > 0) {
+      timerIntervalRef.current = setInterval(() => {
+        setSleepTimerTime(prev => {
+          if (prev <= 1) {
+            clearInterval(timerIntervalRef.current);
+            setSleepTimerActive(false);
+            const videoEl = document.getElementById("main-video-player") as HTMLVideoElement;
+            if (videoEl) {
+              videoEl.pause();
+            }
+            alert(language === "ru" ? "⏳ Таймер сна сработал! Воспроизведение приостановлено." : "⏳ Sleep timer triggered! Playback automatically paused.");
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    }
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
+  }, [sleepTimerActive, sleepTimerTime]);
 
   const [isFloating, setIsFloating] = useState(false);
   const [isMiniClosed, setIsMiniClosed] = useState(false);
@@ -1261,7 +1310,11 @@ export default function Watch() {
       )}
 
       {/* Primary Video Section */}
-      <div className="flex-1 lg:w-[70%]">
+      <div className="flex-1 lg:w-[70%] relative">
+        {/* Dynamic Ambilight Halo Glow (Premium feature) */}
+        {premiumEnabled && ambientEnabled && !isFloating && (
+          <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/20 via-[#70d6ff]/20 to-cyan-400/20 blur-3xl -z-10 rounded-3xl animate-pulse pointer-events-none" style={{ animationDuration: '4s' }}></div>
+        )}
         {/* Static Space-filler Card when Video is in PiP Floating Mode */}
         {isFloating && !isMiniClosed && (
           <div className="w-full relative pt-[56.25%] bg-[#081222]/50 border border-[#70d6ff]/20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] sm:rounded-2xl overflow-hidden flex flex-col items-center justify-center p-6 text-center mb-4 transition-all duration-300">
@@ -1490,6 +1543,20 @@ export default function Watch() {
               >
                 <Download className={`w-4 h-4 ${isDownloaded ? 'fill-current' : ''}`} />
                 <span>{isDownloaded ? (language === 'ru' ? 'Скачано' : 'Downloaded') : (language === 'ru' ? 'Скачать' : 'Download')}</span>
+              </button>
+
+              <button 
+                onClick={() => setShowSleepTimerModal(true)}
+                className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${sleepTimerActive ? 'text-yellow-400 border-yellow-400/40 shadow-[0_0_10px_rgba(234,179,8,0.25)]' : 'text-slate-300 hover:text-[#70d6ff]'}`}
+                title={language === 'ru' ? 'Таймер Сна' : 'Sleep Timer'}
+              >
+                <Moon className={`w-4 h-4 ${sleepTimerActive ? 'text-yellow-400 fill-current animate-pulse' : ''}`} />
+                <span>
+                  {sleepTimerActive 
+                    ? `${Math.floor(sleepTimerTime / 60)}:${String(sleepTimerTime % 60).padStart(2, '0')}` 
+                    : (language === 'ru' ? 'Таймер Сна' : 'Sleep Timer')
+                  }
+                </span>
               </button>
 
               <button 
@@ -2207,6 +2274,76 @@ export default function Watch() {
           )}
         </div>
       </div>
+
+      {/* Sleep Timer Setup Selection Modal */}
+      {showSleepTimerModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowSleepTimerModal(false)}>
+          <div 
+            className="bg-[#070b13] border border-[#70d6ff]/30 p-6 rounded-3xl max-w-sm w-full relative shadow-[0_0_50px_rgba(112,214,255,0.2)] text-center animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 bg-yellow-400/10 border border-yellow-400/30 text-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce" style={{ animationDuration: '3s' }}>
+              <Moon className="w-6 h-6 fill-current" />
+            </div>
+            
+            <h3 className="text-lg font-bold text-white mb-2">
+              {language === "ru" ? "Управление Таймером Сна" : "Player Sleep Timer"}
+            </h3>
+            <p className="text-slate-400 text-xs mb-6 max-w-xs mx-auto">
+              {premiumEnabled 
+                ? (language === "ru" ? "Выберите через сколько минут приостановить трансляцию." : "Configure automated playback sleep routines to drift off smoothly.")
+                : (language === "ru" ? "Эта функция требует Icetube Premium! Активируйте в боковом меню бесплатно." : "Sleep timers are premium exclusive utilities. Activate your free VIP trial in the side panel.")
+              }
+            </p>
+
+            {premiumEnabled ? (
+              <div className="grid grid-cols-2 gap-2 mb-6">
+                {[5, 15, 30, 45, 60].map((mins) => (
+                  <button
+                    key={mins}
+                    onClick={() => {
+                      setSleepTimerTime(mins * 60);
+                      setSleepTimerActive(true);
+                      setShowSleepTimerModal(false);
+                    }}
+                    className="bg-white/5 border ice-border text-xs text-white hover:bg-[#70d6ff]/20 hover:text-[#70d6ff] py-2 px-3 rounded-xl font-bold font-mono transition-colors cursor-pointer"
+                  >
+                    {mins} {language === "ru" ? "мин" : "mins"}
+                  </button>
+                ))}
+                <button
+                  onClick={() => {
+                    setSleepTimerActive(false);
+                    setSleepTimerTime(0);
+                    setShowSleepTimerModal(false);
+                  }}
+                  className="col-span-2 bg-red-500/10 hover:bg-red-500/25 border border-red-500/30 text-xs text-red-400 py-2.5 px-3 rounded-xl font-bold transition-all cursor-pointer"
+                >
+                  {language === 'ru' ? 'Выключить таймер' : 'Cancel Sleep Timer'}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setShowSleepTimerModal(false);
+                  navigate("/premium");
+                }}
+                className="w-full bg-gradient-to-r from-yellow-400 to-amber-500 text-black font-black py-3 rounded-xl text-xs uppercase tracking-wider text-center hover:scale-105 active:scale-95 transition-all shadow-lg shadow-amber-500/20 cursor-pointer"
+              >
+                {language === "ru" ? "Включить Премиум Бесплатно" : "Get Premium Free"}
+              </button>
+            )}
+
+            <button 
+              onClick={() => setShowSleepTimerModal(false)}
+              className="text-xs text-slate-500 hover:text-slate-200 mt-2 block mx-auto font-bold cursor-pointer"
+            >
+              {language === 'ru' ? 'Закрыть' : 'Nevermind'}
+            </button>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
