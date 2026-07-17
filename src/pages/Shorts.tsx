@@ -489,10 +489,13 @@ export default function Shorts() {
   const uploaderAvatar = current.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName)}`;
 
   return (
-    <div className="flex flex-col items-center justify-center w-full min-h-[calc(100vh-64px)] px-0 bg-black pt-0 sm:pt-4 overflow-hidden">
+    <div className="flex flex-col items-center justify-center w-full min-h-[calc(100vh-64px)] px-0 bg-gradient-to-b from-gray-950 via-black to-gray-950 pt-0 sm:pt-6 overflow-hidden">
       
-      {/* Immersive Video Container */}
-      <div className="relative w-full sm:max-w-[380px] h-full sm:h-[calc(100vh-140px)] aspect-[9/16] bg-slate-900 sm:rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] flex-shrink-0 border border-white/5 group">
+      {/* Main Container with enhanced responsive design */}
+      <div className="relative w-full sm:max-w-[420px] h-full sm:h-[calc(100vh-160px)] aspect-[9/16] max-h-[85vh] sm:max-h-[calc(100vh-180px)] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 sm:rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(112,214,255,0.15),0_20px_60px_rgba(0,0,0,0.6)] flex-shrink-0 border border-white/10 group">
+        
+        {/* Animated gradient border effect for desktop */}
+        <div className="hidden sm:absolute sm:inset-0 sm:rounded-3xl sm:pointer-events-none sm:border-2 sm:border-transparent sm:bg-gradient-to-r sm:from-[#70d6ff]/20 sm:via-transparent sm:to-[#70d6ff]/20 sm:animate-pulse"></div>
         
         <video 
           key={current.$id}
@@ -513,138 +516,215 @@ export default function Shorts() {
         />
 
         {playbackError && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md z-30 p-6 text-center">
-            <AlertTriangle className="w-10 h-10 text-red-500 mb-2" />
-            <span className="text-white font-bold text-sm tracking-tighter italic uppercase">{playbackError}</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-black/90 via-slate-900/90 to-black/90 backdrop-blur-xl z-30 p-6 text-center">
+            <div className="w-20 h-20 bg-gradient-to-br from-red-500/20 to-red-600/20 rounded-full flex items-center justify-center mb-4 border border-red-500/30 shadow-[0_0_40px_rgba(239,68,68,0.3)]">
+              <AlertTriangle className="w-10 h-10 text-red-400" />
+            </div>
+            <span className="text-white font-semibold text-sm tracking-wide mb-4">{playbackError}</span>
             <button 
               onClick={() => window.location.reload()}
-              className="mt-4 px-4 py-1.5 bg-white/10 hover:bg-white/20 text-white text-[10px] uppercase font-black tracking-widest rounded-lg transition-all"
+              className="px-6 py-2.5 bg-gradient-to-r from-[#70d6ff] to-cyan-400 hover:from-cyan-400 hover:to-[#70d6ff] text-black text-sm font-bold tracking-wide rounded-full transition-all duration-300 shadow-lg shadow-[#70d6ff]/30 active:scale-95"
             >
               {language === 'ru' ? 'Обновить' : 'Reload'}
             </button>
           </div>
         )}
 
-        {/* Interaction Side Overlay (Right) */}
-        <div className="absolute right-3 bottom-24 flex flex-col items-center gap-5 z-20">
-            <div className="flex flex-col items-center gap-1 group">
+        {/* Enhanced Gradient Overlay for better text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80 pointer-events-none z-[1]"></div>
+
+        {/* Interaction Side Overlay (Right) - Enhanced for mobile and desktop */}
+        <div className="absolute right-2 sm:right-4 bottom-20 sm:bottom-24 flex flex-col items-center gap-4 sm:gap-5 z-20">
+            {/* Like Button */}
+            <div className="flex flex-col items-center gap-1.5 sm:gap-2 group/btn">
                 <button 
                   onClick={() => handleLike(true)}
                   disabled={isLiking}
-                  className={`w-12 h-12 rounded-full backdrop-blur-xl flex items-center justify-center transition-all ${likeState === 'liked' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.5)]' : 'bg-black/40 text-white hover:bg-white/20'}`}
+                  className={`w-13 h-13 sm:w-14 sm:h-14 rounded-full backdrop-blur-xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 active:scale-95 ${
+                    likeState === 'liked' 
+                      ? 'bg-gradient-to-br from-[#70d6ff] to-cyan-400 text-black shadow-[0_0_25px_rgba(112,214,255,0.6)] border-2 border-white/30' 
+                      : 'bg-black/50 backdrop-blur-xl text-white hover:bg-white/25 border-2 border-white/20'
+                  }`}
                 >
-                    <ThumbsUp className={`w-6 h-6 ${likeState === 'liked' ? 'fill-current' : ''}`} />
+                    <ThumbsUp className={`w-6 h-6 sm:w-7 sm:h-7 transition-transform ${likeState === 'liked' ? 'fill-current scale-110' : ''}`} />
                 </button>
-                <span className="text-white text-xs font-bold drop-shadow-md">{likesCount > 0 ? new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(likesCount) : 'Like'}</span>
+                <span className="text-white text-[11px] sm:text-xs font-bold drop-shadow-lg tracking-wide">
+                  {likesCount > 0 ? new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(likesCount) : 'Like'}
+                </span>
             </div>
 
-            <div className="flex flex-col items-center gap-1 group">
+            {/* Dislike Button */}
+            <div className="flex flex-col items-center gap-1.5 sm:gap-2 group/btn">
                 <button 
                   onClick={() => handleLike(false)}
                   disabled={isLiking}
-                  className={`w-12 h-12 rounded-full backdrop-blur-xl flex items-center justify-center transition-all ${likeState === 'disliked' ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-black/40 text-white hover:bg-white/20'}`}
+                  className={`w-13 h-13 sm:w-14 sm:h-14 rounded-full backdrop-blur-xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 active:scale-95 ${
+                    likeState === 'disliked' 
+                      ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-[0_0_25px_rgba(239,68,68,0.6)] border-2 border-white/30' 
+                      : 'bg-black/50 backdrop-blur-xl text-white hover:bg-white/25 border-2 border-white/20'
+                  }`}
                 >
-                    <ThumbsDown className={`w-6 h-6 ${likeState === 'disliked' ? 'fill-current' : ''}`} />
+                    <ThumbsDown className={`w-6 h-6 sm:w-7 sm:h-7 transition-transform ${likeState === 'disliked' ? 'fill-current scale-110' : ''}`} />
                 </button>
-                <span className="text-white text-xs font-bold drop-shadow-md">{language === 'ru' ? 'Не нр.' : 'Dislike'}</span>
+                <span className="text-white text-[11px] sm:text-xs font-bold drop-shadow-lg tracking-wide">
+                  {language === 'ru' ? 'Не нр.' : 'Dislike'}
+                </span>
             </div>
 
-            <div className="flex flex-col items-center gap-1 group">
+            {/* Comments Button */}
+            <div className="flex flex-col items-center gap-1.5 sm:gap-2 group/btn">
                 <button 
                   onClick={() => setShowComments(true)}
-                  className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white/20 transition-all"
+                  className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-purple-500/30 to-pink-500/30 backdrop-blur-xl flex items-center justify-center text-white hover:from-purple-500/50 hover:to-pink-500/50 transition-all duration-300 border-2 border-white/20 transform hover:scale-110 active:scale-95 shadow-lg"
                 >
-                    <MessageSquare className="w-6 h-6" />
+                    <MessageSquare className="w-6 h-6 sm:w-7 sm:h-7" />
                 </button>
-                <span className="text-white text-xs font-bold drop-shadow-md">...</span>
+                <span className="text-white text-[11px] sm:text-xs font-bold drop-shadow-lg tracking-wide">
+                  {comments.length > 0 ? comments.length : '...'}
+                </span>
             </div>
 
-            <div className="flex flex-col items-center gap-1 group">
-                <button className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white/20 transition-all">
-                    <Share2 className="w-6 h-6" />
+            {/* Share Button */}
+            <div className="flex flex-col items-center gap-1.5 sm:gap-2 group/btn">
+                <button className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-orange-500/30 to-yellow-500/30 backdrop-blur-xl flex items-center justify-center text-white hover:from-orange-500/50 hover:to-yellow-500/50 transition-all duration-300 border-2 border-white/20 transform hover:scale-110 active:scale-95 shadow-lg">
+                    <Share2 className="w-6 h-6 sm:w-7 sm:h-7" />
                 </button>
-                <span className="text-white text-xs font-bold drop-shadow-md">{language === 'ru' ? 'Поделиться' : 'Share'}</span>
+                <span className="text-white text-[11px] sm:text-xs font-bold drop-shadow-lg tracking-wide">
+                  {language === 'ru' ? 'Share' : 'Share'}
+                </span>
             </div>
 
-            <Link to={`/channel/${current.uploaderId}`} className="w-10 h-10 rounded-lg overflow-hidden border-2 border-[#70d6ff]/30 shadow-lg mt-2 animate-pulse block">
+            {/* Channel Avatar with enhanced animation */}
+            <Link to={`/channel/${current.uploaderId}`} className="mt-2 sm:mt-3 group/avatar block">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full p-[2px] bg-gradient-to-br from-[#70d6ff] via-cyan-400 to-[#70d6ff] animate-spin-slow hover:animate-none shadow-[0_0_20px_rgba(112,214,255,0.4)]">
+                <div className="w-full h-full rounded-full overflow-hidden border-2 border-black">
+                  <img 
+                    src={uploaderAvatar} 
+                    alt="channel" 
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover/avatar:scale-110" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`;
+                    }}
+                  />
+                </div>
+              </div>
+            </Link>
+        </div>
+
+        {/* Content Info (Bottom) - Enhanced typography and layout */}
+        <div className="absolute bottom-0 left-0 right-14 sm:right-20 p-3 sm:p-5 pt-16 sm:pt-20 bg-gradient-to-t from-black via-black/70 to-transparent flex flex-col gap-2.5 sm:gap-3 z-10">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <Link to={`/channel/${current.uploaderId}`} className="shrink-0 group/channel">
+              <div className="relative">
                 <img 
                   src={uploaderAvatar} 
-                  alt="audio" 
-                  className="w-full h-full object-cover" 
+                  alt={current.uploaderName || 'User'} 
+                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-full border-2 border-white/30 shadow-lg transition-transform group-hover/channel:scale-105" 
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`;
                   }}
                 />
+                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-[#70d6ff] rounded-full border-2 border-black flex items-center justify-center">
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-black rounded-full"></div>
+                </div>
+              </div>
             </Link>
-        </div>
-
-        {/* Content Info (Bottom) */}
-        <div className="absolute bottom-0 left-0 right-16 p-4 pt-10 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col gap-2 z-10">
-          <div className="flex items-center gap-2">
-            <Link to={`/channel/${current.uploaderId}`} className="shrink-0">
-              <img 
-                src={uploaderAvatar} 
-                alt={current.uploaderName || 'User'} 
-                className="w-9 h-9 rounded-full border border-white/20 shadow-md" 
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`;
-                }}
-              />
-            </Link>
-            <Link to={`/channel/${current.uploaderId}`} className="text-white font-bold text-sm truncate drop-shadow-md hover:underline decoration-[#70d6ff]">@{current.uploaderName || 'user'}</Link>
+            <div className="flex-1 min-w-0">
+              <Link to={`/channel/${current.uploaderId}`} className="block">
+                <span className="text-white font-bold text-sm sm:text-base truncate drop-shadow-lg hover:text-[#70d6ff] transition-colors">@{current.uploaderName || 'user'}</span>
+              </Link>
+              <span className="text-white/60 text-[11px] sm:text-xs font-medium">{subsCount} {language === 'ru' ? 'подписчиков' : 'subscribers'}</span>
+            </div>
             <button 
               onClick={handleSubscribe}
               disabled={isSubbing}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold ml-1 transition-all ${isSubscribed ? 'bg-white/20 text-white' : 'bg-[#70d6ff] text-black hover:bg-white'}`}
+              className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg ${
+                isSubscribed 
+                  ? 'bg-white/20 backdrop-blur-xl text-white border border-white/30' 
+                  : 'bg-gradient-to-r from-[#70d6ff] to-cyan-400 text-black hover:from-cyan-400 hover:to-[#70d6ff] shadow-[#70d6ff]/30'
+              }`}
             >
-              {isSubscribed ? (language === 'ru' ? 'Вы подписаны' : 'Subscribed') : (language === 'ru' ? 'Подписаться' : 'Subscribe')}
+              {isSubscribed 
+                ? (language === 'ru' ? '✓ Подписан' : '✓ Subscribed') 
+                : (language === 'ru' ? 'Подписаться' : 'Subscribe')}
             </button>
           </div>
-          <h2 className="text-white text-sm font-medium line-clamp-2 leading-snug drop-shadow-md">
+          <h2 className="text-white text-sm sm:text-base font-semibold line-clamp-2 leading-relaxed drop-shadow-lg tracking-wide">
             {current.title}
           </h2>
         </div>
 
-        {/* Next/Prev Navigation Hints */}
-        <div className="absolute top-1/2 -translate-y-1/2 left-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Navigation Arrows - Enhanced visibility and interaction */}
+        <div className="absolute top-1/2 -translate-y-1/2 left-1 sm:left-3 flex flex-col gap-2 sm:gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20">
            <button 
              onClick={() => setCurrentVideoIndex(Math.max(0, currentVideoIndex - 1))}
-             className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20"
+             disabled={currentVideoIndex === 0}
+             className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-xl text-white flex items-center justify-center hover:from-white/30 hover:to-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-110 active:scale-95 border border-white/20 shadow-lg"
            >
-             ↑
+             <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" /></svg>
            </button>
            <button 
              onClick={() => setCurrentVideoIndex(Math.min(videos.length - 1, currentVideoIndex + 1))}
-             className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20"
+             disabled={currentVideoIndex === videos.length - 1}
+             className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-xl text-white flex items-center justify-center hover:from-white/30 hover:to-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-110 active:scale-95 border border-white/20 shadow-lg"
            >
-             ↓
+             <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
            </button>
+        </div>
+
+        {/* Progress indicator dots for mobile */}
+        <div className="sm:hidden absolute top-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
+          {videos.slice(Math.max(0, currentVideoIndex - 2), Math.min(videos.length, currentVideoIndex + 3)).map((_, idx) => {
+            const actualIdx = Math.max(0, currentVideoIndex - 2) + idx;
+            return (
+              <button
+                key={actualIdx}
+                onClick={() => setCurrentVideoIndex(actualIdx)}
+                className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                  actualIdx === currentVideoIndex 
+                    ? 'bg-[#70d6ff] w-4 shadow-[0_0_8px_rgba(112,214,255,0.8)]' 
+                    : 'bg-white/40 hover:bg-white/60'
+                }`}
+              />
+            );
+          })}
         </div>
 
       </div>
 
-      {/* Desktop Navigation */}
-      <div className="hidden sm:flex mt-6 gap-6 items-center">
+      {/* Enhanced Desktop Navigation Bar */}
+      <div className="hidden sm:flex mt-8 gap-6 items-center">
          <button 
            onClick={() => setCurrentVideoIndex(Math.max(0, currentVideoIndex - 1))}
            disabled={currentVideoIndex === 0}
-           className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all disabled:opacity-20 border border-white/5"
+           className="group px-7 py-3 bg-gradient-to-r from-white/10 to-white/5 hover:from-white/20 hover:to-white/10 text-white font-bold rounded-2xl transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed border border-white/10 hover:border-white/30 hover:shadow-lg active:scale-95 flex items-center gap-2"
          >
+           <svg className="w-4 h-4 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
            {language === 'ru' ? 'Назад' : 'Previous'}
          </button>
-         <div className="text-white/40 text-sm font-mono">{currentVideoIndex + 1} / {videos.length}</div>
+         
+         <div className="flex items-center gap-3 px-5 py-2.5 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10">
+           <div className="w-2 h-2 rounded-full bg-[#70d6ff] shadow-[0_0_8px_rgba(112,214,255,0.6)] animate-pulse"></div>
+           <span className="text-white/90 text-sm font-bold font-mono tracking-wider">{String(currentVideoIndex + 1).padStart(2, '0')}</span>
+           <span className="text-white/40 text-xs font-mono">/</span>
+           <span className="text-white/60 text-sm font-mono tracking-wider">{String(videos.length).padStart(2, '0')}</span>
+         </div>
+         
          <button 
            onClick={() => setCurrentVideoIndex(Math.min(videos.length - 1, currentVideoIndex + 1))}
            disabled={currentVideoIndex === videos.length - 1}
-           className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all disabled:opacity-20 border border-white/5"
+           className="group px-7 py-3 bg-gradient-to-r from-white/10 to-white/5 hover:from-white/20 hover:to-white/10 text-white font-bold rounded-2xl transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed border border-white/10 hover:border-white/30 hover:shadow-lg active:scale-95 flex items-center gap-2"
          >
            {language === 'ru' ? 'Далее' : 'Next'}
+           <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
          </button>
       </div>
 
-      {/* Mobile Swipe Simulation Hint */}
-      <div className="sm:hidden mt-2 text-white/30 text-[10px] pb-4">
-        Swipe buttons up/down to see more
+      {/* Mobile swipe hint with improved design */}
+      <div className="sm:hidden mt-4 mb-2 flex items-center gap-2 text-white/40 text-[11px] font-medium">
+        <svg className="w-4 h-4 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+        <span>{language === 'ru' ? 'Свайп вверх/вниз' : 'Swipe up/down'}</span>
+        <svg className="w-4 h-4 animate-bounce" style={{ animationDelay: '0.2s' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
       </div>
 
       {/* Comments Sidebar/Overlay */}
