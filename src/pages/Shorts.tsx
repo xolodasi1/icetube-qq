@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ThumbsUp, ThumbsDown, MessageSquare, Share2, MoreHorizontal, X, Loader2, Send, AlertTriangle } from 'lucide-react';
 import { databases } from '../lib/appwrite';
 import { Query, ID } from 'appwrite';
@@ -33,6 +33,12 @@ export default function Shorts() {
   const [newComment, setNewComment] = useState("");
   const [isCommenting, setIsCommenting] = useState(false);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const touchStartY = useRef<number | null>(null);
+  const touchStartTime = useRef<number>(0);
+  const lastWheelTime = useRef<number>(0);
+  const isTransitioning = useRef<boolean>(false);
 
   useEffect(() => {
     const fetchShorts = async () => {
@@ -113,6 +119,38 @@ export default function Shorts() {
             console.error("Could not fetch profiles for Shorts avatars", e);
           }
         }
+        const goNext = () => {
+          if (videos.length === 0 || isTransitioning.current) return;
+          isTransitioning.current = true;
+          setCurrentVideoIndex(prev => (prev + 1) % videos.length);
+          setTimeout(() => { isTransitioning.current = false; }, 400);
+        };
+        const goPrev = () => {
+          if (videos.length === 0 || isTransitioning.current) return;
+          isTransitioning.current = true;
+          setCurrentVideoIndex(prev => (prev - 1 + videos.length) % videos.length);
+          setTimeout(() => { isTransitioning.current = false; }, 400);
+        };
+
+        const handleTouchStart = (e: React.TouchEvent) => {
+          touchStartY.current = e.touches[0].clientY;
+          touchStartTime.current = Date.now();
+        };
+
+        const handleTouchEnd = (e: React.TouchEvent) => {
+          if (touchStartY.current === null) return;
+          const touchEndY = e.changedTouches[0].clientY;
+          const deltaY = touchStartY.current - touchEndY;
+          const deltaTime = Date.now() - touchStartTime.current;
+  
+          if (Math.abs(deltaY) > 50 && deltaTime < 500) {
+            if (deltaY > 0) goNext();
+            else goPrev();
+          }
+          touchStartY.current = null;
+        };
+
+        
         
         const finalDocs = docs.map(doc => ({
           id: doc.$id,
@@ -248,6 +286,55 @@ export default function Shorts() {
     }
   }, [showComments]);
 
+  // Wheel для ПК
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || videos.length === 0) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const now = Date.now();
+      if (now - lastWheelTime.current < 600) return;
+      if (isTransitioning.current) return;
+
+      if (Math.abs(e.deltaY) > 20) {
+        lastWheelTime.current = now;
+        if (e.deltaY > 0) goNext();
+        else goPrev();
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [videos.length]);
+
+  // Keyboard
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (showComments) return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+
+      if (e.key === 'ArrowDown' || e.key === 'j') {
+        e.preventDefault();
+        goNext();
+      } else if (e.key === 'ArrowUp' || e.key === 'k') {
+        e.preventDefault();
+        goPrev();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showComments, videos.length]);
+
+  // Блок скролла страницы
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = originalOverflow; };
+  }, []);
+
   const updateProfileStat = (userId: string, field: string, increment: number) => {
     // Non-blocking background update
     (async () => {
@@ -286,6 +373,7 @@ export default function Shorts() {
       }
     })();
   };
+  
 
   const handleLike = async (isLike: boolean) => {
     if (!user) {
@@ -489,10 +577,16 @@ export default function Shorts() {
   const uploaderAvatar = current.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName)}`;
 
   return (
-    <div className="flex flex-col items-center justify-center w-full min-h-[calc(100vh-64px)] px-0 bg-black pt-0 sm:pt-4 overflow-hidden">
+    <div 
+      ref={containerRef}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="fixed inset-0 w-full h-screen bg-black overflow-hidden flex items-center justify-center"
+      style={{ touchAction: 'none' }}
+    >
       
       {/* Immersive Video Container */}
-      <div className="relative w-full sm:max-w-[380px] h-full sm:h-[calc(100vh-140px)] aspect-[9/16] bg-slate-900 sm:rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] flex-shrink-0 border border-white/5 group">
+      <div className="relative w-full sm:max-w-[380px] h-full sm:h-[calc(100vh-80px)] sm:my-10 aspect-[9/16] sm:aspect-auto bg-slate-900 sm:rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] flex-shrink-0 border border-white/5 group">
         
         <video 
           key={current.$id}
@@ -620,31 +714,43 @@ export default function Shorts() {
              ↓
            </button>
         </div>
+        {/* Индикатор позиции */}
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-20 pointer-events-none">
+          {videos.slice(Math.max(0, currentVideoIndex - 2), Math.min(videos.length, currentVideoIndex + 3)).map((_, idx) => {
+            const actualIdx = Math.max(0, currentVideoIndex - 2) + idx;
+            const isActive = actualIdx === currentVideoIndex;
+            return (
+              <div 
+                key={actualIdx}
+                className={`w-1 rounded-full transition-all ${isActive ? 'h-4 bg-[#70d6ff]' : 'h-1.5 bg-white/40'}`}
+              />
+            );
+          })}
+        </div>
 
       </div>
 
       {/* Desktop Navigation */}
       <div className="hidden sm:flex mt-6 gap-6 items-center">
          <button 
-           onClick={() => setCurrentVideoIndex(Math.max(0, currentVideoIndex - 1))}
-           disabled={currentVideoIndex === 0}
-           className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all disabled:opacity-20 border border-white/5"
+           onClick={goPrev}
+           className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all border border-white/5"
          >
-           {language === 'ru' ? 'Назад' : 'Previous'}
+           {language === 'ru' ? '↑ Назад' : '↑ Previous'}
          </button>
          <div className="text-white/40 text-sm font-mono">{currentVideoIndex + 1} / {videos.length}</div>
          <button 
-           onClick={() => setCurrentVideoIndex(Math.min(videos.length - 1, currentVideoIndex + 1))}
+           onClick={goNext}
            disabled={currentVideoIndex === videos.length - 1}
-           className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all disabled:opacity-20 border border-white/5"
+           className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all border border-white/5"
          >
-           {language === 'ru' ? 'Далее' : 'Next'}
+           {language === 'ru' ? 'Далее ↓' : 'Next ↓'}
          </button>
       </div>
 
       {/* Mobile Swipe Simulation Hint */}
-      <div className="sm:hidden mt-2 text-white/30 text-[10px] pb-4">
-        Swipe buttons up/down to see more
+      <div className="sm:hidden fixed bottom-2 left-0 right-0 text-center text-white/30 text-[10px] pb-2 pointer-events-none z-30">
+        {language === 'ru' ? 'Свайпайте вверх/вниз для переключения' : 'Swipe up/down to navigate'}
       </div>
 
       {/* Comments Sidebar/Overlay */}
