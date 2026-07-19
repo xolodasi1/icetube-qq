@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ThumbsUp, ThumbsDown, MessageSquare, Share2, MoreHorizontal, X, Loader2, Send, AlertTriangle } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageSquare, Share2, MoreHorizontal, X, Loader2, Send, AlertTriangle, Reply } from 'lucide-react';
 import { databases } from '../lib/appwrite';
 import { Query, ID } from 'appwrite';
 import { Link, useParams } from 'react-router-dom';
