@@ -742,7 +742,7 @@ export default function Shorts() {
                     {language === 'ru' ? 'Пока нет комментариев. Будьте первым!' : 'No comments yet. Be the first!'}
                   </div>
                 ) : (
-                  {comments.filter(c => !c.parentId).map(c => (
+                  comments.filter(c => !c.parentId).map(c => (
                     <div key={c.id} className="flex gap-3 animate-in fade-in slide-in-from-left-4 duration-500">
                       <img 
                         src={c.authorAvatar} 
@@ -820,8 +820,8 @@ export default function Shorts() {
                         ))}
                       </div>
                     </div>
-                  ))}
-                )}
+                  ))
+                )
              </div>
              <div className="p-4 border-t border-white/10 bg-black/40">
                   <form onSubmit={handleAddComment} className="flex gap-2">
