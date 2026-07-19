@@ -460,7 +460,7 @@ export default function Shorts() {
     }
   };
 
-  ф
+  
 
   if (isLoading) {
     return (
