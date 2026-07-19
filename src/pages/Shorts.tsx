@@ -799,7 +799,7 @@ export default function Shorts() {
                         )}
 
                         {/* Ответы на этот комментарий */}
-                        {comments.filter(r => r.parentId === c.id).map(reply => (
+                        comments.filter(r => r.parentId === c.id).map(reply => (
                           <div key={reply.id} className="mt-3 flex gap-2 ml-4 pl-3 border-l-2 border-white/10">
                             <img 
                               src={reply.authorAvatar} 
@@ -817,7 +817,7 @@ export default function Shorts() {
                               <p className="text-xs text-slate-300 leading-relaxed break-words">{reply.text}</p>
                             </div>
                           </div>
-                        ))}
+                        ))
                       </div>
                     </div>
                   ))
