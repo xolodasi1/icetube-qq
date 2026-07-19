@@ -737,12 +737,13 @@ export default function Shorts() {
                   <div className="flex flex-col items-center justify-center py-20 opacity-50">
                      <Loader2 className="w-8 h-8 animate-spin text-[#70d6ff]" />
                   </div>
+                
                 ) : comments.length === 0 ? (
                   <div className="text-center py-20 text-slate-500 animate-pulse">
                     {language === 'ru' ? 'Пока нет комментариев. Будьте первым!' : 'No comments yet. Be the first!'}
                   </div>
                 ) : (
-                  {comments.filter(c => !c.parentId).map(c => (
+                  comments.filter(c => !c.parentId).map(c => (
                     <div key={c.id} className="flex gap-3 animate-in fade-in slide-in-from-left-4 duration-500">
                       <img 
                         src={c.authorAvatar} 
@@ -820,7 +821,7 @@ export default function Shorts() {
                         ))}
                       </div>
                     </div>
-                  ))}
+                  ))
                 )
              </div>
              <div className="p-4 border-t border-white/10 bg-black/40">
