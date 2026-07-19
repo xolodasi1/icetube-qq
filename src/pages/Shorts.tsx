@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ThumbsUp, ThumbsDown, MessageSquare, Share2, MoreHorizontal, X, Loader2, Send, AlertTriangle } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageSquare, Share2, X, Loader2, Send, AlertTriangle } from 'lucide-react';
 import { databases } from '../lib/appwrite';
 import { Query, ID } from 'appwrite';
 import { Link, useParams } from 'react-router-dom';
@@ -34,11 +34,46 @@ export default function Shorts() {
   const [isCommenting, setIsCommenting] = useState(false);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
 
+  // === РЕФСЫ ДЛЯ СВАЙПА И СКРОЛЛА ===
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
   const touchStartTime = useRef<number>(0);
   const lastWheelTime = useRef<number>(0);
   const isTransitioning = useRef<boolean>(false);
+
+  // === ФУНКЦИИ БЕСКОНЕЧНОГО ЛИСТАНИЯ (вынесены на уровень компонента!) ===
+  const goNext = () => {
+    if (videos.length === 0 || isTransitioning.current) return;
+    isTransitioning.current = true;
+    setCurrentVideoIndex(prev => (prev + 1) % videos.length); // Цикл: после последнего -> первое
+    setTimeout(() => { isTransitioning.current = false; }, 400);
+  };
+
+  const goPrev = () => {
+    if (videos.length === 0 || isTransitioning.current) return;
+    isTransitioning.current = true;
+    setCurrentVideoIndex(prev => (prev - 1 + videos.length) % videos.length); // Цикл: с первого -> последнее
+    setTimeout(() => { isTransitioning.current = false; }, 400);
+  };
+
+  // === ОБРАБОТЧИКИ СВАЙПА (TOUCH) ===
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    touchStartTime.current = Date.now();
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaY = touchStartY.current - touchEndY;
+    const deltaTime = Date.now() - touchStartTime.current;
+
+    if (Math.abs(deltaY) > 50 && deltaTime < 500) {
+      if (deltaY > 0) goNext();
+      else goPrev();
+    }
+    touchStartY.current = null;
+  };
 
   useEffect(() => {
     const fetchShorts = async () => {
@@ -54,13 +89,10 @@ export default function Shorts() {
 
         let docs: any[] = [];
         
-        // Priority 1: If an ID is provided, try to fetch it first
         if (id) {
           try {
             const specificDoc = await databases.getDocument(dbId, colId, id);
-            if (specificDoc) {
-              docs.push(specificDoc);
-            }
+            if (specificDoc) docs.push(specificDoc);
           } catch (e) {
             console.error("Could not fetch specific short:", e);
           }
@@ -68,21 +100,17 @@ export default function Shorts() {
 
         try {
           const res = await databases.listDocuments(dbId, colId, [
-             Query.equal('contentType', 'shorts'), // Prefer shorts if marked
+             Query.equal('contentType', 'shorts'),
              Query.limit(50),
              Query.orderDesc('$createdAt')
           ]);
-          
-          // Merge and de-duplicate
           const existingIds = new Set(docs.map(d => d.$id));
           res.documents.forEach(doc => {
             if (!existingIds.has(doc.$id)) docs.push(doc);
           });
         } catch (queryErr: any) {
-          console.log("Query by contentType failed, fetching all and filtering manually");
           const allRes = await databases.listDocuments(dbId, colId, [Query.limit(100), Query.orderDesc('$createdAt')]);
           const filtered = allRes.documents.filter((d: any) => d.contentType === 'shorts' || d.title?.toLowerCase().includes('#shorts') || d.description?.toLowerCase().includes('#shorts'));
-          
           const existingIds = new Set(docs.map(d => d.$id));
           filtered.forEach(doc => {
             if (!existingIds.has(doc.$id)) docs.push(doc);
@@ -90,7 +118,6 @@ export default function Shorts() {
         }
 
         if (docs.length === 0) {
-          // Fallback to any videos if no shorts found (maybe they are vertical but not tagged)
           const fallbackRes = await databases.listDocuments(dbId, colId, [Query.limit(50), Query.orderDesc('$createdAt')]);
           const existingIds = new Set(docs.map(d => d.$id));
           fallbackRes.documents.forEach(doc => {
@@ -98,7 +125,6 @@ export default function Shorts() {
           });
         }
 
-        // Fetch user profiles to enrich avatars
         const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
         if (profilesCol && docs.length > 0) {
           try {
@@ -107,11 +133,7 @@ export default function Shorts() {
             docs = docs.map(doc => {
                const profile = profilesMap.get(doc.uploaderId);
                if (profile) {
-                 return {
-                   ...doc,
-                   uploaderName: profile.name || doc.uploaderName,
-                   uploaderAvatar: profile.avatar || doc.uploaderAvatar
-                 }
+                 return { ...doc, uploaderName: profile.name || doc.uploaderName, uploaderAvatar: profile.avatar || doc.uploaderAvatar };
                }
                return doc;
              });
@@ -119,38 +141,6 @@ export default function Shorts() {
             console.error("Could not fetch profiles for Shorts avatars", e);
           }
         }
-        const goNext = () => {
-          if (videos.length === 0 || isTransitioning.current) return;
-          isTransitioning.current = true;
-          setCurrentVideoIndex(prev => (prev + 1) % videos.length);
-          setTimeout(() => { isTransitioning.current = false; }, 400);
-        };
-        const goPrev = () => {
-          if (videos.length === 0 || isTransitioning.current) return;
-          isTransitioning.current = true;
-          setCurrentVideoIndex(prev => (prev - 1 + videos.length) % videos.length);
-          setTimeout(() => { isTransitioning.current = false; }, 400);
-        };
-
-        const handleTouchStart = (e: React.TouchEvent) => {
-          touchStartY.current = e.touches[0].clientY;
-          touchStartTime.current = Date.now();
-        };
-
-        const handleTouchEnd = (e: React.TouchEvent) => {
-          if (touchStartY.current === null) return;
-          const touchEndY = e.changedTouches[0].clientY;
-          const deltaY = touchStartY.current - touchEndY;
-          const deltaTime = Date.now() - touchStartTime.current;
-  
-          if (Math.abs(deltaY) > 50 && deltaTime < 500) {
-            if (deltaY > 0) goNext();
-            else goPrev();
-          }
-          touchStartY.current = null;
-        };
-
-        
         
         const finalDocs = docs.map(doc => ({
           id: doc.$id,
@@ -193,21 +183,15 @@ export default function Shorts() {
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
       const likesCol = import.meta.env.VITE_APPWRITE_LIKES_COLLECTION_ID;
       const subsCol = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
-
       if (!dbId) return;
 
       if (likesCol) {
         const likesRes = await databases.listDocuments(dbId, likesCol, [Query.equal('videoId', videoId)]);
         const totalLikes = likesRes.documents.filter((d: any) => d.type === 'like' || !d.type).length;
         setLikesCount(totalLikes);
-        
         if (user) {
           const myLike = likesRes.documents.find(doc => doc.userId === user.$id && (doc.type === 'like' || doc.type === 'dislike' || !doc.type));
-          if (myLike) {
-            setLikeState(myLike.type === 'dislike' ? 'disliked' : 'liked');
-          } else {
-            setLikeState('none');
-          }
+          setLikeState(myLike ? (myLike.type === 'dislike' ? 'disliked' : 'liked') : 'none');
         }
       }
 
@@ -241,7 +225,7 @@ export default function Shorts() {
         author: c.authorName,
         text: c.text,
         authorAvatar: c.authorAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.authorName)}`,
-        ts: t('video_recently') // Rough approximation
+        ts: t('video_recently')
       })));
     } catch (err) {
       console.error("Comments fetch failed in Shorts:", err);
@@ -256,7 +240,6 @@ export default function Shorts() {
       fetchInteractions(current.$id, current.uploaderId);
       if (showComments) fetchComments(current.$id);
 
-      // Add to History
       try {
         let history = SafeStorage.get('watch_history', []);
         history = history.filter((v: any) => v.id !== current.$id);
@@ -336,25 +319,19 @@ export default function Shorts() {
   }, []);
 
   const updateProfileStat = (userId: string, field: string, increment: number) => {
-    // Non-blocking background update
     (async () => {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
         if (!dbId || !profilesCol) return;
 
-        // Try to fetch by document ID first (the new standard)
         try {
           const doc = await databases.getDocument(dbId, profilesCol, userId);
           if (doc) {
-            await databases.updateDocument(dbId, profilesCol, userId, {
-              [field]: (doc[field] || 0) + increment
-            });
+            await databases.updateDocument(dbId, profilesCol, userId, { [field]: (doc[field] || 0) + increment });
             return;
           }
-        } catch (e) {
-          // Continue to query if not found by ID
-        }
+        } catch (e) {}
 
         const res = await databases.listDocuments(dbId, profilesCol, [
           Query.equal('userId', userId),
@@ -364,16 +341,13 @@ export default function Shorts() {
 
         if (res.documents.length > 0) {
           const doc = res.documents[0];
-          await databases.updateDocument(dbId, profilesCol, doc.$id, {
-            [field]: (doc[field] || 0) + increment
-          });
+          await databases.updateDocument(dbId, profilesCol, doc.$id, { [field]: (doc[field] || 0) + increment });
         }
       } catch (err) {
         console.error(`Failed to update profile stat ${field} in background (Shorts):`, err);
       }
     })();
   };
-  
 
   const handleLike = async (isLike: boolean) => {
     if (!user) {
@@ -411,8 +385,7 @@ export default function Shorts() {
           if (isLike) {
             setLikesCount(prev => prev + 1);
             updateProfileStat(current.uploaderId, 'likesCount', 1);
-          }
-          else {
+          } else {
             setLikesCount(prev => prev - 1);
             updateProfileStat(current.uploaderId, 'likesCount', -1);
           }
@@ -476,7 +449,6 @@ export default function Shorts() {
         });
         setIsSubscribed(true);
         updateProfileStat(current.uploaderId, 'subscribersCount', 1);
-
         createNotification({
           userId: current.uploaderId,
           actorId: user.$id,
@@ -491,7 +463,6 @@ export default function Shorts() {
       setIsSubbing(false);
     }
   };
-
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -563,10 +534,7 @@ export default function Shorts() {
          </div>
          <h2 className="text-2xl font-bold text-white mb-2">{language === 'ru' ? 'Ошибка' : 'Error'}</h2>
          <p className="text-slate-400 mb-8 max-w-sm leading-relaxed">{error || (language === 'ru' ? 'Видео не найдены. Попробуйте загрузить что-нибудь!' : 'No videos found. Try uploading something!')}</p>
-         <Link 
-           to="/"
-           className="px-8 py-3 bg-[#70d6ff] text-black hover:bg-[#5bc0e6] rounded-full transition-all duration-300 font-bold shadow-lg shadow-[#70d6ff]/20 active:scale-95"
-         >
+         <Link to="/" className="px-8 py-3 bg-[#70d6ff] text-black hover:bg-[#5bc0e6] rounded-full transition-all duration-300 font-bold shadow-lg shadow-[#70d6ff]/20 active:scale-95">
            {language === 'ru' ? 'На главную' : 'Back Home'}
          </Link>
       </div>
@@ -584,10 +552,7 @@ export default function Shorts() {
       className="fixed inset-0 w-full h-screen bg-black overflow-hidden flex items-center justify-center"
       style={{ touchAction: 'none' }}
     >
-      
-      {/* Immersive Video Container */}
       <div className="relative w-full sm:max-w-[380px] h-full sm:h-[calc(100vh-80px)] sm:my-10 aspect-[9/16] sm:aspect-auto bg-slate-900 sm:rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] flex-shrink-0 border border-white/5 group">
-        
         <video 
           key={current.$id}
           src={getOptimizedVideoUrl(current.videoUrl)} 
@@ -610,145 +575,84 @@ export default function Shorts() {
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md z-30 p-6 text-center">
             <AlertTriangle className="w-10 h-10 text-red-500 mb-2" />
             <span className="text-white font-bold text-sm tracking-tighter italic uppercase">{playbackError}</span>
-            <button 
-              onClick={() => window.location.reload()}
-              className="mt-4 px-4 py-1.5 bg-white/10 hover:bg-white/20 text-white text-[10px] uppercase font-black tracking-widest rounded-lg transition-all"
-            >
+            <button onClick={() => window.location.reload()} className="mt-4 px-4 py-1.5 bg-white/10 hover:bg-white/20 text-white text-[10px] uppercase font-black tracking-widest rounded-lg transition-all">
               {language === 'ru' ? 'Обновить' : 'Reload'}
             </button>
           </div>
         )}
 
-        {/* Interaction Side Overlay (Right) */}
         <div className="absolute right-3 bottom-24 flex flex-col items-center gap-5 z-20">
             <div className="flex flex-col items-center gap-1 group">
-                <button 
-                  onClick={() => handleLike(true)}
-                  disabled={isLiking}
-                  className={`w-12 h-12 rounded-full backdrop-blur-xl flex items-center justify-center transition-all ${likeState === 'liked' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.5)]' : 'bg-black/40 text-white hover:bg-white/20'}`}
-                >
+                <button onClick={() => handleLike(true)} disabled={isLiking} className={`w-12 h-12 rounded-full backdrop-blur-xl flex items-center justify-center transition-all ${likeState === 'liked' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.5)]' : 'bg-black/40 text-white hover:bg-white/20'}`}>
                     <ThumbsUp className={`w-6 h-6 ${likeState === 'liked' ? 'fill-current' : ''}`} />
                 </button>
                 <span className="text-white text-xs font-bold drop-shadow-md">{likesCount > 0 ? new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(likesCount) : 'Like'}</span>
             </div>
-
             <div className="flex flex-col items-center gap-1 group">
-                <button 
-                  onClick={() => handleLike(false)}
-                  disabled={isLiking}
-                  className={`w-12 h-12 rounded-full backdrop-blur-xl flex items-center justify-center transition-all ${likeState === 'disliked' ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-black/40 text-white hover:bg-white/20'}`}
-                >
+                <button onClick={() => handleLike(false)} disabled={isLiking} className={`w-12 h-12 rounded-full backdrop-blur-xl flex items-center justify-center transition-all ${likeState === 'disliked' ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-black/40 text-white hover:bg-white/20'}`}>
                     <ThumbsDown className={`w-6 h-6 ${likeState === 'disliked' ? 'fill-current' : ''}`} />
                 </button>
                 <span className="text-white text-xs font-bold drop-shadow-md">{language === 'ru' ? 'Не нр.' : 'Dislike'}</span>
             </div>
-
             <div className="flex flex-col items-center gap-1 group">
-                <button 
-                  onClick={() => setShowComments(true)}
-                  className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white/20 transition-all"
-                >
+                <button onClick={() => setShowComments(true)} className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white/20 transition-all">
                     <MessageSquare className="w-6 h-6" />
                 </button>
                 <span className="text-white text-xs font-bold drop-shadow-md">...</span>
             </div>
-
             <div className="flex flex-col items-center gap-1 group">
                 <button className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white/20 transition-all">
                     <Share2 className="w-6 h-6" />
                 </button>
                 <span className="text-white text-xs font-bold drop-shadow-md">{language === 'ru' ? 'Поделиться' : 'Share'}</span>
             </div>
-
             <Link to={`/channel/${current.uploaderId}`} className="w-10 h-10 rounded-lg overflow-hidden border-2 border-[#70d6ff]/30 shadow-lg mt-2 animate-pulse block">
-                <img 
-                  src={uploaderAvatar} 
-                  alt="audio" 
-                  className="w-full h-full object-cover" 
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`;
-                  }}
-                />
+                <img src={uploaderAvatar} alt="audio" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`; }} />
             </Link>
         </div>
 
-        {/* Content Info (Bottom) */}
         <div className="absolute bottom-0 left-0 right-16 p-4 pt-10 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col gap-2 z-10">
           <div className="flex items-center gap-2">
             <Link to={`/channel/${current.uploaderId}`} className="shrink-0">
-              <img 
-                src={uploaderAvatar} 
-                alt={current.uploaderName || 'User'} 
-                className="w-9 h-9 rounded-full border border-white/20 shadow-md" 
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`;
-                }}
-              />
+              <img src={uploaderAvatar} alt={current.uploaderName || 'User'} className="w-9 h-9 rounded-full border border-white/20 shadow-md" onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`; }} />
             </Link>
             <Link to={`/channel/${current.uploaderId}`} className="text-white font-bold text-sm truncate drop-shadow-md hover:underline decoration-[#70d6ff]">@{current.uploaderName || 'user'}</Link>
-            <button 
-              onClick={handleSubscribe}
-              disabled={isSubbing}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold ml-1 transition-all ${isSubscribed ? 'bg-white/20 text-white' : 'bg-[#70d6ff] text-black hover:bg-white'}`}
-            >
+            <button onClick={handleSubscribe} disabled={isSubbing} className={`px-4 py-1.5 rounded-full text-xs font-bold ml-1 transition-all ${isSubscribed ? 'bg-white/20 text-white' : 'bg-[#70d6ff] text-black hover:bg-white'}`}>
               {isSubscribed ? (language === 'ru' ? 'Вы подписаны' : 'Subscribed') : (language === 'ru' ? 'Подписаться' : 'Subscribe')}
             </button>
           </div>
-          <h2 className="text-white text-sm font-medium line-clamp-2 leading-snug drop-shadow-md">
-            {current.title}
-          </h2>
+          <h2 className="text-white text-sm font-medium line-clamp-2 leading-snug drop-shadow-md">{current.title}</h2>
         </div>
 
-        {/* Next/Prev Navigation Hints */}
+        {/* Next/Prev Navigation Hints (исправлено: теперь используют goNext/goPrev) */}
         <div className="absolute top-1/2 -translate-y-1/2 left-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-           <button 
-             onClick={() => setCurrentVideoIndex(Math.max(0, currentVideoIndex - 1))}
-             className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20"
-           >
-             ↑
-           </button>
-           <button 
-             onClick={() => setCurrentVideoIndex(Math.min(videos.length - 1, currentVideoIndex + 1))}
-             className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20"
-           >
-             ↓
-           </button>
+           <button onClick={goPrev} className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20">↑</button>
+           <button onClick={goNext} className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20">↓</button>
         </div>
+
         {/* Индикатор позиции */}
         <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-20 pointer-events-none">
           {videos.slice(Math.max(0, currentVideoIndex - 2), Math.min(videos.length, currentVideoIndex + 3)).map((_, idx) => {
             const actualIdx = Math.max(0, currentVideoIndex - 2) + idx;
             const isActive = actualIdx === currentVideoIndex;
             return (
-              <div 
-                key={actualIdx}
-                className={`w-1 rounded-full transition-all ${isActive ? 'h-4 bg-[#70d6ff]' : 'h-1.5 bg-white/40'}`}
-              />
+              <div key={actualIdx} className={`w-1 rounded-full transition-all ${isActive ? 'h-4 bg-[#70d6ff]' : 'h-1.5 bg-white/40'}`} />
             );
           })}
         </div>
-
       </div>
 
-      {/* Desktop Navigation */}
+      {/* Desktop Navigation (исправлено: убран disabled, теперь бесконечный цикл) */}
       <div className="hidden sm:flex mt-6 gap-6 items-center">
-         <button 
-           onClick={goPrev}
-           className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all border border-white/5"
-         >
+         <button onClick={goPrev} className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all border border-white/5">
            {language === 'ru' ? '↑ Назад' : '↑ Previous'}
          </button>
          <div className="text-white/40 text-sm font-mono">{currentVideoIndex + 1} / {videos.length}</div>
-         <button 
-           onClick={goNext}
-           disabled={currentVideoIndex === videos.length - 1}
-           className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all border border-white/5"
-         >
+         <button onClick={goNext} className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all border border-white/5">
            {language === 'ru' ? 'Далее ↓' : 'Next ↓'}
          </button>
       </div>
 
-      {/* Mobile Swipe Simulation Hint */}
       <div className="sm:hidden fixed bottom-2 left-0 right-0 text-center text-white/30 text-[10px] pb-2 pointer-events-none z-30">
         {language === 'ru' ? 'Свайпайте вверх/вниз для переключения' : 'Swipe up/down to navigate'}
       </div>
@@ -757,19 +661,12 @@ export default function Shorts() {
       {showComments && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
           <div className="w-full sm:max-w-md bg-[#0f0f0f] rounded-t-2xl sm:rounded-2xl h-[70vh] sm:h-[80vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300">
-             
-             {/* Header */}
              <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/20">
                 <h3 className="text-white font-bold">{language === 'ru' ? 'Комментарии' : 'Comments'}</h3>
-                <button 
-                  onClick={() => setShowComments(false)}
-                  className="p-2 hover:bg-white/10 rounded-full text-white transition-colors"
-                >
+                <button onClick={() => setShowComments(false)} className="p-2 hover:bg-white/10 rounded-full text-white transition-colors">
                   <X className="w-5 h-5" />
                 </button>
              </div>
-
-             {/* Comments List */}
              <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-6">
                 {isLoadingComments ? (
                   <div className="flex flex-col items-center justify-center py-20 opacity-50">
@@ -782,14 +679,7 @@ export default function Shorts() {
                 ) : (
                   comments.map(c => (
                     <div key={c.id} className="flex gap-3 animate-in fade-in slide-in-from-left-4 duration-500">
-                     <img 
-                       src={c.authorAvatar} 
-                       alt="author" 
-                       className="w-9 h-9 rounded-full shrink-0 shadow-lg border border-white/10" 
-                       onError={(e) => {
-                         (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author || 'User')}&background=random`;
-                       }}
-                     />
+                     <img src={c.authorAvatar} alt="author" className="w-9 h-9 rounded-full shrink-0 shadow-lg border border-white/10" onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author || 'User')}&background=random`; }} />
                        <div className="flex flex-col gap-1 min-w-0">
                           <div className="flex items-center gap-2">
                              <span className="text-xs font-bold text-white">@{c.author}</span>
@@ -801,31 +691,17 @@ export default function Shorts() {
                   ))
                 )}
              </div>
-
-             {/* Input Area */}
              <div className="p-4 border-t border-white/10 bg-black/40">
                   <form onSubmit={handleAddComment} className="flex gap-2">
-                    <input 
-                      type="text" 
-                      placeholder={language === 'ru' ? 'Добавьте комментарий (как инкогнито)...' : 'Add a comment (as anonymous)...'}
-                      value={newComment}
-                      onChange={e => setNewComment(e.target.value)}
-                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#70d6ff] transition-all"
-                    />
-                    <button 
-                      type="submit"
-                      disabled={isCommenting || !newComment.trim()}
-                      className="p-2.5 bg-[#70d6ff] text-black rounded-xl hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
-                    >
+                    <input type="text" placeholder={language === 'ru' ? 'Добавьте комментарий (как инкогнито)...' : 'Add a comment (as anonymous)...'} value={newComment} onChange={e => setNewComment(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#70d6ff] transition-all" />
+                    <button type="submit" disabled={isCommenting || !newComment.trim()} className="p-2.5 bg-[#70d6ff] text-black rounded-xl hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg">
                       <Send className="w-5 h-5" />
                     </button>
                   </form>
              </div>
-
           </div>
         </div>
       )}
-
     </div>
   );
 }
