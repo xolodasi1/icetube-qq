@@ -549,8 +549,8 @@ export default function Shorts() {
       ref={containerRef}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="fixed inset-0 w-full h-screen bg-black overflow-hidden flex items-center justify-center"
-      style={{ touchAction: 'none' }}
+        className="fixed inset-0 w-full h-[100dvh] bg-black overflow-hidden flex items-center justify-center touch-none"
+
     >
       <div className="relative w-full sm:max-w-[380px] h-full sm:h-[calc(100vh-80px)] sm:my-10 aspect-[9/16] sm:aspect-auto bg-slate-900 sm:rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] flex-shrink-0 border border-white/5 group">
         <video 
