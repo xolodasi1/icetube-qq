@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ThumbsUp, ThumbsDown, MessageSquare, Share2, X, Loader2, Send, AlertTriangle } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageSquare, Share2, X, Loader2, Send, AlertTriangle, Reply } from 'lucide-react';
 import { databases } from '../lib/appwrite';
 import { Query, ID } from 'appwrite';
 import { Link, useParams } from 'react-router-dom';
@@ -32,7 +32,9 @@ export default function Shorts() {
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isCommenting, setIsCommenting] = useState(false);
-  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
 
   // === РЕФСЫ ДЛЯ СВАЙПА И СКРОЛЛА ===
   const containerRef = useRef<HTMLDivElement>(null);
@@ -223,9 +225,11 @@ export default function Shorts() {
       setComments(res.documents.map(c => ({
         id: c.$id,
         author: c.authorName,
+        authorId: c.authorId || 'anonymous',
         text: c.text,
         authorAvatar: c.authorAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.authorName)}`,
-        ts: t('video_recently')
+        ts: t('video_recently'),
+        parentId: c.parentId || null
       })));
     } catch (err) {
       console.error("Comments fetch failed in Shorts:", err);
@@ -517,6 +521,61 @@ export default function Shorts() {
     }
   };
 
+  const handleAddReply = async (parentId: string) => {
+    if (!replyText.trim() || isCommenting || videos.length === 0) return;
+  
+    const current = videos[currentVideoIndex];
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const commsCol = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
+    if (!dbId || !commsCol) return;
+
+    try {
+      setIsCommenting(true);
+      const authorName = user ? (profile?.name || user.name || 'User') : (language === 'ru' ? 'Аноним' : 'Anonymous');
+      const authorAvatar = user && profile?.avatar ? profile.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random`;
+      const authorId = user ? user.$id : 'anonymous';
+
+      const res = await databases.createDocument(dbId, commsCol, ID.unique(), {
+        videoId: current.$id,
+        authorId: authorId,
+        authorName: authorName,
+        authorAvatar: authorAvatar,
+        text: replyText,
+        likes: 0,
+        likedBy: [],
+        dislikedBy: [],
+        parentId: parentId
+      });
+
+      setComments([...comments, {
+        id: res.$id,
+        author: authorName,
+        authorId: authorId,
+        text: replyText,
+        authorAvatar: authorAvatar,
+        ts: t('video_recently'),
+        parentId: parentId
+      }]);
+      setReplyText("");
+      setReplyingToId(null);
+
+      createNotification({
+        userId: current.uploaderId,
+        actorId: authorId,
+        actorName: authorName,
+        actorAvatar: authorAvatar,
+        type: 'comment',
+        videoId: current.$id,
+        videoTitle: current.title,
+        contentType: 'shorts'
+      });
+    } catch (err) {
+      console.error("Reply failed in Shorts:", err);
+    } finally {
+      setIsCommenting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col h-[calc(100vh-64px)] items-center justify-center bg-black">
@@ -617,9 +676,15 @@ export default function Shorts() {
               <img src={uploaderAvatar} alt={current.uploaderName || 'User'} className="w-9 h-9 rounded-full border border-white/20 shadow-md" onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`; }} />
             </Link>
             <Link to={`/channel/${current.uploaderId}`} className="text-white font-bold text-sm truncate drop-shadow-md hover:underline decoration-[#70d6ff]">@{current.uploaderName || 'user'}</Link>
-            <button onClick={handleSubscribe} disabled={isSubbing} className={`px-4 py-1.5 rounded-full text-xs font-bold ml-1 transition-all ${isSubscribed ? 'bg-white/20 text-white' : 'bg-[#70d6ff] text-black hover:bg-white'}`}>
-              {isSubscribed ? (language === 'ru' ? 'Вы подписаны' : 'Subscribed') : (language === 'ru' ? 'Подписаться' : 'Subscribe')}
-            </button>
+            {user && user.$id !== current.uploaderId && (
+              <button 
+                onClick={handleSubscribe}
+                disabled={isSubbing}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold ml-1 transition-all ${isSubscribed ? 'bg-white/20 text-white' : 'bg-[#70d6ff] text-black hover:bg-white'}`}
+              >
+                {isSubscribed ? (language === 'ru' ? 'Вы подписаны' : 'Subscribed') : (language === 'ru' ? 'Подписаться' : 'Subscribe')}
+              </button>
+            )}
           </div>
           <h2 className="text-white text-sm font-medium line-clamp-2 leading-snug drop-shadow-md">{current.title}</h2>
         </div>
@@ -677,18 +742,85 @@ export default function Shorts() {
                     {language === 'ru' ? 'Пока нет комментариев. Будьте первым!' : 'No comments yet. Be the first!'}
                   </div>
                 ) : (
-                  comments.map(c => (
+                  {comments.filter(c => !c.parentId).map(c => (
                     <div key={c.id} className="flex gap-3 animate-in fade-in slide-in-from-left-4 duration-500">
-                     <img src={c.authorAvatar} alt="author" className="w-9 h-9 rounded-full shrink-0 shadow-lg border border-white/10" onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author || 'User')}&background=random`; }} />
-                       <div className="flex flex-col gap-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                             <span className="text-xs font-bold text-white">@{c.author}</span>
-                             <span className="text-[10px] text-slate-500">{c.ts}</span>
+                      <img 
+                        src={c.authorAvatar} 
+                        alt="author" 
+                        className="w-9 h-9 rounded-full shrink-0 shadow-lg border border-white/10" 
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author || 'User')}&background=random`;
+                        }}
+                      />
+                      <div className="flex flex-col gap-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-white">@{c.author}</span>
+                          <span className="text-[10px] text-slate-500">{c.ts}</span>
+                        </div>
+                        <p className="text-sm text-slate-200 leading-relaxed break-words">{c.text}</p>
+      
+                        {/* Кнопка Ответить */}
+                        <button 
+                          onClick={() => setReplyingToId(replyingToId === c.id ? null : c.id)}
+                          className="text-[10px] text-slate-400 hover:text-[#70d6ff] flex items-center gap-1 mt-1 w-fit"
+                        >
+                          <Reply className="w-3 h-3" />
+                          {language === 'ru' ? 'Ответить' : 'Reply'}
+                        </button>
+
+                        {/* Поле ввода ответа */}
+                        {replyingToId === c.id && (
+                         <div className="mt-2 flex gap-2 animate-in slide-in-from-top-2 duration-200">
+                           <input 
+                             type="text" 
+                             autoFocus
+                             placeholder={language === 'ru' ? 'Написать ответ...' : 'Write a reply...'}
+                             value={replyText}
+                             onChange={(e) => setReplyText(e.target.value)}
+                             onKeyDown={(e) => {
+                               if (e.key === 'Enter') handleAddReply(c.id);
+                             }}
+                             className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#70d6ff]"
+                           />
+                           <button 
+                             onClick={() => handleAddReply(c.id)}
+                             disabled={isCommenting || !replyText.trim()}
+                             className="p-2 bg-[#70d6ff] text-black rounded-lg hover:bg-white disabled:opacity-50"
+                           >
+                             <Send className="w-4 h-4" />
+                           </button>
+                           <button 
+                             onClick={() => { setReplyingToId(null); setReplyText(""); }}
+                             className="p-2 text-slate-400 hover:text-white"
+                           >
+                             <X className="w-4 h-4" />
+                           </button>
+                         </div>
+                        )}
+
+                        {/* Ответы на этот комментарий */}
+                        {comments.filter(r => r.parentId === c.id).map(reply => (
+                          <div key={reply.id} className="mt-3 flex gap-2 ml-4 pl-3 border-l-2 border-white/10">
+                            <img 
+                              src={reply.authorAvatar} 
+                              alt="reply author" 
+                              className="w-7 h-7 rounded-full shrink-0 border border-white/10"
+                              onError={(e) => {
+                               (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(reply.author || 'User')}&background=random`;
+                              }}
+                            />
+                            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-bold text-white">@{reply.author}</span>
+                                <span className="text-[9px] text-slate-500">{reply.ts}</span>
+                              </div>
+                              <p className="text-xs text-slate-300 leading-relaxed break-words">{reply.text}</p>
+                            </div>
                           </div>
-                          <p className="text-sm text-slate-200 leading-relaxed break-words">{c.text}</p>
-                       </div>
+                        ))}
+                      </div>
                     </div>
-                  ))
+                  ))}
                 )}
              </div>
              <div className="p-4 border-t border-white/10 bg-black/40">
