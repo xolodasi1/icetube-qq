@@ -1,4 +1,4 @@
-import { Client, Account, OAuthProvider, Databases, Permission, Role, ID } from 'appwrite';
+import { Client, Account, OAuthProvider, Databases, Storage, Permission, Role, ID } from 'appwrite';
 
 export const client = new Client();
 
@@ -13,6 +13,7 @@ client
 
 export const account = new Account(client);
 export const databases = new Databases(client);
+export const storage = new Storage(client);
 
 // Check if the user is in Russian network or without VPN
 export const getOfflineFlag = (): boolean => {

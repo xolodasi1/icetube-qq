@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/AuthContext';
-import { uploadVideoToCloudinary } from '../lib/cloudinary';
-import { databases } from '../lib/appwrite';
+import { uploadVideoToCloudinary, uploadVideoToAppwrite } from '../lib/cloudinary';
+import { databases, storage as appwriteStorage } from '../lib/appwrite';
 import { ID, Query } from 'appwrite';
 import { UploadCloud, X, Loader2, AlertCircle, PlayCircle, ChevronDown } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageContext';
@@ -47,11 +47,15 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
     'Minecraft', 'Roblox', 'Fortnite', 'GTA V', 'CS:GO', 'Valorant', 'League of Legends'
   ];
 
+  const [uploadMethod, setUploadMethod] = useState<'cloudinary' | 'appwrite'>('cloudinary');
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const selectedFile = e.target.files[0];
-      if (selectedFile.size > 100 * 1024 * 1024) {
-        setError(language === 'ru' ? 'Файл слишком большой (макс. 100МБ)' : 'File too large (max 100MB)');
+      // Appwrite limit is higher (300MB), Cloudinary is 100MB for free tier
+      const maxSize = uploadMethod === 'appwrite' ? 300 : 100;
+      if (selectedFile.size > maxSize * 1024 * 1024) {
+        setError(language === 'ru' ? `Файл слишком большой (макс. ${maxSize}МБ)` : `File too large (max ${maxSize}MB)`);
         return;
       }
       setFile(selectedFile);
@@ -71,8 +75,22 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
     setProgress(0);
 
     try {
-      const videoUrl = await uploadVideoToCloudinary(file, (p) => setProgress(p));
-      const thumbnailUrl = videoUrl.replace(/\.[^/.]+$/, ".jpg").replace("/video/upload/", "/video/upload/so_auto/");
+      // Use Appwrite Storage if selected, otherwise Cloudinary
+      let videoUrl: string;
+      if (uploadMethod === 'appwrite') {
+        videoUrl = await uploadVideoToAppwrite(file, (p) => setProgress(p));
+      } else {
+        videoUrl = await uploadVideoToCloudinary(file, (p) => setProgress(p));
+      }
+      
+      // Generate thumbnail URL based on upload method
+      let thumbnailUrl: string;
+      if (uploadMethod === 'appwrite') {
+        // For Appwrite, we'll use a placeholder or generate from video later
+        thumbnailUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(title)}&background=0f1115&color=70d6ff`;
+      } else {
+        thumbnailUrl = videoUrl.replace(/\.[^/.]+$/, ".jpg").replace("/video/upload/", "/video/upload/so_auto/");
+      }
 
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
       const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
@@ -231,21 +249,59 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
 
         <form onSubmit={handleUpload} className="p-6 flex flex-col gap-6">
           {!file ? (
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-white/20 hover:border-[#70d6ff]/50 bg-white/5 rounded-xl p-10 flex flex-col items-center justify-center cursor-pointer transition-colors"
-            >
-              <UploadCloud className="w-12 h-12 text-[#70d6ff] mb-4" />
-              <p className="text-slate-200 font-medium text-center">{language === 'ru' ? 'Нажмите для выбора видео' : 'Click to select video'}</p>
-              <p className="text-slate-500 text-sm mt-2 text-center">{language === 'ru' ? 'MP4, WebM до 100МБ' : 'MP4, WebM up to 100MB'}</p>
-              <input 
-                ref={fileInputRef}
-                type="file" 
-                accept="video/*" 
-                className="hidden" 
-                onChange={handleFileChange}
-              />
-            </div>
+            <>
+              {/* Upload Method Selector */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-slate-200">{language === 'ru' ? 'Способ загрузки' : 'Upload Method'}</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setUploadMethod('cloudinary')}
+                    className={`px-4 py-3 text-sm rounded-lg border transition-colors ${
+                      uploadMethod === 'cloudinary' 
+                        ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" 
+                        : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"
+                    }`}
+                  >
+                    <span className="font-semibold">Cloudinary</span>
+                    <p className="text-xs mt-1 opacity-70">{language === 'ru' ? 'Быстро, до 100МБ' : 'Fast, up to 100MB'}</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUploadMethod('appwrite')}
+                    className={`px-4 py-3 text-sm rounded-lg border transition-colors ${
+                      uploadMethod === 'appwrite' 
+                        ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" 
+                        : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"
+                    }`}
+                  >
+                    <span className="font-semibold">Appwrite Storage</span>
+                    <p className="text-xs mt-1 opacity-70">{language === 'ru' ? 'Надёжно, до 300МБ' : 'Reliable, up to 300MB'}</p>
+                  </button>
+                </div>
+              </div>
+
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-white/20 hover:border-[#70d6ff]/50 bg-white/5 rounded-xl p-10 flex flex-col items-center justify-center cursor-pointer transition-colors"
+              >
+                <UploadCloud className="w-12 h-12 text-[#70d6ff] mb-4" />
+                <p className="text-slate-200 font-medium text-center">{language === 'ru' ? 'Нажмите для выбора видео' : 'Click to select video'}</p>
+                <p className="text-slate-500 text-sm mt-2 text-center">
+                  {uploadMethod === 'appwrite' 
+                    ? (language === 'ru' ? 'MP4, WebM, MOV до 300МБ' : 'MP4, WebM, MOV up to 300MB')
+                    : (language === 'ru' ? 'MP4, WebM до 100МБ' : 'MP4, WebM up to 100MB')
+                  }
+                </p>
+                <input 
+                  ref={fileInputRef}
+                  type="file" 
+                  accept="video/*" 
+                  className="hidden" 
+                  onChange={handleFileChange}
+                />
+              </div>
+            </>
           ) : (
             <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/10">
               <div className="w-12 h-12 bg-[#70d6ff]/20 rounded-lg flex items-center justify-center shrink-0">

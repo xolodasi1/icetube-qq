@@ -1,3 +1,6 @@
+import { storage as appwriteStorage } from './appwrite';
+import { ID } from 'appwrite';
+
 export const uploadVideoToCloudinary = async (file: File, onProgress?: (progress: number) => void): Promise<string> => {
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
   const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
@@ -100,4 +103,27 @@ export const getOptimizedVideoUrl = (url: string | undefined): string => {
     return newUrl;
   }
   return url;
+};
+
+export const uploadVideoToAppwrite = async (file: File, onProgress?: (progress: number) => void): Promise<string> => {
+  const bucketId = import.meta.env.VITE_APPWRITE_VIDEO_BUCKET_ID;
+  
+  if (!bucketId) {
+    throw new Error('Appwrite Video Bucket ID is missing. Please set VITE_APPWRITE_VIDEO_BUCKET_ID in your environment variables.');
+  }
+  
+  try {
+    const uploadedFile = await appwriteStorage.createFile(
+      bucketId,
+      ID.unique(),
+      file
+    );
+    
+    // Return the file view URL (direct download/play URL)
+    const fileUrl = appwriteStorage.getFileView(bucketId, uploadedFile.$id).href;
+    return fileUrl;
+  } catch (error: any) {
+    console.error('Appwrite upload error:', error);
+    throw new Error(error.message || 'Failed to upload video to Appwrite Storage');
+  }
 };
