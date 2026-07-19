@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ThumbsUp, ThumbsDown, MessageSquare, Share2, X, Loader2, Send, AlertTriangle, Reply } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ThumbsUp, ThumbsDown, MessageSquare, Share2, MoreHorizontal, X, Loader2, Send, AlertTriangle } from 'lucide-react';
 import { databases } from '../lib/appwrite';
 import { Query, ID } from 'appwrite';
 import { Link, useParams } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { useLanguage } from '../lib/LanguageContext';
 import { createNotification } from '../lib/notifications';
 import { SafeStorage } from '../lib/storage';
 import { getOptimizedThumbnail, getOptimizedVideoUrl } from '../lib/cloudinary';
+
 
 export default function Shorts() {
   const { id } = useParams();
@@ -19,6 +20,7 @@ export default function Shorts() {
   const [error, setError] = useState<string | null>(null);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   
+
   // Interaction State
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [likeState, setLikeState] = useState<'none' | 'liked' | 'disliked'>('none');
@@ -27,55 +29,12 @@ export default function Shorts() {
   const [isLiking, setIsLiking] = useState(false);
   const [isSubbing, setIsSubbing] = useState(false);
   
-  // Comments State
+
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isCommenting, setIsCommenting] = useState(false);
-  
-  const [replyingToId, setReplyingToId] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState("");
-
-  // === РЕФСЫ ДЛЯ СВАЙПА И СКРОЛЛА ===
-  const containerRef = useRef<HTMLDivElement>(null);
-  const touchStartY = useRef<number | null>(null);
-  const touchStartTime = useRef<number>(0);
-  const lastWheelTime = useRef<number>(0);
-  const isTransitioning = useRef<boolean>(false);
-
-  // === ФУНКЦИИ БЕСКОНЕЧНОГО ЛИСТАНИЯ (вынесены на уровень компонента!) ===
-  const goNext = () => {
-    if (videos.length === 0 || isTransitioning.current) return;
-    isTransitioning.current = true;
-    setCurrentVideoIndex(prev => (prev + 1) % videos.length); // Цикл: после последнего -> первое
-    setTimeout(() => { isTransitioning.current = false; }, 400);
-  };
-
-  const goPrev = () => {
-    if (videos.length === 0 || isTransitioning.current) return;
-    isTransitioning.current = true;
-    setCurrentVideoIndex(prev => (prev - 1 + videos.length) % videos.length); // Цикл: с первого -> последнее
-    setTimeout(() => { isTransitioning.current = false; }, 400);
-  };
-
-  // === ОБРАБОТЧИКИ СВАЙПА (TOUCH) ===
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-    touchStartTime.current = Date.now();
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartY.current === null) return;
-    const touchEndY = e.changedTouches[0].clientY;
-    const deltaY = touchStartY.current - touchEndY;
-    const deltaTime = Date.now() - touchStartTime.current;
-
-    if (Math.abs(deltaY) > 50 && deltaTime < 500) {
-      if (deltaY > 0) goNext();
-      else goPrev();
-    }
-    touchStartY.current = null;
-  };
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
 
   useEffect(() => {
     const fetchShorts = async () => {
@@ -91,10 +50,13 @@ export default function Shorts() {
 
         let docs: any[] = [];
         
+        // Priority 1: If an ID is provided, try to fetch it first
         if (id) {
           try {
             const specificDoc = await databases.getDocument(dbId, colId, id);
-            if (specificDoc) docs.push(specificDoc);
+            if (specificDoc) {
+              docs.push(specificDoc);
+            }
           } catch (e) {
             console.error("Could not fetch specific short:", e);
           }
@@ -102,17 +64,21 @@ export default function Shorts() {
 
         try {
           const res = await databases.listDocuments(dbId, colId, [
-             Query.equal('contentType', 'shorts'),
+             Query.equal('contentType', 'shorts'), // Prefer shorts if marked
              Query.limit(50),
              Query.orderDesc('$createdAt')
           ]);
+          
+          // Merge and de-duplicate
           const existingIds = new Set(docs.map(d => d.$id));
           res.documents.forEach(doc => {
             if (!existingIds.has(doc.$id)) docs.push(doc);
           });
         } catch (queryErr: any) {
+          console.log("Query by contentType failed, fetching all and filtering manually");
           const allRes = await databases.listDocuments(dbId, colId, [Query.limit(100), Query.orderDesc('$createdAt')]);
           const filtered = allRes.documents.filter((d: any) => d.contentType === 'shorts' || d.title?.toLowerCase().includes('#shorts') || d.description?.toLowerCase().includes('#shorts'));
+          
           const existingIds = new Set(docs.map(d => d.$id));
           filtered.forEach(doc => {
             if (!existingIds.has(doc.$id)) docs.push(doc);
@@ -120,6 +86,7 @@ export default function Shorts() {
         }
 
         if (docs.length === 0) {
+          // Fallback to any videos if no shorts found (maybe they are vertical but not tagged)
           const fallbackRes = await databases.listDocuments(dbId, colId, [Query.limit(50), Query.orderDesc('$createdAt')]);
           const existingIds = new Set(docs.map(d => d.$id));
           fallbackRes.documents.forEach(doc => {
@@ -127,6 +94,7 @@ export default function Shorts() {
           });
         }
 
+        // Fetch user profiles to enrich avatars
         const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
         if (profilesCol && docs.length > 0) {
           try {
@@ -135,7 +103,11 @@ export default function Shorts() {
             docs = docs.map(doc => {
                const profile = profilesMap.get(doc.uploaderId);
                if (profile) {
-                 return { ...doc, uploaderName: profile.name || doc.uploaderName, uploaderAvatar: profile.avatar || doc.uploaderAvatar };
+                 return {
+                   ...doc,
+                   uploaderName: profile.name || doc.uploaderName,
+                   uploaderAvatar: profile.avatar || doc.uploaderAvatar
+                 }
                }
                return doc;
              });
@@ -185,15 +157,21 @@ export default function Shorts() {
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
       const likesCol = import.meta.env.VITE_APPWRITE_LIKES_COLLECTION_ID;
       const subsCol = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
+
       if (!dbId) return;
 
       if (likesCol) {
         const likesRes = await databases.listDocuments(dbId, likesCol, [Query.equal('videoId', videoId)]);
         const totalLikes = likesRes.documents.filter((d: any) => d.type === 'like' || !d.type).length;
         setLikesCount(totalLikes);
+        
         if (user) {
           const myLike = likesRes.documents.find(doc => doc.userId === user.$id && (doc.type === 'like' || doc.type === 'dislike' || !doc.type));
-          setLikeState(myLike ? (myLike.type === 'dislike' ? 'disliked' : 'liked') : 'none');
+          if (myLike) {
+            setLikeState(myLike.type === 'dislike' ? 'disliked' : 'liked');
+          } else {
+            setLikeState('none');
+          }
         }
       }
 
@@ -225,11 +203,9 @@ export default function Shorts() {
       setComments(res.documents.map(c => ({
         id: c.$id,
         author: c.authorName,
-        authorId: c.authorId || 'anonymous',
         text: c.text,
         authorAvatar: c.authorAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.authorName)}`,
-        ts: t('video_recently'),
-        parentId: c.parentId || null
+        ts: t('video_recently') // Rough approximation
       })));
     } catch (err) {
       console.error("Comments fetch failed in Shorts:", err);
@@ -244,6 +220,7 @@ export default function Shorts() {
       fetchInteractions(current.$id, current.uploaderId);
       if (showComments) fetchComments(current.$id);
 
+      // Add to History
       try {
         let history = SafeStorage.get('watch_history', []);
         history = history.filter((v: any) => v.id !== current.$id);
@@ -273,69 +250,26 @@ export default function Shorts() {
     }
   }, [showComments]);
 
-  // Wheel для ПК
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || videos.length === 0) return;
-
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const now = Date.now();
-      if (now - lastWheelTime.current < 600) return;
-      if (isTransitioning.current) return;
-
-      if (Math.abs(e.deltaY) > 20) {
-        lastWheelTime.current = now;
-        if (e.deltaY > 0) goNext();
-        else goPrev();
-      }
-    };
-
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
-  }, [videos.length]);
-
-  // Keyboard
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (showComments) return;
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-
-      if (e.key === 'ArrowDown' || e.key === 'j') {
-        e.preventDefault();
-        goNext();
-      } else if (e.key === 'ArrowUp' || e.key === 'k') {
-        e.preventDefault();
-        goPrev();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showComments, videos.length]);
-
-  // Блок скролла страницы
-  useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = originalOverflow; };
-  }, []);
-
   const updateProfileStat = (userId: string, field: string, increment: number) => {
+    // Non-blocking background update
     (async () => {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
         if (!dbId || !profilesCol) return;
 
+        // Try to fetch by document ID first (the new standard)
         try {
           const doc = await databases.getDocument(dbId, profilesCol, userId);
           if (doc) {
-            await databases.updateDocument(dbId, profilesCol, userId, { [field]: (doc[field] || 0) + increment });
+            await databases.updateDocument(dbId, profilesCol, userId, {
+              [field]: (doc[field] || 0) + increment
+            });
             return;
           }
-        } catch (e) {}
+        } catch (e) {
+          // Continue to query if not found by ID
+        }
 
         const res = await databases.listDocuments(dbId, profilesCol, [
           Query.equal('userId', userId),
@@ -345,7 +279,9 @@ export default function Shorts() {
 
         if (res.documents.length > 0) {
           const doc = res.documents[0];
-          await databases.updateDocument(dbId, profilesCol, doc.$id, { [field]: (doc[field] || 0) + increment });
+          await databases.updateDocument(dbId, profilesCol, doc.$id, {
+            [field]: (doc[field] || 0) + increment
+          });
         }
       } catch (err) {
         console.error(`Failed to update profile stat ${field} in background (Shorts):`, err);
@@ -389,7 +325,8 @@ export default function Shorts() {
           if (isLike) {
             setLikesCount(prev => prev + 1);
             updateProfileStat(current.uploaderId, 'likesCount', 1);
-          } else {
+          }
+          else {
             setLikesCount(prev => prev - 1);
             updateProfileStat(current.uploaderId, 'likesCount', -1);
           }
@@ -453,6 +390,7 @@ export default function Shorts() {
         });
         setIsSubscribed(true);
         updateProfileStat(current.uploaderId, 'subscribersCount', 1);
+
         createNotification({
           userId: current.uploaderId,
           actorId: user.$id,
@@ -467,6 +405,7 @@ export default function Shorts() {
       setIsSubbing(false);
     }
   };
+
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -521,60 +460,7 @@ export default function Shorts() {
     }
   };
 
-  const handleAddReply = async (parentId: string) => {
-    if (!replyText.trim() || isCommenting || videos.length === 0) return;
-  
-    const current = videos[currentVideoIndex];
-    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-    const commsCol = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
-    if (!dbId || !commsCol) return;
-
-    try {
-      setIsCommenting(true);
-      const authorName = user ? (profile?.name || user.name || 'User') : (language === 'ru' ? 'Аноним' : 'Anonymous');
-      const authorAvatar = user && profile?.avatar ? profile.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random`;
-      const authorId = user ? user.$id : 'anonymous';
-
-      const res = await databases.createDocument(dbId, commsCol, ID.unique(), {
-        videoId: current.$id,
-        authorId: authorId,
-        authorName: authorName,
-        authorAvatar: authorAvatar,
-        text: replyText,
-        likes: 0,
-        likedBy: [],
-        dislikedBy: [],
-        parentId: parentId
-      });
-
-      setComments([...comments, {
-        id: res.$id,
-        author: authorName,
-        authorId: authorId,
-        text: replyText,
-        authorAvatar: authorAvatar,
-        ts: t('video_recently'),
-        parentId: parentId
-      }]);
-      setReplyText("");
-      setReplyingToId(null);
-
-      createNotification({
-        userId: current.uploaderId,
-        actorId: authorId,
-        actorName: authorName,
-        actorAvatar: authorAvatar,
-        type: 'comment',
-        videoId: current.$id,
-        videoTitle: current.title,
-        contentType: 'shorts'
-      });
-    } catch (err) {
-      console.error("Reply failed in Shorts:", err);
-    } finally {
-      setIsCommenting(false);
-    }
-  };
+  ф
 
   if (isLoading) {
     return (
@@ -593,7 +479,10 @@ export default function Shorts() {
          </div>
          <h2 className="text-2xl font-bold text-white mb-2">{language === 'ru' ? 'Ошибка' : 'Error'}</h2>
          <p className="text-slate-400 mb-8 max-w-sm leading-relaxed">{error || (language === 'ru' ? 'Видео не найдены. Попробуйте загрузить что-нибудь!' : 'No videos found. Try uploading something!')}</p>
-         <Link to="/" className="px-8 py-3 bg-[#70d6ff] text-black hover:bg-[#5bc0e6] rounded-full transition-all duration-300 font-bold shadow-lg shadow-[#70d6ff]/20 active:scale-95">
+         <Link 
+           to="/"
+           className="px-8 py-3 bg-[#70d6ff] text-black hover:bg-[#5bc0e6] rounded-full transition-all duration-300 font-bold shadow-lg shadow-[#70d6ff]/20 active:scale-95"
+         >
            {language === 'ru' ? 'На главную' : 'Back Home'}
          </Link>
       </div>
@@ -604,14 +493,11 @@ export default function Shorts() {
   const uploaderAvatar = current.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName)}`;
 
   return (
-    <div 
-      ref={containerRef}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-        className="fixed inset-0 w-full h-[100dvh] bg-black overflow-hidden flex items-center justify-center touch-none"
-
-    >
-      <div className="relative w-full sm:max-w-[380px] h-full sm:h-[calc(100vh-80px)] sm:my-10 aspect-[9/16] sm:aspect-auto bg-slate-900 sm:rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] flex-shrink-0 border border-white/5 group">
+    <div className="flex flex-col items-center justify-center w-full min-h-[calc(100vh-64px)] px-0 bg-black pt-0 sm:pt-4 overflow-hidden">
+      
+      {/* Immersive Video Container */}
+      <div className="relative w-full sm:max-w-[380px] h-full sm:h-[calc(100vh-140px)] aspect-[9/16] bg-slate-900 sm:rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] flex-shrink-0 border border-white/5 group">
+        
         <video 
           key={current.$id}
           src={getOptimizedVideoUrl(current.videoUrl)} 
@@ -634,110 +520,159 @@ export default function Shorts() {
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md z-30 p-6 text-center">
             <AlertTriangle className="w-10 h-10 text-red-500 mb-2" />
             <span className="text-white font-bold text-sm tracking-tighter italic uppercase">{playbackError}</span>
-            <button onClick={() => window.location.reload()} className="mt-4 px-4 py-1.5 bg-white/10 hover:bg-white/20 text-white text-[10px] uppercase font-black tracking-widest rounded-lg transition-all">
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-1.5 bg-white/10 hover:bg-white/20 text-white text-[10px] uppercase font-black tracking-widest rounded-lg transition-all"
+            >
               {language === 'ru' ? 'Обновить' : 'Reload'}
             </button>
           </div>
         )}
 
+        {/* Interaction Side Overlay (Right) */}
         <div className="absolute right-3 bottom-24 flex flex-col items-center gap-5 z-20">
             <div className="flex flex-col items-center gap-1 group">
-                <button onClick={() => handleLike(true)} disabled={isLiking} className={`w-12 h-12 rounded-full backdrop-blur-xl flex items-center justify-center transition-all ${likeState === 'liked' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.5)]' : 'bg-black/40 text-white hover:bg-white/20'}`}>
+                <button 
+                  onClick={() => handleLike(true)}
+                  disabled={isLiking}
+                  className={`w-12 h-12 rounded-full backdrop-blur-xl flex items-center justify-center transition-all ${likeState === 'liked' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.5)]' : 'bg-black/40 text-white hover:bg-white/20'}`}
+                >
                     <ThumbsUp className={`w-6 h-6 ${likeState === 'liked' ? 'fill-current' : ''}`} />
                 </button>
                 <span className="text-white text-xs font-bold drop-shadow-md">{likesCount > 0 ? new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(likesCount) : 'Like'}</span>
             </div>
+
             <div className="flex flex-col items-center gap-1 group">
-                <button onClick={() => handleLike(false)} disabled={isLiking} className={`w-12 h-12 rounded-full backdrop-blur-xl flex items-center justify-center transition-all ${likeState === 'disliked' ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-black/40 text-white hover:bg-white/20'}`}>
+                <button 
+                  onClick={() => handleLike(false)}
+                  disabled={isLiking}
+                  className={`w-12 h-12 rounded-full backdrop-blur-xl flex items-center justify-center transition-all ${likeState === 'disliked' ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-black/40 text-white hover:bg-white/20'}`}
+                >
                     <ThumbsDown className={`w-6 h-6 ${likeState === 'disliked' ? 'fill-current' : ''}`} />
                 </button>
                 <span className="text-white text-xs font-bold drop-shadow-md">{language === 'ru' ? 'Не нр.' : 'Dislike'}</span>
             </div>
+
             <div className="flex flex-col items-center gap-1 group">
-                <button onClick={() => setShowComments(true)} className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white/20 transition-all">
+                <button 
+                  onClick={() => setShowComments(true)}
+                  className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white/20 transition-all"
+                >
                     <MessageSquare className="w-6 h-6" />
                 </button>
                 <span className="text-white text-xs font-bold drop-shadow-md">...</span>
             </div>
+
             <div className="flex flex-col items-center gap-1 group">
                 <button className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white/20 transition-all">
                     <Share2 className="w-6 h-6" />
                 </button>
                 <span className="text-white text-xs font-bold drop-shadow-md">{language === 'ru' ? 'Поделиться' : 'Share'}</span>
             </div>
+
             <Link to={`/channel/${current.uploaderId}`} className="w-10 h-10 rounded-lg overflow-hidden border-2 border-[#70d6ff]/30 shadow-lg mt-2 animate-pulse block">
-                <img src={uploaderAvatar} alt="audio" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`; }} />
+                <img 
+                  src={uploaderAvatar} 
+                  alt="audio" 
+                  className="w-full h-full object-cover" 
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`;
+                  }}
+                />
             </Link>
         </div>
 
+        {/* Content Info (Bottom) */}
         <div className="absolute bottom-0 left-0 right-16 p-4 pt-10 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col gap-2 z-10">
           <div className="flex items-center gap-2">
             <Link to={`/channel/${current.uploaderId}`} className="shrink-0">
-              <img src={uploaderAvatar} alt={current.uploaderName || 'User'} className="w-9 h-9 rounded-full border border-white/20 shadow-md" onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`; }} />
+              <img 
+                src={uploaderAvatar} 
+                alt={current.uploaderName || 'User'} 
+                className="w-9 h-9 rounded-full border border-white/20 shadow-md" 
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`;
+                }}
+              />
             </Link>
             <Link to={`/channel/${current.uploaderId}`} className="text-white font-bold text-sm truncate drop-shadow-md hover:underline decoration-[#70d6ff]">@{current.uploaderName || 'user'}</Link>
-            {user && user.$id !== current.uploaderId && (
-              <button 
-                onClick={handleSubscribe}
-                disabled={isSubbing}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold ml-1 transition-all ${isSubscribed ? 'bg-white/20 text-white' : 'bg-[#70d6ff] text-black hover:bg-white'}`}
-              >
-                {isSubscribed ? (language === 'ru' ? 'Вы подписаны' : 'Subscribed') : (language === 'ru' ? 'Подписаться' : 'Subscribe')}
-              </button>
-            )}
+            <button 
+              onClick={handleSubscribe}
+              disabled={isSubbing}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold ml-1 transition-all ${isSubscribed ? 'bg-white/20 text-white' : 'bg-[#70d6ff] text-black hover:bg-white'}`}
+            >
+              {isSubscribed ? (language === 'ru' ? 'Вы подписаны' : 'Subscribed') : (language === 'ru' ? 'Подписаться' : 'Subscribe')}
+            </button>
           </div>
-          <h2 className="text-white text-sm font-medium line-clamp-2 leading-snug drop-shadow-md">{current.title}</h2>
+          <h2 className="text-white text-sm font-medium line-clamp-2 leading-snug drop-shadow-md">
+            {current.title}
+          </h2>
         </div>
 
-        {/* Next/Prev Navigation Hints (исправлено: теперь используют goNext/goPrev) */}
+        {/* Next/Prev Navigation Hints */}
         <div className="absolute top-1/2 -translate-y-1/2 left-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-           <button onClick={goPrev} className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20">↑</button>
-           <button onClick={goNext} className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20">↓</button>
+           <button 
+             onClick={() => setCurrentVideoIndex(Math.max(0, currentVideoIndex - 1))}
+             className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20"
+           >
+             ↑
+           </button>
+           <button 
+             onClick={() => setCurrentVideoIndex(Math.min(videos.length - 1, currentVideoIndex + 1))}
+             className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20"
+           >
+             ↓
+           </button>
         </div>
 
-        {/* Индикатор позиции */}
-        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-20 pointer-events-none">
-          {videos.slice(Math.max(0, currentVideoIndex - 2), Math.min(videos.length, currentVideoIndex + 3)).map((_, idx) => {
-            const actualIdx = Math.max(0, currentVideoIndex - 2) + idx;
-            const isActive = actualIdx === currentVideoIndex;
-            return (
-              <div key={actualIdx} className={`w-1 rounded-full transition-all ${isActive ? 'h-4 bg-[#70d6ff]' : 'h-1.5 bg-white/40'}`} />
-            );
-          })}
-        </div>
       </div>
 
-      {/* Desktop Navigation (исправлено: убран disabled, теперь бесконечный цикл) */}
+      {/* Desktop Navigation */}
       <div className="hidden sm:flex mt-6 gap-6 items-center">
-         <button onClick={goPrev} className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all border border-white/5">
-           {language === 'ru' ? '↑ Назад' : '↑ Previous'}
+         <button 
+           onClick={() => setCurrentVideoIndex(Math.max(0, currentVideoIndex - 1))}
+           disabled={currentVideoIndex === 0}
+           className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all disabled:opacity-20 border border-white/5"
+         >
+           {language === 'ru' ? 'Назад' : 'Previous'}
          </button>
          <div className="text-white/40 text-sm font-mono">{currentVideoIndex + 1} / {videos.length}</div>
-         <button onClick={goNext} className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all border border-white/5">
-           {language === 'ru' ? 'Далее ↓' : 'Next ↓'}
+         <button 
+           onClick={() => setCurrentVideoIndex(Math.min(videos.length - 1, currentVideoIndex + 1))}
+           disabled={currentVideoIndex === videos.length - 1}
+           className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all disabled:opacity-20 border border-white/5"
+         >
+           {language === 'ru' ? 'Далее' : 'Next'}
          </button>
       </div>
 
-      <div className="sm:hidden fixed bottom-2 left-0 right-0 text-center text-white/30 text-[10px] pb-2 pointer-events-none z-30">
-        {language === 'ru' ? 'Свайпайте вверх/вниз для переключения' : 'Swipe up/down to navigate'}
+      {/* Mobile Swipe Simulation Hint */}
+      <div className="sm:hidden mt-2 text-white/30 text-[10px] pb-4">
+        Swipe buttons up/down to see more
       </div>
 
       {/* Comments Sidebar/Overlay */}
       {showComments && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
           <div className="w-full sm:max-w-md bg-[#0f0f0f] rounded-t-2xl sm:rounded-2xl h-[70vh] sm:h-[80vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300">
+             
+             {/* Header */}
              <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/20">
                 <h3 className="text-white font-bold">{language === 'ru' ? 'Комментарии' : 'Comments'}</h3>
-                <button onClick={() => setShowComments(false)} className="p-2 hover:bg-white/10 rounded-full text-white transition-colors">
+                <button 
+                  onClick={() => setShowComments(false)}
+                  className="p-2 hover:bg-white/10 rounded-full text-white transition-colors"
+                >
                   <X className="w-5 h-5" />
                 </button>
              </div>
+
+             {/* Comments List */}
              <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-6">
                 {isLoadingComments ? (
                   <div className="flex flex-col items-center justify-center py-20 opacity-50">
                      <Loader2 className="w-8 h-8 animate-spin text-[#70d6ff]" />
                   </div>
-                
                 ) : comments.length === 0 ? (
                   <div className="text-center py-20 text-slate-500 animate-pulse">
                     {language === 'ru' ? 'Пока нет комментариев. Будьте первым!' : 'No comments yet. Be the first!'}
@@ -760,7 +695,6 @@ export default function Shorts() {
                         </div>
                         <p className="text-sm text-slate-200 leading-relaxed break-words">{c.text}</p>
       
-                        {/* Кнопка Ответить */}
                         <button 
                           onClick={() => setReplyingToId(replyingToId === c.id ? null : c.id)}
                           className="text-[10px] text-slate-400 hover:text-[#70d6ff] flex items-center gap-1 mt-1 w-fit"
@@ -769,7 +703,6 @@ export default function Shorts() {
                           {language === 'ru' ? 'Ответить' : 'Reply'}
                         </button>
 
-                        {/* Поле ввода ответа */}
                         {replyingToId === c.id && (
                          <div className="mt-2 flex gap-2 animate-in slide-in-from-top-2 duration-200">
                            <input 
@@ -799,7 +732,6 @@ export default function Shorts() {
                          </div>
                         )}
 
-                        {/* Ответы на этот комментарий */}
                         {comments.filter(r => r.parentId === c.id).map(reply => (
                           <div key={reply.id} className="mt-3 flex gap-2 ml-4 pl-3 border-l-2 border-white/10">
                             <img 
@@ -822,19 +754,31 @@ export default function Shorts() {
                       </div>
                     </div>
                   ))
-                )
+                )}
              </div>
              <div className="p-4 border-t border-white/10 bg-black/40">
                   <form onSubmit={handleAddComment} className="flex gap-2">
-                    <input type="text" placeholder={language === 'ru' ? 'Добавьте комментарий (как инкогнито)...' : 'Add a comment (as anonymous)...'} value={newComment} onChange={e => setNewComment(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#70d6ff] transition-all" />
-                    <button type="submit" disabled={isCommenting || !newComment.trim()} className="p-2.5 bg-[#70d6ff] text-black rounded-xl hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg">
+                    <input 
+                      type="text" 
+                      placeholder={language === 'ru' ? 'Добавьте комментарий (как инкогнито)...' : 'Add a comment (as anonymous)...'}
+                      value={newComment}
+                      onChange={e => setNewComment(e.target.value)}
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#70d6ff] transition-all"
+                    />
+                    <button 
+                      type="submit"
+                      disabled={isCommenting || !newComment.trim()}
+                      className="p-2.5 bg-[#70d6ff] text-black rounded-xl hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                    >
                       <Send className="w-5 h-5" />
                     </button>
                   </form>
              </div>
+
           </div>
         </div>
       )}
+
     </div>
   );
 }
