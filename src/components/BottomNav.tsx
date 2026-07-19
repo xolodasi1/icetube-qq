@@ -9,6 +9,10 @@ export function BottomNav() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const activeCategory = searchParams.get("category");
+  // Скрываем навигацию на странице Shorts
+  if (location.pathname.startsWith('/shorts')) {
+    return null;
+  }
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showLibraryMenu, setShowLibraryMenu] = useState(false);
   const { t } = useLanguage();
