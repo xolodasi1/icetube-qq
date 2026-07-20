@@ -367,8 +367,6 @@ export default function Studio() {
                 </div>
               </div>
             </div>
-          )}
-
           ) : (
             <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-4">
