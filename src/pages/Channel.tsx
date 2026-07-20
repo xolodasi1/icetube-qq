@@ -211,8 +211,10 @@ export default function Channel() {
   const channelHandle = profile.handle ? `@${profile.handle}` : `@${channelName.replace(/\s+/g, '').toLowerCase() || "user"}`;
   const bannerUrl = profile.bannerUrl;
 
-  const regularVideos = videos.filter(v => v.contentType !== 'shorts');
-  const shortsVideos = videos.filter(v => v.contentType === 'shorts');
+  const isShort = (v: any) => v.contentType === 'shorts' || v.title?.toLowerCase().includes('#shorts') || v.description?.toLowerCase().includes('#shorts');
+
+  const regularVideos = videos.filter(v => !isShort(v));
+  const shortsVideos = videos.filter(v => isShort(v));
 
   const sortedRegularVideos = [...regularVideos].sort((a, b) => {
     if (videoSort === 'popular') return b.views - a.views;

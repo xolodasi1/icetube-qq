@@ -179,14 +179,27 @@ export default function ChannelEditor() {
 
       try {
         if (dbDocId) {
-          // Update existing
           await databases.updateDocument(dbId, colId, dbDocId, payload);
         } else {
-          // Create new
           await databases.createDocument(dbId, colId, ID.unique(), payload);
         }
-      } catch (err: any) {
-        throw new Error(`Profile (Users Collection) Error: ${err.message}`);
+      } catch (firstErr: any) {
+        if (firstErr.code === 400 && firstErr.message?.toLowerCase().includes('unknown attribute')) {
+          const basicPayload = {
+            userId: user.$id,
+            name: formData.name,
+            handle: formData.handle,
+            description: formData.description,
+            avatar: formData.avatar
+          };
+          if (dbDocId) {
+            await databases.updateDocument(dbId, colId, dbDocId, basicPayload);
+          } else {
+            await databases.createDocument(dbId, colId, ID.unique(), basicPayload);
+          }
+        } else {
+          throw new Error(`Profile (Users Collection) Error: ${firstErr.message}`);
+        }
       }
 
       // Update name in Appwrite Account
