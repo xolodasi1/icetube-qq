@@ -228,7 +228,8 @@ export default function Shorts() {
         author: c.authorName,
         text: c.text,
         authorAvatar: c.authorAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.authorName)}`,
-        ts: t('video_recently') // Rough approximation
+        ts: t('video_recently'),
+        authorId: c.authorId
       })));
     } catch (err) {
       console.error("Comments fetch failed in Shorts:", err);
@@ -473,7 +474,8 @@ export default function Shorts() {
         author: authorName,
         text: newComment,
         authorAvatar: authorAvatar,
-        ts: t('video_recently')
+        ts: t('video_recently'),
+        authorId: res.authorId
       }, ...comments]);
       setNewComment("");
 
@@ -538,12 +540,27 @@ export default function Shorts() {
         text: replyText,
         authorAvatar: authorAvatar,
         ts: t('video_recently'),
-        parentId: parentId
+        parentId: parentId,
+        authorId: res.authorId
       }]);
       setReplyText("");
       setReplyingToId(null);
 
       if (!user) registerAnonComment(current.$id);
+
+      const parentComment = comments.find(c => c.id === parentId);
+      if (parentComment && parentComment.authorId) {
+        createNotification({
+          userId: parentComment.authorId,
+          actorId: authorId,
+          actorName: authorName,
+          actorAvatar: authorAvatar,
+          type: 'comment',
+          videoId: current.$id,
+          videoTitle: current.title,
+          contentType: 'shorts'
+        });
+      }
     } catch (err) {
       console.error("Reply failed in Shorts:", err);
     } finally {

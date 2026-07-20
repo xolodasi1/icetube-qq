@@ -5,7 +5,7 @@ import {
   ShieldCheck, ShieldAlert, Users, Video, Activity, MoreHorizontal, 
   Ban, Trash2, Clock, Eye, AlertTriangle, 
   LayoutDashboard, PieChart, BarChart3, ArrowLeft, Loader2,
-  ChevronRight, Calendar, Bell, Search, Filter
+  ChevronRight, Calendar, Bell, Search, Filter, Film, Scissors
 } from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
 import { useLanguage } from '../lib/LanguageContext';
@@ -372,34 +372,34 @@ export default function AdminPanel() {
                   <div className="bg-[#70d6ff]/5 border border-[#70d6ff]/20 rounded-3xl p-6">
                      <h4 className="text-[#70d6ff] text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
                         <Bell className="w-3 h-3" />
-                        Platform Update
-                     </h4>
-                     <p className="text-[#70d6ff]/80 text-xs font-medium leading-relaxed">
-                        Icetube 2.0 deployment complete. Enhanced snowflake tracking and leaderboard syncing enabled.
+                        {language === 'ru' ? 'Обновление платформы' : 'Platform Update'}
+                      </h4>
+                      <p className="text-[#70d6ff]/80 text-xs font-medium leading-relaxed">
+                         {language === 'ru' ? 'Icetube 2.0 развёрнут. Улучшено отслеживание снежинок и синхронизация лидербордов.' : 'Icetube 2.0 deployment complete. Enhanced snowflake tracking and leaderboard syncing enabled.'}
                      </p>
                   </div>
                </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-               <MetricSquare label="Total Views" value="Live" change="+4.2%" trend="up" />
-               <MetricSquare label="Reports" value={stats.totalReports} change="Managed" trend="up" />
-               <MetricSquare label="Avg Session" value="--m" change="+0.8%" trend="up" />
-               <MetricSquare label="Network" value="Cloud" change="Active" trend="up" />
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+               <MetricSquare label={language === 'ru' ? 'Всего просмотров' : 'Total Views'} value="Live" change="+4.2%" trend="up" />
+               <MetricSquare label={language === 'ru' ? 'Жалобы' : 'Reports'} value={stats.totalReports} change="Managed" trend="up" />
+               <MetricSquare label={language === 'ru' ? 'Сред. сессия' : 'Avg Session'} value="--m" change="+0.8%" trend="up" />
+               <MetricSquare label={language === 'ru' ? 'Сеть' : 'Network'} value="Cloud" change="Active" trend="up" />
             </div>
 
             <div className="bg-white/[0.02] border ice-border rounded-3xl p-6 overflow-hidden">
                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-white uppercase italic tracking-tighter">Leaderboards (Top Creators)</h2>
-                  <div className="text-[10px] text-slate-500 font-bold uppercase">Based on current database state</div>
+                  <h2 className="text-xl font-bold text-white uppercase italic tracking-tighter">{language === 'ru' ? 'Лидеры (Топ создатели)' : 'Leaderboards (Top Creators)'}</h2>
+                  <div className="text-[10px] text-slate-500 font-bold uppercase">{language === 'ru' ? 'На основе текущего состояния БД' : 'Based on current database state'}</div>
                </div>
                
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                  <LeaderboardColumn title="By Subscribers" icon={Users} data={stats.leaderboards.subscribers} metric="subscribersCount" />
-                  <LeaderboardColumn title="By Likes" icon={ShieldCheck} data={stats.leaderboards.likes} metric="likesCount" />
-                  <LeaderboardColumn title="By Views" icon={Eye} data={stats.leaderboards.views} metric="viewsCount" />
-                  <LeaderboardColumn title="By Content" icon={Video} data={stats.leaderboards.videos} metric="videosCount" />
-                  <LeaderboardColumn title="By Snowflakes" icon={Activity} data={stats.leaderboards.snowflakes} metric="snowflakesCount" />
+                  <LeaderboardColumn title={language === 'ru' ? 'По подписчикам' : 'By Subscribers'} icon={Users} data={stats.leaderboards.subscribers} metric="subscribersCount" />
+                  <LeaderboardColumn title={language === 'ru' ? 'По лайкам' : 'By Likes'} icon={ShieldCheck} data={stats.leaderboards.likes} metric="likesCount" />
+                  <LeaderboardColumn title={language === 'ru' ? 'По просмотрам' : 'By Views'} icon={Eye} data={stats.leaderboards.views} metric="viewsCount" />
+                  <LeaderboardColumn title={language === 'ru' ? 'По контенту' : 'By Content'} icon={Video} data={stats.leaderboards.videos} metric="videosCount" />
+                  <LeaderboardColumn title={language === 'ru' ? 'По снежинкам' : 'By Snowflakes'} icon={Activity} data={stats.leaderboards.snowflakes} metric="snowflakesCount" />
                </div>
             </div>
           </div>
@@ -506,8 +506,8 @@ function UsersSection({ dbUsers, t, language }: any) {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white uppercase italic tracking-tighter">Registered Creators</h1>
-          <p className="text-sm text-slate-400">Total base: {dbUsers.length} profiles</p>
+          <h1 className="text-2xl font-bold text-white uppercase italic tracking-tighter">{language === 'ru' ? 'Зарегистрированные создатели' : 'Registered Creators'}</h1>
+          <p className="text-sm text-slate-400">{language === 'ru' ? `Всего: ${dbUsers.length} профилей` : `Total base: ${dbUsers.length} profiles`}</p>
         </div>
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -679,6 +679,11 @@ function ReportsSection({ reports, t, language, setReports }: any) {
 
 function ContentSection({ dbVideos, language, t, setDbVideos }: any) {
   const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
+  const [contentTab, setContentTab] = useState<'videos' | 'shorts'>('videos');
+
+  const videos = dbVideos.filter((v: any) => v.contentType !== 'shorts' && !v.isShort && !v.isShorts);
+  const shorts = dbVideos.filter((v: any) => v.contentType === 'shorts' || v.isShort || v.isShorts);
+  const currentList = contentTab === 'videos' ? videos : shorts;
 
   const handleDeleteVideo = async (videoId: string) => {
     if (!window.confirm(language === 'ru' ? 'Удалить это видео навсегда?' : 'Delete this video permanently?')) return;
@@ -721,8 +726,12 @@ function ContentSection({ dbVideos, language, t, setDbVideos }: any) {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white uppercase italic tracking-tighter">Content Management</h1>
-          <p className="text-sm text-slate-400">{dbVideos.length} videos total</p>
+          <h1 className="text-2xl font-bold text-white uppercase italic tracking-tighter">
+            {language === 'ru' ? 'Управление контентом' : 'Content Management'}
+          </h1>
+          <p className="text-sm text-slate-400">
+            {language === 'ru' ? `Всего: ${dbVideos.length}` : `${dbVideos.length} total`}
+          </p>
         </div>
         {selectedVideos.size > 0 && (
           <button
@@ -735,6 +744,28 @@ function ContentSection({ dbVideos, language, t, setDbVideos }: any) {
         )}
       </div>
 
+      {/* Videos / Shorts Tabs */}
+      <div className="flex items-center gap-4 border-b border-white/5 pb-1">
+        <button
+          onClick={() => { setContentTab('videos'); setSelectedVideos(new Set()); }}
+          className={`flex items-center gap-2 pb-3 font-bold text-sm transition-all relative ${contentTab === 'videos' ? 'text-[#70d6ff]' : 'text-slate-400 hover:text-white'}`}
+        >
+          <Film className="w-4 h-4" />
+          {language === 'ru' ? 'Видео' : 'Videos'}
+          <span className="text-[10px] opacity-60">({videos.length})</span>
+          {contentTab === 'videos' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#70d6ff] rounded-full" />}
+        </button>
+        <button
+          onClick={() => { setContentTab('shorts'); setSelectedVideos(new Set()); }}
+          className={`flex items-center gap-2 pb-3 font-bold text-sm transition-all relative ${contentTab === 'shorts' ? 'text-[#70d6ff]' : 'text-slate-400 hover:text-white'}`}
+        >
+          <Scissors className="w-4 h-4" />
+          Shorts
+          <span className="text-[10px] opacity-60">({shorts.length})</span>
+          {contentTab === 'shorts' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#70d6ff] rounded-full" />}
+        </button>
+      </div>
+
       <div className="bg-white/5 border ice-border rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -743,25 +774,27 @@ function ContentSection({ dbVideos, language, t, setDbVideos }: any) {
                 <th className="px-4 py-4 w-10">
                   <input
                     type="checkbox"
-                    checked={selectedVideos.size === dbVideos.length && dbVideos.length > 0}
+                    checked={selectedVideos.size === currentList.length && currentList.length > 0}
                     onChange={() => {
-                      if (selectedVideos.size === dbVideos.length) setSelectedVideos(new Set());
-                      else setSelectedVideos(new Set(dbVideos.map((v: any) => v.$id)));
+                      if (selectedVideos.size === currentList.length) setSelectedVideos(new Set());
+                      else setSelectedVideos(new Set(currentList.map((v: any) => v.$id)));
                     }}
                     className="accent-[#70d6ff]"
                   />
                 </th>
-                <th className="px-4 py-4">Title</th>
-                <th className="px-4 py-4">Author</th>
-                <th className="px-4 py-4">Type</th>
-                <th className="px-4 py-4 text-right">Views</th>
-                <th className="px-4 py-4 text-right">Actions</th>
+                <th className="px-4 py-4">{language === 'ru' ? 'Название' : 'Title'}</th>
+                <th className="px-4 py-4">{language === 'ru' ? 'Автор' : 'Author'}</th>
+                <th className="px-4 py-4">{language === 'ru' ? 'Тип' : 'Type'}</th>
+                <th className="px-4 py-4 text-right">{language === 'ru' ? 'Просмотры' : 'Views'}</th>
+                <th className="px-4 py-4 text-right">{language === 'ru' ? 'Действия' : 'Actions'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-slate-300">
-              {dbVideos.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-20 text-slate-500 text-xs font-bold uppercase tracking-widest">No content</td></tr>
-              ) : dbVideos.map((v: any) => (
+              {currentList.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-20 text-slate-500 text-xs font-bold uppercase tracking-widest">
+                  {language === 'ru' ? 'Нет контента' : 'No content'}
+                </td></tr>
+              ) : currentList.map((v: any) => (
                 <tr key={v.$id} className="hover:bg-white/5 transition-all">
                   <td className="px-4 py-3">
                     <input type="checkbox" checked={selectedVideos.has(v.$id)} onChange={() => toggleSelect(v.$id)} className="accent-[#70d6ff]" />
@@ -771,7 +804,7 @@ function ContentSection({ dbVideos, language, t, setDbVideos }: any) {
                       <div className="w-10 h-7 bg-black rounded border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
                         <Eye className="w-3 h-3 text-slate-600" />
                       </div>
-                      <span className="text-white font-bold text-sm truncate max-w-[200px]">{v.title || 'Untitled'}</span>
+                      <span className="text-white font-bold text-sm truncate max-w-[200px]">{v.title || (language === 'ru' ? 'Без названия' : 'Untitled')}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-400">{v.uploaderName || v.uploaderId?.slice(0, 8) || '—'}</td>

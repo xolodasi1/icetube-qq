@@ -72,18 +72,6 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
     { icon: Scissors, label: t('nav_clips'), path: "/clips", requiresAuth: true },
     
     { divider: true },
-    { header_text: t('nav_navigator') },
-    { icon: Music, label: t('nav_music'), path: "/music" },
-    { icon: Film, label: t('nav_movies'), path: "/movies" },
-    { icon: Radio, label: t('nav_live'), path: "/live" },
-    
-    { divider: true },
-    { header_text: t('nav_more_features') },
-    { icon: Youtube, label: t('nav_premium'), path: "/premium", iconColor: "text-[#70d6ff] group-hover:text-blue-300" },
-    { icon: Youtube, label: t('nav_yt_music'), path: "/yt-music", iconColor: "text-[#70d6ff] group-hover:text-blue-300" },
-    { icon: Youtube, label: t('nav_yt_kids'), path: "/yt-kids", iconColor: "text-[#70d6ff] group-hover:text-blue-300" },
-
-    { divider: true },
     { icon: Settings, label: t('nav_settings'), path: "/settings" },
     
     { divider: true },
@@ -151,34 +139,6 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
             </LinkComponent>
           );
         })}
-
-        {user && subscribedChannels.length > 0 && (
-          <>
-            <hr className="my-4 ice-border opacity-20 mx-2" />
-            <div className="px-3 py-2 text-white font-bold text-base flex items-center justify-between">
-              {t('nav_subscriptions_header')}
-            </div>
-            <div className="flex flex-col gap-1">
-              {subscribedChannels.map(channel => (
-                <Link 
-                  key={channel.id} 
-                  to={`/channel/${channel.id}`}
-                  className="sidebar-item flex items-center gap-4 p-3 rounded-xl transition-all duration-200 cursor-pointer group text-slate-400 hover:bg-white/5 hover:text-white"
-                >
-                  <img src={channel.avatar} alt={channel.name} className="w-6 h-6 rounded-full group-hover:scale-110 transition-transform duration-200" />
-                  <span className="truncate text-sm max-w-[120px]">{channel.name}</span>
-                  <div className="w-1.5 h-1.5 bg-[#70d6ff] rounded-full ml-auto opacity-0 group-hover:opacity-100 shadow-[0_0_8px_rgba(112,214,255,0.8)] transition-opacity"></div>
-                </Link>
-              ))}
-              {subscribedChannels.length >= 10 && (
-                  <button className="sidebar-item flex items-center gap-4 p-3 rounded-xl transition-all duration-200 cursor-pointer group text-slate-400 hover:bg-white/5 hover:text-white">
-                    <ChevronDown className="w-5 h-5 group-hover:scale-110 transition-transform duration-200 opacity-80" />
-                    <span className="truncate text-sm">{t('nav_show_more')}</span>
-                  </button>
-              )}
-            </div>
-          </>
-        )}
 
       </div>
     </aside>

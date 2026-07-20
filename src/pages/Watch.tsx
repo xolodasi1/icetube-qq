@@ -71,79 +71,6 @@ export default function Watch() {
   const [isMiniClosed, setIsMiniClosed] = useState(false);
   const [xpAlert, setXpAlert] = useState<{ show: boolean, msg: string } | null>(null);
 
-  const [activeDiscussionTab, setActiveDiscussionTab] = useState<'comments' | 'icechat'>('comments');
-  const [iceMessages, setIceMessages] = useState<any[]>([
-    { id: 1, author: "FrostyNights", avatarSlug: 'f', badge: "🧭", text: "Атмосфера льда просто бомбическая! Снежный Трейлер просто класс 🔥🧊", level: 1, color: "text-[#a5f3fc]" },
-    { id: 2, author: "SiberiaChill", avatarSlug: 's', badge: "🏔️", text: "Ахаха, этот ледяной мини плеер просто космос! Сворачивается без фризов 👍", level: 2, color: "text-[#38bdf8]" },
-    { id: 3, author: "CaptainFreeze", avatarSlug: 'c', badge: "❄️", text: "ICETUBE 2.0 заслуживает стать главным хабом зимней аудитории 🏔️❄️🥶", level: 3, color: "text-[#70d6ff]" },
-  ]);
-  const [iceInput, setIceInput] = useState("");
-  const [floatingStickers, setFloatingStickers] = useState<any[]>([]);
-
-  // Periodic simulated Ice Chat comments
-  useEffect(() => {
-    if (activeDiscussionTab !== 'icechat') return;
-
-    const presetMsgs = [
-      { author: "GlacierSlayer", badge: "🧊", text: "Ледокол Скорпион крушит тренды! 🧊🚀", level: 4, color: "text-amber-400" },
-      { author: "NeonPolar", badge: "🧭", text: "Этот плеер во льду - лучшее изобретение года 🌟", level: 2, color: "text-[#38bdf8]" },
-      { author: "AuroraQueen", badge: "🏔️", text: "Привет с Крайнего Севера! Тут у нас полярное сияние 🌨️", level: 5, color: "text-purple-400" },
-      { author: "TrendHunter", badge: "🧭", text: "Ловите морозный лайк! Рад запустить проект! 🧊❄️", level: 3, color: "text-[#70d6ff]" },
-      { author: "Icebreaker99", badge: "❄️", text: "ICETUBE 2.0 – топовый дизайн! 🏔️💎", level: 6, color: "text-[#a5f3fc]" },
-      { author: "FrostyPenguin", badge: "🐧", text: "У меня уже 3 уровень Охотника за трендами! 🧭❄️", level: 3, color: "text-[#70d6ff]" },
-      { author: "BlizzardKing", badge: "🔥", text: "Стикеры огонь во льду 🔥🧊 Реакции летят вверх!", level: 7, color: "text-red-400" },
-    ];
-
-    const interval = setInterval(() => {
-      const idx = Math.floor(Math.random() * presetMsgs.length);
-      const chosen = presetMsgs[idx];
-      const newMsg = {
-        id: Date.now() + Math.random(),
-        author: chosen.author,
-        avatarSlug: chosen.author.charAt(0).toLowerCase(),
-        badge: chosen.badge,
-        text: chosen.text,
-        level: chosen.level,
-        color: chosen.color
-      };
-      setIceMessages(prev => [...prev.slice(-30), newMsg]); // Keep last 30
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [activeDiscussionTab]);
-
-  const emitSticker = (emoji: string) => {
-    const sId = Date.now() + Math.random();
-    const leftOffset = Math.floor(Math.random() * 60) + 20;
-    setFloatingStickers(prev => [...prev, { id: sId, emoji, left: leftOffset }]);
-    setTimeout(() => {
-      setFloatingStickers(prev => prev.filter(s => s.id !== sId));
-    }, 2000);
-    triggerXpEarned(5, language === 'ru' ? 'Стикер-реакция' : 'Sticker reaction');
-  };
-
-  const handleSendIceMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!iceInput.trim()) return;
-
-    const userProfileName = user ? (profile?.name || user.name) : (language === 'ru' ? 'Снежный Гость' : 'Ice Guest');
-    const userLvl = getLevelInfo(getXP(user?.$id || "guest"));
-
-    const newMsg = {
-      id: Date.now(),
-      author: userProfileName,
-      avatarSlug: 'u',
-      badge: userLvl.badge,
-      text: iceInput,
-      level: userLvl.level,
-      color: userLvl.color
-    };
-
-    setIceMessages(prev => [...prev, newMsg]);
-    setIceInput("");
-    triggerXpEarned(20, language === 'ru' ? 'Сообщение в ледяной чат' : 'Ice Chat live message');
-  };
-
   const triggerXpEarned = (points: number, reason: string) => {
     const res = addXP(points, user?.$id || "guest");
     setXpAlert({
@@ -1341,8 +1268,11 @@ export default function Watch() {
         )}
         {/* Static Space-filler Card when Video is in PiP Floating Mode */}
         {isFloating && !isMiniClosed && (
-          <div className="w-full relative pt-[56.25%] bg-[#081222]/50 border border-[#70d6ff]/20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] sm:rounded-2xl overflow-hidden flex flex-col items-center justify-center p-6 text-center mb-4 transition-all duration-300">
-            <div className="absolute inset-0 bg-blue-950/10 backdrop-blur-[2px] z-0"></div>
+          <div 
+            className="w-full relative pt-[56.25%] border border-[#70d6ff]/20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] sm:rounded-2xl overflow-hidden mb-4 transition-all duration-300"
+            style={video?.thumbnailUrl ? { backgroundImage: `url(${getOptimizedThumbnail(video.thumbnailUrl)})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
+          >
+            <div className="absolute inset-0 bg-[#081222]/70 backdrop-blur-md z-0"></div>
             <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4">
               <div className="w-12 h-12 rounded-full bg-[#70d6ff]/10 border border-[#70d6ff]/30 flex items-center justify-center animate-pulse text-[#70d6ff] mb-2">
                 <Snowflake className="w-6 h-6 animate-spin" style={{ animationDuration: '6s' }} />
@@ -1365,29 +1295,40 @@ export default function Watch() {
         )}
 
         <div className={isFloating && !isMiniClosed
-          ? "fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[120] w-[300px] sm:w-[380px] aspect-video rounded-2xl overflow-hidden border-2 border-[#70d6ff]/80 bg-[#070b13]/95 shadow-[0_10px_45px_rgba(112,214,255,0.45)] backdrop-blur-md animate-in slide-in-from-bottom-5 duration-300 group"
+          ? "fixed bottom-6 right-6 md:bottom-10 lg:left-6 lg:right-auto z-[120] w-[300px] sm:w-[380px] aspect-video rounded-2xl overflow-hidden border-2 border-[#70d6ff]/80 bg-[#070b13]/95 shadow-[0_10px_45px_rgba(112,214,255,0.45)] backdrop-blur-md animate-in slide-in-from-bottom-5 duration-300 group"
           : "w-full relative pt-[56.25%] bg-black sm:rounded-2xl overflow-hidden sm:border-2 border-white/5 sm:shadow-[0_20px_50px_rgba(0,0,0,0.7)] group"
         }>
           {/* PiP Cover Bar on hover */}
           {isFloating && !isMiniClosed && (
-            <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-black/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 flex items-center justify-between px-3 text-white">
+            <div 
+              className="absolute inset-0 z-40 cursor-pointer group"
+              onClick={() => {
+                document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+                setIsFloating(false);
+              }}
+            >
+              <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-black/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-between px-3 text-white pointer-events-none">
               <span className="text-[10px] font-bold truncate max-w-[160px] text-[#70d6ff] drop-shadow-md">
                 {video.title}
               </span>
               <div className="flex items-center gap-2">
                 <button 
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
                     setIsFloating(false);
                   }}
-                  className="p-1 hover:bg-white/10 rounded-full transition-colors text-[#70d6ff]"
+                  className="p-1 hover:bg-white/10 rounded-full transition-colors text-[#70d6ff] pointer-events-auto"
                   title={language === 'ru' ? 'Вернуть на полный экран' : 'Restore'}
                 >
                   <ListFilter className="w-3.5 h-3.5 rotate-90" />
                 </button>
                 <button 
-                  onClick={() => setIsMiniClosed(true)}
-                  className="p-1 hover:bg-red-500/20 hover:text-red-400 rounded-full transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMiniClosed(true);
+                  }}
+                  className="p-1 hover:bg-red-500/20 hover:text-red-400 rounded-full transition-colors pointer-events-auto"
                   title={language === 'ru' ? 'Закрыть' : 'Close'}
                 >
                   <X className="w-3.5 h-3.5" />
@@ -1427,7 +1368,7 @@ export default function Watch() {
           <video 
             id="main-video-player"
             autoPlay 
-            controls 
+            controls={!(isFloating && !isMiniClosed)}
             className="absolute top-0 left-0 w-full h-full object-contain bg-black"
             poster={getOptimizedThumbnail(video.thumbnailUrl)}
             src={getOptimizedVideoUrl(video.videoUrl)} 
@@ -1504,78 +1445,79 @@ export default function Watch() {
               </button>
             </div>
 
-            <div className={`flex sm:flex-wrap items-center gap-2 pb-2 sm:pb-0 hide-scrollbar ${showMoreMenu ? 'overflow-visible' : 'overflow-x-auto sm:overflow-visible'}`}>
-              <div className="flex items-center bg-white/5 border ice-border rounded-full overflow-hidden shrink-0 cursor-pointer text-slate-300">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Like/Dislike group */}
+              <div className="flex items-center bg-white/5 border ice-border rounded-full overflow-hidden shrink-0">
                 <button 
                   disabled={isLiking || !user}
                   onClick={() => handleLike(true)}
-                  className={`flex items-center gap-2 px-3 sm:px-4 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors border-r ice-border text-sm ${likeState === 'liked' ? 'text-[#70d6ff]' : ''}`}
+                  className={`flex items-center gap-1.5 px-3 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors border-r ice-border text-sm ${likeState === 'liked' ? 'text-[#70d6ff]' : 'text-slate-300'}`}
                 >
                   <ThumbsUp className={`w-4 h-4 ${likeState === 'liked' ? 'fill-current' : ''}`} />
-                  <span>{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(likesCount)}</span>
+                  <span className="font-medium tabular-nums">{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(likesCount)}</span>
                 </button>
                 <button 
                   disabled={isLiking || !user}
                   onClick={() => handleLike(false)}
-                  className={`px-3 sm:px-4 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors text-sm flex items-center gap-2 ${likeState === 'disliked' ? 'text-red-400' : ''}`}
+                  className={`flex items-center gap-1.5 px-3 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors text-sm ${likeState === 'disliked' ? 'text-red-400' : 'text-slate-300'}`}
                 >
                   <ThumbsDown className={`w-4 h-4 ${likeState === 'disliked' ? 'fill-current text-red-400' : ''}`} />
-                  {dislikesCount > 0 && <span>{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(dislikesCount)}</span>}
+                  {dislikesCount > 0 && <span className="font-medium tabular-nums">{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(dislikesCount)}</span>}
                 </button>
               </div>
 
               <button 
                 disabled={isSnowflaking || !user}
                 onClick={handleSnowflake}
-                className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[#70d6ff]/10 text-slate-300 px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${hasSnowflaked ? 'text-[#70d6ff] border-[#70d6ff]/30 shadow-[0_0_10px_rgba(112,214,255,0.1)]' : ''}`}
+                className={`flex items-center gap-1.5 bg-white/5 border ice-border hover:bg-[#70d6ff]/10 px-3 py-2 rounded-full transition-colors text-sm shrink-0 ${hasSnowflaked ? 'text-[#70d6ff] border-[#70d6ff]/30 shadow-[0_0_10px_rgba(112,214,255,0.1)]' : 'text-slate-300'}`}
                 title={t('video_snowflakes')}
               >
                 <Snowflake className={`w-4 h-4 ${hasSnowflaked ? 'text-[#70d6ff] animate-pulse' : ''}`} />
-                <span>{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(snowflakesCount)}</span>
+                <span className="font-medium">{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(snowflakesCount)}</span>
               </button>
               
               <button 
                 onClick={handleShare}
-                className="flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] text-slate-300 px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0"
+                className="flex items-center gap-1.5 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] px-3 py-2 rounded-full transition-colors text-sm shrink-0 text-slate-300"
               >
                 <Share2 className="w-4 h-4" />
-                <span>{isCopied ? (language === 'ru' ? 'Ссылка скопирована!' : 'Link copied!') : t('video_share')}</span>
+                <span className="font-medium">{isCopied ? (language === 'ru' ? 'Ссылка скопирована!' : 'Link copied!') : t('video_share')}</span>
               </button>
 
               <button 
                 onClick={handleSave}
-                className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${isSaved ? 'text-[#70d6ff] border-[#70d6ff]/30' : 'text-slate-300 hover:text-[#70d6ff]'}`}
+                className={`flex items-center gap-1.5 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 py-2 rounded-full transition-colors text-sm shrink-0 ${isSaved ? 'text-[#70d6ff] border-[#70d6ff]/30' : 'text-slate-300 hover:text-[#70d6ff]'}`}
                 title={t('video_save')}
               >
                 <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
-                <span>{isSaved ? t('video_saved') : t('video_save')}</span>
+                <span className="font-medium">{isSaved ? t('video_saved') : t('video_save')}</span>
               </button>
 
               <button 
                 onClick={handleToggleWatchLater}
-                className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${isWatchLater ? 'text-[#70d6ff] border-[#70d6ff]/30' : 'text-slate-300 hover:text-[#70d6ff]'}`}
+                className={`flex items-center gap-1.5 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 py-2 rounded-full transition-colors text-sm shrink-0 ${isWatchLater ? 'text-[#70d6ff] border-[#70d6ff]/30' : 'text-slate-300 hover:text-[#70d6ff]'}`}
                 title={t('video_watch_later')}
               >
                 <Clock className={`w-4 h-4 ${isWatchLater ? 'fill-current' : ''}`} />
-                <span>{isWatchLater ? t('video_added_to_watch_later') : t('video_watch_later')}</span>
+                <span className="font-medium">{isWatchLater ? t('video_added_to_watch_later') : t('video_watch_later')}</span>
               </button>
 
               <button 
                 onClick={handleDownload}
-                className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${isDownloaded ? 'text-[#70d6ff] border-[#70d6ff]/30' : 'text-slate-300 hover:text-[#70d6ff]'}`}
+                className={`flex items-center gap-1.5 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 py-2 rounded-full transition-colors text-sm shrink-0 ${isDownloaded ? 'text-[#70d6ff] border-[#70d6ff]/30' : 'text-slate-300 hover:text-[#70d6ff]'}`}
                 title={language === 'ru' ? 'Скачать' : 'Download'}
               >
                 <Download className={`w-4 h-4 ${isDownloaded ? 'fill-current' : ''}`} />
-                <span>{isDownloaded ? (language === 'ru' ? 'Скачано' : 'Downloaded') : (language === 'ru' ? 'Скачать' : 'Download')}</span>
+                <span className="font-medium">{isDownloaded ? (language === 'ru' ? 'Скачано' : 'Downloaded') : (language === 'ru' ? 'Скачать' : 'Download')}</span>
               </button>
 
               <button 
                 onClick={() => setShowSleepTimerModal(true)}
-                className={`flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${sleepTimerActive ? 'text-yellow-400 border-yellow-400/40 shadow-[0_0_10px_rgba(234,179,8,0.25)]' : 'text-slate-300 hover:text-[#70d6ff]'}`}
+                className={`flex items-center gap-1.5 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 py-2 rounded-full transition-colors text-sm shrink-0 ${sleepTimerActive ? 'text-yellow-400 border-yellow-400/40 shadow-[0_0_10px_rgba(234,179,8,0.25)]' : 'text-slate-300 hover:text-[#70d6ff]'}`}
                 title={language === 'ru' ? 'Таймер Сна' : 'Sleep Timer'}
               >
                 <Moon className={`w-4 h-4 ${sleepTimerActive ? 'text-yellow-400 fill-current animate-pulse' : ''}`} />
-                <span>
+                <span className="font-medium">
                   {sleepTimerActive 
                     ? `${Math.floor(sleepTimerTime / 60)}:${String(sleepTimerTime % 60).padStart(2, '0')}` 
                     : (language === 'ru' ? 'Таймер Сна' : 'Sleep Timer')
@@ -1585,10 +1527,10 @@ export default function Watch() {
 
               <button 
                 onClick={() => setShowPlaylistModal(true)}
-                className="flex items-center gap-2 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 sm:px-4 py-2 rounded-full transition-colors text-sm shrink-0 text-slate-300 hover:text-[#70d6ff]"
+                className="flex items-center gap-1.5 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 py-2 rounded-full transition-colors text-sm shrink-0 text-slate-300 hover:text-[#70d6ff]"
               >
-                <ListFilter className="w-4 h-4" /> {/* Using ListFilter as generic List icon since ListVideo isn't imported yet */}
-                <span>{t('video_add_to_playlist') || 'Add to playlist'}</span>
+                <ListFilter className="w-4 h-4" />
+                <span className="font-medium">{t('video_add_to_playlist') || 'Add to playlist'}</span>
               </button>
               
               <div className="relative" ref={moreMenuRef}>
@@ -1831,45 +1773,20 @@ export default function Watch() {
         )}
 
         <div className="mt-8 mb-10 px-4 sm:px-0" id="comments-section">
-          {/* Tabs Selector for Comments & Ice-Chat */}
-          <div className="flex border-b border-white/5 mb-6 gap-6">
-            <button 
-              onClick={() => setActiveDiscussionTab('comments')}
-              className={`pb-3 font-extrabold text-sm sm:text-base tracking-wider uppercase transition-all ${activeDiscussionTab === 'comments' ? 'border-b-2 border-[#70d6ff] text-[#70d6ff]' : 'text-slate-400 hover:text-slate-200'}`}
-            >
-              💬 {language === 'ru' ? `Комментарии (${comments.length})` : `Comments (${comments.length})`}
-            </button>
-            <button 
-              onClick={() => {
-                setActiveDiscussionTab('icechat');
-                triggerXpEarned(5, language === 'ru' ? 'Вход в Холодный чат' : 'Entered Ice Chat');
-              }}
-              className={`pb-3 font-extrabold text-sm sm:text-base tracking-wider uppercase transition-all flex items-center gap-2 ${activeDiscussionTab === 'icechat' ? 'border-b-2 border-[#70d6ff] text-[#70d6ff] animate-pulse' : 'text-slate-400 hover:text-slate-200'}`}
-            >
-              🧊 Ice-Chat (Live)
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-              </span>
+          <div className="flex items-center gap-6 mb-6">
+            <h2 className="text-xl font-bold flex items-center gap-2 pb-1 inline-flex text-white">
+              {comments.length} {language === 'ru' ? (
+                comments.length % 10 === 1 && comments.length % 100 !== 11 ? 'комментарий' :
+                [2, 3, 4].includes(comments.length % 10) && ![12, 13, 14].includes(comments.length % 100) ? 'комментария' :
+                'комментариев'
+              ) : (comments.length === 1 ? 'comment' : 'comments')}
+            </h2>
+            <button className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors font-medium text-sm">
+              <ListFilter className="w-5 h-5" />
+              {t('comment_sort')}
             </button>
           </div>
 
-          {activeDiscussionTab === 'comments' && (
-            <>
-              <div className="flex items-center gap-6 mb-6">
-                <h2 className="text-xl font-bold flex items-center gap-2 pb-1 inline-flex text-white">
-                  {comments.length} {language === 'ru' ? (
-                    comments.length % 10 === 1 && comments.length % 100 !== 11 ? 'комментарий' :
-                    [2, 3, 4].includes(comments.length % 10) && ![12, 13, 14].includes(comments.length % 100) ? 'комментария' :
-                    'комментариев'
-                  ) : (comments.length === 1 ? 'comment' : 'comments')}
-                </h2>
-                <button className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors font-medium text-sm">
-                  <ListFilter className="w-5 h-5" />
-                  {t('comment_sort')}
-                </button>
-              </div>
-          
             <form onSubmit={handleAddComment} className="flex gap-4">
               <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-[#70d6ff] to-blue-600 flex items-center justify-center text-white font-bold shrink-0">
                 {user ? (
@@ -2088,101 +2005,6 @@ export default function Watch() {
               </div>
             ))}
           </div>
-          </>
-        )}
-
-        {activeDiscussionTab === 'icechat' && (
-          <div className="relative border ice-border rounded-2xl bg-[#09111e]/90 backdrop-blur-md p-4 flex flex-col h-[520px] shadow-lg animate-in fade-in duration-300 overflow-hidden mb-6">
-             {/* Keyframe inject */}
-             <style>{`
-               @keyframes iceFloatUp {
-                 0% {
-                   transform: translateY(0) scale(0.6) rotate(0deg);
-                   opacity: 0;
-                 }
-                 15% {
-                   opacity: 1;
-                   transform: translateY(-20px) scale(1.2) rotate(-10deg);
-                 }
-                 80% {
-                   opacity: 0.8;
-                 }
-                 100% {
-                   transform: translateY(-320px) scale(0.7) rotate(15deg);
-                   opacity: 0;
-                 }
-               }
-             `}</style>
-
-             {/* Floating stickers container */}
-             <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden">
-               {floatingStickers.map(s => (
-                 <span 
-                   key={s.id} 
-                   className="absolute text-4xl select-none"
-                   style={{ 
-                     left: `${s.left}%`, 
-                     bottom: '80px',
-                     animation: 'iceFloatUp 2.2s ease-out forwards'
-                   }}
-                 >
-                   {s.emoji}
-                 </span>
-               ))}
-             </div>
-
-             {/* Chat messages list */}
-             <div className="flex-1 overflow-y-auto pr-2 space-y-3 flex flex-col justify-end min-h-[300px]" style={{ scrollbarWidth: 'thin' }}>
-               <div className="text-center text-xs text-[#70d6ff]/60 border-b border-[#70d6ff]/10 pb-2.5 italic uppercase tracking-wider font-bold">
-                 ❄️ {language === 'ru' ? 'Добро пожаловать в Холодную Зону ICETUBE live!' : 'Welcome to the ICETUBE live Ice Zone!'} ❄️
-               </div>
-               <div className="space-y-3.5 max-h-[320px] overflow-y-auto">
-                 {iceMessages.map((msg) => (
-                   <div key={msg.id} className="flex items-start gap-2.5 text-xs py-1.5 border-b border-white/5 last:border-0 hover:bg-white/5 px-2 rounded-lg transition-colors">
-                     <span className="text-base select-none leading-none mt-0.5">{msg.badge}</span>
-                     <div className="flex-1">
-                       <div className="flex items-center gap-2 leading-none mb-1">
-                         <span className="font-bold text-slate-300">@{msg.author}</span>
-                         <span className={`inline-block text-[8px] px-1.5 py-0.5 rounded bg-blue-950/50 border border-[#70d6ff]/30 font-mono ${msg.color}`}>
-                           Lvl {msg.level}
-                         </span>
-                       </div>
-                       <p className="text-slate-100 font-medium leading-relaxed">{msg.text}</p>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-             </div>
-
-             {/* Reactions panel */}
-             <div className="border-t ice-border pt-3 mt-3">
-               <div className="text-[10px] text-[#70d6ff] font-extrabold uppercase tracking-widest mb-2 flex items-center justify-between">
-                 <span>❄️ {language === 'ru' ? 'БЫСТРЫЕ РЕАКЦИИ (+5 XP)' : 'QUICK STICKERS (+5 XP)'}</span>
-               </div>
-               <div className="flex gap-2">
-                 <button type="button" onClick={() => emitSticker('🧊')} className="flex-1 py-1 px-1 rounded-xl bg-white/5 hover:bg-[#70d6ff]/20 hover:scale-105 active:scale-95 border border-[#70d6ff]/20 text-center text-2xl transition-all" title="Замороженный лайк">🧊</button>
-                 <button type="button" onClick={() => emitSticker('🔥')} className="flex-1 py-1 px-1 rounded-xl bg-white/5 hover:bg-orange-500/20 hover:scale-105 active:scale-95 border border-[#12ffba]/20 text-center text-2xl transition-all" title="Огонь во льду">🔥</button>
-                 <button type="button" onClick={() => emitSticker('❄️')} className="flex-1 py-1 px-1 rounded-xl bg-white/5 hover:bg-slate-300/20 hover:scale-105 active:scale-95 border border-white/10 text-center text-2xl transition-all" title="Кристалл">❄️</button>
-                 <button type="button" onClick={() => emitSticker('🥶')} className="flex-1 py-1 px-1 rounded-xl bg-white/5 hover:bg-cyan-500/20 hover:scale-105 active:scale-95 border border-cyan-400/20 text-center text-2xl transition-all" title="Мерзляк">🥶</button>
-                 <button type="button" onClick={() => emitSticker('🐧')} className="flex-1 py-1 px-1 rounded-xl bg-white/5 hover:bg-slate-300/20 hover:scale-105 active:scale-95 border border-slate-400/20 text-center text-2xl transition-all" title="Пингвин">🐧</button>
-               </div>
-             </div>
-
-             {/* Chat input box */}
-             <form onSubmit={handleSendIceMessage} className="mt-4 flex gap-2">
-               <input 
-                 type="text" 
-                 value={iceInput}
-                 onChange={(e) => setIceInput(e.target.value)}
-                 placeholder={language === 'ru' ? 'Отправьте сообщение в Холодный чат (+20 XP)...' : 'Send message to Ice Chat (+20 XP)...'}
-                 className="flex-1 bg-white/5 rounded-xl px-3 py-2.5 text-xs border ice-border outline-none focus:border-[#70d6ff]/50 text-slate-100 placeholder:text-slate-500"
-               />
-               <button type="submit" className="p-2.5 rounded-xl bg-[#70d6ff] text-black font-bold hover:scale-105 active:scale-95 transition-all">
-                 <Send className="w-4 h-4" />
-               </button>
-             </form>
-          </div>
-        )}
         </div>
       </div>
 
