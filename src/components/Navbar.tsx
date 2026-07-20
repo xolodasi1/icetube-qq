@@ -391,6 +391,15 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
                       >
                         <Settings className="w-4 h-4" /> {t('nav_settings')}
                     </Link>
+                    {(user?.email === 'xolodtop889@gmail.com' || ['admin', 'moderator', 'proprietor'].includes(profile?.role || '')) && (
+                      <Link 
+                        to="/admin"
+                        onClick={() => setShowUserMenu(false)}
+                        className="w-full text-left px-4 py-3 text-sm text-[#70d6ff] hover:bg-white/5 transition-colors flex items-center gap-2 border-b ice-border font-medium"
+                      >
+                        <ShieldAlert className="w-4 h-4" /> {language === 'ru' ? 'Админ панель' : 'Admin Panel'}
+                      </Link>
+                    )}
                     <button 
                       onClick={logoutUser}
                       className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-white/5 transition-colors flex items-center gap-2"

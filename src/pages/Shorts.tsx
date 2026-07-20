@@ -25,6 +25,7 @@ export default function Shorts() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [likeState, setLikeState] = useState<'none' | 'liked' | 'disliked'>('none');
   const [likesCount, setLikesCount] = useState(0);
+  const [dislikesCount, setDislikesCount] = useState(0);
   const [subsCount, setSubsCount] = useState("0");
   const [isLiking, setIsLiking] = useState(false);
   const [isSubbing, setIsSubbing] = useState(false);
@@ -183,7 +184,9 @@ export default function Shorts() {
       if (likesCol) {
         const likesRes = await databases.listDocuments(dbId, likesCol, [Query.equal('videoId', videoId)]);
         const totalLikes = likesRes.documents.filter((d: any) => d.type === 'like' || !d.type).length;
+        const totalDislikes = likesRes.documents.filter((d: any) => d.type === 'dislike').length;
         setLikesCount(totalLikes);
+        setDislikesCount(totalDislikes);
         
         if (user) {
           const myLike = likesRes.documents.find(doc => doc.userId === user.$id && (doc.type === 'like' || doc.type === 'dislike' || !doc.type));
@@ -640,7 +643,7 @@ export default function Shorts() {
                 >
                     <ThumbsDown className={`w-6 h-6 ${likeState === 'disliked' ? 'fill-current' : ''}`} />
                 </button>
-                <span className="text-white text-xs font-bold drop-shadow-md">{language === 'ru' ? 'Не нр.' : 'Dislike'}</span>
+                <span className="text-white text-xs font-bold drop-shadow-md">{language === 'ru' ? 'Не нр.' : 'Dislike'}{dislikesCount > 0 && ` ${new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(dislikesCount)}`}</span>
             </div>
 
             <div className="flex flex-col items-center gap-1 group">
@@ -650,7 +653,7 @@ export default function Shorts() {
                 >
                     <MessageSquare className="w-6 h-6" />
                 </button>
-                <span className="text-white text-xs font-bold drop-shadow-md">...</span>
+                <span className="text-white text-xs font-bold drop-shadow-md">{comments.length > 0 ? new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(comments.length) : language === 'ru' ? 'Комм.' : 'Comm.'}</span>
             </div>
 
             <div className="flex flex-col items-center gap-1 group">

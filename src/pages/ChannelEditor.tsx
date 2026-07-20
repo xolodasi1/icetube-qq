@@ -5,7 +5,7 @@ import { useAuth } from '../lib/AuthContext';
 import { databases, account } from '../lib/appwrite';
 import { useLanguage } from '../lib/LanguageContext';
 import { Wand2, Save, X, Loader2, Image as ImageIcon, User, AlignLeft, AlertCircle, CheckCircle2, Upload } from 'lucide-react';
-import { Query } from 'appwrite';
+import { Query, ID } from 'appwrite';
 
 export default function ChannelEditor() {
   const { user, login, refreshProfile } = useAuth();
@@ -16,6 +16,22 @@ export default function ChannelEditor() {
   const [isBannerUploading, setIsBannerUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  const getFieldStatus = (field: string) => {
+    const errorMap: Record<string, string> = {
+      'name': language === 'ru' ? 'Имя канала' : 'Channel name',
+      'handle': language === 'ru' ? 'Псевдоним' : 'Handle',
+      'avatar': language === 'ru' ? 'Аватар' : 'Avatar',
+      'bannerUrl': language === 'ru' ? 'Баннер' : 'Banner',
+      'description': language === 'ru' ? 'Описание' : 'Description',
+      'website': 'Website',
+      'youtube': 'YouTube',
+      'tiktok': 'TikTok',
+      'telegram': 'Telegram',
+      'vk': 'VK'
+    };
+    return errorMap[field] || field;
+  };
 
   const [formData, setFormData] = useState({
     name: '',
@@ -114,9 +130,10 @@ export default function ChannelEditor() {
             avatar: '',
             bannerUrl: '',
             website: '',
-            twitter: '',
-            instagram: '',
-            facebook: ''
+            youtube: '',
+            tiktok: '',
+            telegram: '',
+            vk: ''
           });
         }
       } catch (err: any) {
@@ -166,7 +183,7 @@ export default function ChannelEditor() {
           await databases.updateDocument(dbId, colId, dbDocId, payload);
         } else {
           // Create new
-          await databases.createDocument(dbId, colId, 'unique()', payload);
+          await databases.createDocument(dbId, colId, ID.unique(), payload);
         }
       } catch (err: any) {
         throw new Error(`Profile (Users Collection) Error: ${err.message}`);
@@ -223,7 +240,24 @@ export default function ChannelEditor() {
       setTimeout(() => setSuccess(false), 5000);
     } catch (err: any) {
       console.error("Failed to save profile:", err);
-      setError(err.message || "An error occurred while saving your profile.");
+      const msg = err.message || '';
+      if (msg.includes('Missing or insufficient permissions')) {
+        setError(language === 'ru'
+          ? 'Нет прав на запись в базу. Проверьте правила доступа в Appwrite Console (Users collection → Settings → Permissions → дайте Users права Read/Create/Update).'
+          : 'Missing write permissions. Check Appwrite Console → Users collection → Settings → Permissions → grant Users Read/Create/Update.');
+      } else if (msg.includes('attribute') && msg.includes('not found')) {
+        const fieldMatch = msg.match(/"([^"]+)"/);
+        const field = fieldMatch ? fieldMatch[1] : '?';
+        setError(language === 'ru'
+          ? `Не хватает поля "${getFieldStatus(field)}" в коллекции Users. Добавьте его в Appwrite Console → Databases → Users → Attributes.`
+          : `Missing attribute "${field}" in Users collection. Add it in Appwrite Console.`);
+      } else if (msg.includes('Document already exists') || msg.includes('unique')) {
+        setError(language === 'ru'
+          ? 'Этот handle уже занят. Выберите другой псевдоним (@handle).'
+          : 'This handle is already taken. Choose a different one.');
+      } else {
+        setError(msg || (language === 'ru' ? 'Произошла ошибка при сохранении.' : 'An error occurred while saving.'));
+      }
     } finally {
       setIsSaving(false);
     }
@@ -256,37 +290,55 @@ export default function ChannelEditor() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8 pb-6 border-b ice-border">
-        <div>
-          <h1 className="text-3xl font-bold text-white font-display flex items-center gap-3">
-            <Wand2 className="w-8 h-8 text-[#70d6ff]" />
-            {t('editor_title')}
-          </h1>
-          <p className="text-slate-400 mt-1">{t('editor_basic_info')}</p>
+      {/* Header */}
+      <div className="relative mb-10">
+        <div className="absolute -top-6 -left-6 w-40 h-40 bg-[#70d6ff]/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-black text-white flex items-center gap-3">
+              <Wand2 className="w-8 h-8 text-[#70d6ff]" />
+              {language === 'ru' ? 'Настройка канала' : 'Channel Settings'}
+            </h1>
+            <p className="text-slate-400 mt-1 text-sm">
+              {language === 'ru' ? 'Измените внешний вид вашего канала Icetube' : 'Customize your Icetube channel appearance'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Icetube Studio</span>
+          </div>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Success/Error Alerts */}
         {success && (
-          <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 text-green-400 p-4 rounded-xl animate-in fade-in slide-in-from-top-4">
-            <CheckCircle2 className="w-5 h-5 shrink-0" />
-            <p>{t('editor_success')}</p>
+          <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 text-green-400 p-5 rounded-2xl animate-in fade-in slide-in-from-top-4">
+            <div className="p-1.5 bg-green-500/20 rounded-full">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <p className="font-bold text-sm">{t('editor_success')}</p>
           </div>
         )}
 
         {error && (
-          <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl">
-            <AlertCircle className="w-5 h-5 shrink-0" />
-            <p>{error}</p>
+          <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/20 text-red-400 p-5 rounded-2xl">
+            <div className="p-1.5 bg-red-500/20 rounded-full shrink-0 mt-0.5">
+              <AlertCircle className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-bold text-sm">{language === 'ru' ? 'Ошибка' : 'Error'}</p>
+              <p className="text-red-300/70 text-sm mt-1">{error}</p>
+            </div>
           </div>
         )}
 
-        {/* Profile Preview */}
-        <div className="bg-white/5 border ice-border rounded-2xl p-6 sm:p-8">
+        {/* Profile Section */}
+        <div className="bg-gradient-to-br from-white/[0.03] to-white/[0.01] border border-white/10 rounded-3xl p-6 sm:p-8 space-y-8">
+          {/* Avatar + Name Row */}
           <div className="flex flex-col sm:flex-row items-center gap-8">
             <div className="relative group">
-              <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-dashed border-slate-700 bg-slate-800/50 flex items-center justify-center transition-all group-hover:border-[#70d6ff]/50">
+              <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-dashed border-slate-600 bg-slate-800/50 flex items-center justify-center transition-all group-hover:border-[#70d6ff]/50 shadow-xl">
                 {isUploading ? (
                     <Loader2 className="w-10 h-10 animate-spin text-[#70d6ff]" />
                 ) : formData.avatar ? (
@@ -295,164 +347,181 @@ export default function ChannelEditor() {
                     alt="Preview" 
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name || 'U')}`;
+                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name || 'U')}&background=70d6ff&color=fff`;
                     }}
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <User className="w-12 h-12 text-slate-600" />
+                  <div className="flex flex-col items-center text-slate-500">
+                    <User className="w-10 h-10" />
+                    <span className="text-[9px] mt-1 font-bold uppercase">Avatar</span>
+                  </div>
                 )}
               </div>
-              <label className="absolute bottom-0 right-0 p-2 bg-[#70d6ff] rounded-full text-black hover:bg-[#5bc0e6] transition-colors cursor-pointer shadow-lg">
-                <ImageIcon className="w-5 h-5" />
+              <label className="absolute bottom-0 right-0 p-2.5 bg-[#70d6ff] rounded-full text-black hover:bg-white hover:text-[#70d6ff] transition-all cursor-pointer shadow-lg shadow-[#70d6ff]/30 hover:shadow-[#70d6ff]/50 active:scale-90">
+                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
                 <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} disabled={isUploading} />
               </label>
             </div>
 
-            <div className="flex-1 w-full space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
-                  <User className="w-4 h-4 text-[#70d6ff]" />
-                  {t('editor_name')}
+            <div className="flex-1 w-full space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                  <User className="w-3.5 h-3.5 text-[#70d6ff]" />
+                  {language === 'ru' ? 'Название канала' : 'Channel Name'}
                 </label>
                 <input
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#70d6ff] transition-colors"
-                  placeholder="Your channel name"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-[#70d6ff]/50 focus:bg-black/60 transition-all"
+                  placeholder={language === 'ru' ? 'Название канала' : 'Your channel name'}
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
-                  <User className="w-4 h-4 text-[#70d6ff]" />
-                  {t('editor_handle')}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                  <span className="text-[#70d6ff] font-mono text-sm">@</span>
+                  {language === 'ru' ? 'Псевдоним (handle)' : 'Handle'}
                 </label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">@</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-sm">@</span>
                   <input
                     type="text"
                     value={formData.handle}
                     onChange={(e) => setFormData({...formData, handle: e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase()})}
-                    className="w-full bg-black/40 border ice-border rounded-xl pl-8 pr-4 py-3 text-white focus:outline-none focus:border-[#70d6ff] transition-colors"
-                    placeholder="handle"
+                    className="w-full bg-black/40 border border-white/10 rounded-xl pl-9 pr-4 py-3.5 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-[#70d6ff]/50 focus:bg-black/60 transition-all font-mono"
+                    placeholder="username"
                   />
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-[#70d6ff]" />
-                  {t('editor_avatar')}
-                </label>
-                <input
-                  type="url"
-                  value={formData.avatar}
-                  onChange={(e) => setFormData({...formData, avatar: e.target.value})}
-                  className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#70d6ff] transition-colors"
-                  placeholder="https://example.com/avatar.jpg"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
-                    <ImageIcon className="w-4 h-4 text-[#70d6ff]" />
-                    {t('editor_banner')}
-                  </label>
-                  <label className="cursor-pointer text-xs flex items-center justify-center gap-1.5 bg-[#70d6ff]/10 hover:bg-[#70d6ff]/20 text-[#70d6ff] px-3 py-1.5 rounded-lg transition-colors border border-[#70d6ff]/20">
-                    {isBannerUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                    <span>{language === 'ru' ? 'Загрузить файл' : 'Upload file'}</span>
-                    <input type="file" accept="image/*" className="hidden" onChange={handleBannerChange} disabled={isBannerUploading} />
-                  </label>
-                </div>
-                <div className="relative group overflow-hidden rounded-xl bg-black/40 border ice-border">
-                  <input
-                    type="url"
-                    value={formData.bannerUrl}
-                    onChange={(e) => setFormData({...formData, bannerUrl: e.target.value})}
-                    className="w-full bg-transparent px-4 py-3 text-white focus:outline-none focus:bg-white/5 transition-colors relative z-10"
-                    placeholder="https://example.com/banner.jpg"
-                  />
-                  {formData.bannerUrl && (
-                    <div className="w-full h-24 border-t border-white/10 relative">
-                      <img src={formData.bannerUrl} alt="Banner Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      <div className="absolute inset-0 bg-black/20 pointer-events-none"></div>
-                    </div>
-                  )}
-                </div>
+                {formData.handle && (
+                  <p className="text-[10px] text-slate-500 font-mono">icetube.com/@{formData.handle}</p>
+                )}
               </div>
             </div>
           </div>
 
-          <div className="mt-8 space-y-2">
-            <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <AlignLeft className="w-4 h-4 text-[#70d6ff]" />
-              {t('editor_description')}
+          {/* Avatar URL + Banner */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                <ImageIcon className="w-3.5 h-3.5 text-[#70d6ff]" />
+                {language === 'ru' ? 'URL аватара' : 'Avatar URL'}
+              </label>
+              <input
+                type="url"
+                value={formData.avatar}
+                onChange={(e) => setFormData({...formData, avatar: e.target.value})}
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-[#70d6ff]/50 transition-all font-mono text-[13px]"
+                placeholder="https://example.com/avatar.jpg"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                  <ImageIcon className="w-3.5 h-3.5 text-[#70d6ff]" />
+                  {language === 'ru' ? 'Баннер' : 'Banner'}
+                </label>
+                <label className="cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-[#70d6ff]/10 hover:bg-[#70d6ff]/20 text-[#70d6ff] px-3 py-1.5 rounded-lg transition-colors border border-[#70d6ff]/20">
+                  {isBannerUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                  <span>{language === 'ru' ? 'Файл' : 'File'}</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleBannerChange} disabled={isBannerUploading} />
+                </label>
+              </div>
+              <div className="relative group overflow-hidden rounded-xl bg-black/40 border border-white/10">
+                <input
+                  type="url"
+                  value={formData.bannerUrl}
+                  onChange={(e) => setFormData({...formData, bannerUrl: e.target.value})}
+                  className="w-full bg-transparent px-4 py-3 text-white text-sm placeholder:text-slate-600 focus:outline-none transition-all font-mono text-[13px]"
+                  placeholder="https://example.com/banner.jpg"
+                />
+                {formData.bannerUrl && (
+                  <div className="w-full h-24 border-t border-white/5 relative">
+                    <img src={formData.bannerUrl} alt="Banner Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+              <AlignLeft className="w-3.5 h-3.5 text-[#70d6ff]" />
+              {language === 'ru' ? 'Описание канала' : 'Channel Description'}
             </label>
             <textarea
-              rows={5}
+              rows={4}
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
-              className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#70d6ff] transition-colors resize-none"
-              placeholder="Tell viewers about your channel"
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-[#70d6ff]/50 focus:bg-black/60 transition-all resize-none"
+              placeholder={language === 'ru' ? 'Расскажите о своём канале...' : 'Tell viewers about your channel...'}
             />
           </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-             <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">Website</label>
-                <input type="url" value={formData.website} onChange={(e) => setFormData({...formData, website: e.target.value})} className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white" placeholder="https://" />
-             </div>
-             <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">YouTube</label>
-                <input type="url" value={formData.youtube} onChange={(e) => setFormData({...formData, youtube: e.target.value})} className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white" placeholder="https://" />
-             </div>
-             <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">TikTok</label>
-                <input type="url" value={formData.tiktok} onChange={(e) => setFormData({...formData, tiktok: e.target.value})} className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white" placeholder="https://" />
-             </div>
-             <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">Telegram</label>
-                <input type="url" value={formData.telegram} onChange={(e) => setFormData({...formData, telegram: e.target.value})} className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white" placeholder="https://" />
-             </div>
-             <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">VK</label>
-                <input type="url" value={formData.vk} onChange={(e) => setFormData({...formData, vk: e.target.value})} className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white" placeholder="https://" />
-             </div>
+
+          {/* Social Links */}
+          <div>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <span className="w-1 h-4 bg-[#70d6ff] rounded-full" />
+              {language === 'ru' ? 'Ссылки' : 'Social Links'}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+               <LinkInput icon="🌐" label="Website" value={formData.website} onChange={(v) => setFormData({...formData, website: v})} />
+               <LinkInput icon="▶️" label="YouTube" value={formData.youtube} onChange={(v) => setFormData({...formData, youtube: v})} />
+               <LinkInput icon="🎵" label="TikTok" value={formData.tiktok} onChange={(v) => setFormData({...formData, tiktok: v})} />
+               <LinkInput icon="✈️" label="Telegram" value={formData.telegram} onChange={(v) => setFormData({...formData, telegram: v})} />
+               <LinkInput icon="🔵" label="VK" value={formData.vk} onChange={(v) => setFormData({...formData, vk: v})} />
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-4">
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-3 flex-wrap">
           <Link
             to="/channel/me"
-            className="px-6 py-3 rounded-xl font-bold bg-white/5 text-slate-300 hover:bg-white/10 transition-all"
+            className="px-6 py-3 rounded-xl font-bold text-sm bg-white/5 text-slate-300 hover:bg-white/10 border border-white/5 transition-all"
           >
-            {language === 'ru' ? 'Вернуться на канал' : 'Back to channel'}
+            {language === 'ru' ? 'Канал' : 'Channel'}
           </Link>
           <button
             type="button"
             onClick={() => window.history.back()}
-            className="px-6 py-3 rounded-xl font-bold bg-white/5 text-slate-300 hover:bg-white/10 transition-all"
+            className="px-6 py-3 rounded-xl font-bold text-sm bg-white/5 text-slate-300 hover:bg-white/10 border border-white/5 transition-all"
           >
-            {t('editor_cancel')}
+            {language === 'ru' ? 'Отмена' : 'Cancel'}
           </button>
           <button
             type="submit"
             disabled={isSaving}
-            className="flex items-center gap-2 bg-[#70d6ff] hover:bg-[#70d6ff]/90 text-[#05070a] px-8 py-3 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(112,214,255,0.3)] hover:shadow-[0_0_30px_rgba(112,214,255,0.5)] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 bg-gradient-to-r from-[#70d6ff] to-[#5bc0e6] hover:from-[#5bc0e6] hover:to-[#70d6ff] text-[#05070a] px-8 py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-[#70d6ff]/20 hover:shadow-[#70d6ff]/40 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSaving ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <Save className="w-5 h-5" />
+              <Save className="w-4 h-4" />
             )}
-            <span>{t('editor_save')}</span>
+            <span>{language === 'ru' ? 'Сохранить' : 'Save Changes'}</span>
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function LinkInput({ icon, label, value, onChange }: { icon: string; label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center gap-3 bg-black/30 border border-white/5 rounded-xl px-4 py-3 focus-within:border-[#70d6ff]/30 focus-within:bg-black/50 transition-all">
+      <span className="text-base shrink-0">{icon}</span>
+      <input
+        type="url"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="flex-1 bg-transparent text-white text-sm placeholder:text-slate-600 focus:outline-none font-mono text-[13px]"
+        placeholder={`https://${label.toLowerCase()}.com/`}
+      />
     </div>
   );
 }

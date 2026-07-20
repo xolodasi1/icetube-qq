@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { databases } from '../lib/appwrite';
 import { useLanguage } from '../lib/LanguageContext';
-import { Loader2, LayoutDashboard, Film, TrendingUp, MoreVertical, Edit2, Trash2, AlertCircle, Upload, Wand2, X } from 'lucide-react';
+import { Loader2, LayoutDashboard, Film, TrendingUp, Edit2, Trash2, AlertCircle, Upload, Wand2, X, Users, Clock, Eye, Activity } from 'lucide-react';
 import { Query, ID } from 'appwrite';
 import { UploadModal } from '../components/UploadModal';
 import { Link } from 'react-router-dom';
@@ -15,25 +15,7 @@ export default function Studio() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editingVideo, setEditingVideo] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [stats, setStats] = useState({ totalViews: 0, totalVideos: 0 });
-  const [videoSort, setVideoSort] = useState<'newest' | 'popular' | 'oldest'>('newest');
-  const [mainTab, setMainTab] = useState<'analytics' | 'content'>('analytics');
-  const [contentTab, setContentTab] = useState<'videos' | 'shorts'>('videos');
-
-  const regularVideos = videos.filter(v => v.contentType !== 'shorts');
-  const shortsVideos = videos.filter(v => v.contentType === 'shorts');
-
-  const sortVideos = (vids: any[]) => {
-    return [...vids].sort((a, b) => {
-      if (videoSort === 'popular') return b.views - a.views;
-      if (videoSort === 'oldest') return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-    });
-  };
-
-  const sortedRegularVideos = sortVideos(regularVideos);
-  const sortedShortsVideos = sortVideos(shortsVideos);
-  const sortedAllVideos = sortVideos(videos);
+  const [stats, setStats] = useState({ totalViews: 0, totalVideos: 0, totalShorts: 0, subscriberCount: 0 });
 
   const handleDelete = async (videoId: string) => {
     if (!window.confirm(language === 'ru' ? 'Вы уверены, что хотите удалить это видео? Это действие нельзя отменить.' : 'Are you sure you want to delete this video? This action cannot be undone.')) return;
@@ -126,9 +108,26 @@ export default function Studio() {
       }));
 
       setVideos(userVids.reverse());
+
+      // Fetch subscriber count
+      let subscriberCount = 0;
+      const subsColId = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
+      if (dbId && subsColId) {
+        try {
+          const subsRes = await databases.listDocuments(dbId, subsColId, [
+            Query.equal('channelId', user.$id)
+          ]);
+          subscriberCount = subsRes.total;
+        } catch (e) {
+          console.warn("Subs collection error:", e);
+        }
+      }
+
       setStats({
         totalVideos: response.total,
-        totalViews: userVids.reduce((acc, curr) => acc + curr.views, 0)
+        totalViews: userVids.reduce((acc, curr) => acc + curr.views, 0),
+        totalShorts: userVids.filter(v => v.contentType === 'shorts').length,
+        subscriberCount
       });
     } catch (err) {
       console.error("Studio fetch failed:", err);
@@ -139,30 +138,9 @@ export default function Studio() {
 
   useEffect(() => {
     fetchStats();
+    const interval = setInterval(fetchStats, 15000);
+    return () => clearInterval(interval);
   }, [user, language]);
-
-  const SortPills = () => (
-    <div className="flex gap-2">
-      <button 
-        onClick={() => setVideoSort('newest')}
-        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${videoSort === 'newest' ? 'bg-[#70d6ff] text-black shadow-[0_0_10px_rgba(112,214,255,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border border-white/5'}`}
-      >
-        {language === 'ru' ? 'Новые' : 'Newest'}
-      </button>
-      <button 
-        onClick={() => setVideoSort('popular')}
-        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${videoSort === 'popular' ? 'bg-[#70d6ff] text-black shadow-[0_0_10px_rgba(112,214,255,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border border-white/5'}`}
-      >
-        {language === 'ru' ? 'Популярные' : 'Popular'}
-      </button>
-      <button 
-        onClick={() => setVideoSort('oldest')}
-        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${videoSort === 'oldest' ? 'bg-[#70d6ff] text-black shadow-[0_0_10px_rgba(112,214,255,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border border-white/5'}`}
-      >
-        {language === 'ru' ? 'Старые' : 'Oldest'}
-      </button>
-    </div>
-  );
 
   if (!user) {
     return (
@@ -217,201 +195,128 @@ export default function Studio() {
         </div>
       </div>
 
-      {/* Studio Navigation Tabs */}
-      <div className="flex items-center gap-2 mb-8 bg-white/5 p-1.5 rounded-2xl border ice-border w-fit">
-        <button 
-          onClick={() => setMainTab('analytics')}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${mainTab === 'analytics' ? 'bg-[#70d6ff] text-[#05070a] shadow-[0_4px_15px_rgba(112,214,255,0.3)]' : 'text-slate-400 hover:text-white'}`}
-        >
-          <TrendingUp className="w-4 h-4" />
-          <span>{language === 'ru' ? 'Аналитика' : 'Analytics'}</span>
-        </button>
-        <button 
-          onClick={() => setMainTab('content')}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${mainTab === 'content' ? 'bg-[#70d6ff] text-[#05070a] shadow-[0_4px_15_rgba(112,214,255,0.3)]' : 'text-slate-400 hover:text-white'}`}
-        >
-          <Film className="w-4 h-4" />
-          <span>{language === 'ru' ? 'Контент' : 'Content'}</span>
-        </button>
-      </div>
-
       <UploadModal 
         isOpen={isUploadModalOpen} 
         onClose={() => setIsUploadModalOpen(false)} 
         onUploadSuccess={fetchStats}
       />
 
-      {mainTab === 'analytics' ? (
-        <div className="space-y-8">
-          {/* Stats Dashboard */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-white/5 border ice-border rounded-2xl p-6 relative overflow-hidden group">
-              <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#70d6ff]/10 rounded-full blur-2xl group-hover:bg-[#70d6ff]/20 transition-all"></div>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-[#70d6ff]/10 rounded-xl">
-                  <TrendingUp className="w-6 h-6 text-[#70d6ff]" />
-                </div>
-                <span className="text-slate-400 font-medium">{t('studio_total_views')}</span>
-              </div>
-              <div className="text-4xl font-bold text-white">
-                {new Intl.NumberFormat().format(stats.totalViews)}
+      {/* Analytics Dashboard */}
+      <div className="space-y-8">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6 relative overflow-hidden group">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#70d6ff]/10 rounded-full blur-2xl group-hover:bg-[#70d6ff]/20 transition-all" />
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2.5 bg-[#70d6ff]/10 rounded-xl">
+                <Eye className="w-5 h-5 text-[#70d6ff]" />
               </div>
             </div>
-
-            <div className="bg-white/5 border ice-border rounded-2xl p-6 relative overflow-hidden group">
-              <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all"></div>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-blue-500/10 rounded-xl">
-                  <Film className="w-6 h-6 text-blue-500" />
-                </div>
-                <span className="text-slate-400 font-medium">{t('studio_total_videos')}</span>
-              </div>
-              <div className="text-4xl font-bold text-white">
-                {stats.totalVideos}
-              </div>
+            <div className="text-3xl font-black text-white mb-1">
+              {new Intl.NumberFormat().format(stats.totalViews)}
             </div>
+            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{language === 'ru' ? 'Всего просмотров' : 'Total Views'}</p>
           </div>
 
-
-        </div>
-      ) : (
-        /* Content Table */
-        <div className="bg-white/5 border ice-border rounded-2xl overflow-hidden">
-          <div className="p-6 border-b ice-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-            <div className="flex items-center gap-6 border-b border-white/5 sm:border-none pb-2 sm:pb-0 w-full sm:w-auto">
-              <button 
-                onClick={() => setContentTab('videos')}
-                className={`text-xl font-bold pb-2 transition-all relative ${contentTab === 'videos' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                {language === 'ru' ? 'Видео' : 'Videos'}
-                {contentTab === 'videos' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#70d6ff] rounded-t-full shadow-[0_-2px_10px_rgba(112,214,255,0.5)]" />}
-              </button>
-              <button 
-                onClick={() => setContentTab('shorts')}
-                className={`text-xl font-bold pb-2 transition-all relative ${contentTab === 'shorts' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                Shorts
-                {contentTab === 'shorts' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#70d6ff] rounded-t-full shadow-[0_-2px_10px_rgba(112,214,255,0.5)]" />}
-              </button>
+          <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6 relative overflow-hidden group">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all" />
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2.5 bg-blue-500/10 rounded-xl">
+                <Users className="w-5 h-5 text-blue-400" />
+              </div>
             </div>
-            <SortPills />
+            <div className="text-3xl font-black text-white mb-1">
+              {new Intl.NumberFormat().format(stats.subscriberCount)}
+            </div>
+            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{language === 'ru' ? 'Подписчики' : 'Subscribers'}</p>
           </div>
-          
-          <div className="overflow-x-auto">
-            {contentTab === 'videos' ? (
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b ice-border bg-white/[0.02]">
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{language === 'ru' ? 'Видео' : 'Video'}</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">{language === 'ru' ? 'Дата' : 'Date'}</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">{language === 'ru' ? 'Просмотры' : 'Views'}</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">{language === 'ru' ? 'Действия' : 'Actions'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y ice-border">
-                  {sortedRegularVideos.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-slate-500 italic">
-                        {language === 'ru' ? 'Видео не найдены.' : 'No videos found.'}
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedRegularVideos.map((vid) => (
-                      <tr key={vid.id} className="hover:bg-white/[0.03] transition-colors group">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-4">
-                            <img 
-                              src={vid.thumbnailUrl} 
-                              className="w-20 h-12 object-cover rounded-lg border ice-border shrink-0" 
-                              alt={vid.title}
-                              referrerPolicy="no-referrer"
-                            />
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-white font-medium truncate max-w-[200px] sm:max-w-[300px]">{vid.title}</span>
-                              <span className="text-xs text-[#70d6ff]/70">{vid.status}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center text-sm text-slate-400">
-                          {vid.uploadDate}
-                        </td>
-                        <td className="px-6 py-4 text-center text-white font-medium">
-                          {vid.views}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => setEditingVideo(vid)} className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors" title={t('studio_edit')}>
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => handleDelete(vid.id)} disabled={isDeleting === vid.id} className="p-2 hover:bg-red-500/10 rounded-lg text-slate-400 hover:text-red-400 transition-colors disabled:opacity-50" title={t('studio_delete')}>
-                              {isDeleting === vid.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            ) : (
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b ice-border bg-white/[0.02]">
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{language === 'ru' ? 'Шортс' : 'Shorts'}</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">{language === 'ru' ? 'Дата' : 'Date'}</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">{language === 'ru' ? 'Просмотры' : 'Views'}</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">{language === 'ru' ? 'Действия' : 'Actions'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y ice-border">
-                  {sortedShortsVideos.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-slate-500 italic">
-                        {language === 'ru' ? 'Shorts не найдены.' : 'No Shorts found.'}
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedShortsVideos.map((vid) => (
-                      <tr key={vid.id} className="hover:bg-white/[0.03] transition-colors group">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-4">
-                            <img 
-                              src={vid.thumbnailUrl} 
-                              className="w-12 h-20 object-cover rounded-lg border ice-border shrink-0" 
-                              alt={vid.title}
-                              referrerPolicy="no-referrer"
-                            />
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-white font-medium truncate max-w-[200px] sm:max-w-[300px]">{vid.title}</span>
-                              <span className="text-xs text-[#70d6ff]/70">{vid.status}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center text-sm text-slate-400">
-                          {vid.uploadDate}
-                        </td>
-                        <td className="px-6 py-4 text-center text-white font-medium">
-                          {vid.views}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => setEditingVideo(vid)} className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors" title={t('studio_edit')}>
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => handleDelete(vid.id)} disabled={isDeleting === vid.id} className="p-2 hover:bg-red-500/10 rounded-lg text-slate-400 hover:text-red-400 transition-colors disabled:opacity-50" title={t('studio_delete')}>
-                              {isDeleting === vid.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            )}
+
+          <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6 relative overflow-hidden group">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all" />
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2.5 bg-purple-500/10 rounded-xl">
+                <Film className="w-5 h-5 text-purple-400" />
+              </div>
+            </div>
+            <div className="text-3xl font-black text-white mb-1">
+              {stats.totalVideos}
+            </div>
+            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{language === 'ru' ? 'Всего видео' : 'Total Videos'}</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6 relative overflow-hidden group">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl group-hover:bg-teal-500/20 transition-all" />
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2.5 bg-teal-500/10 rounded-xl">
+                <Activity className="w-5 h-5 text-teal-400" />
+              </div>
+            </div>
+            <div className="text-3xl font-black text-white mb-1">
+              {stats.totalShorts}
+            </div>
+            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Shorts</p>
           </div>
         </div>
-      )}
+
+        {/* Quick Insights */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6">
+            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-[#70d6ff]" />
+              {language === 'ru' ? 'Последние видео' : 'Recent Uploads'}
+            </h3>
+            <div className="space-y-3">
+              {videos.slice(0, 5).length === 0 ? (
+                <p className="text-xs text-slate-500 text-center py-8">{language === 'ru' ? 'Нет видео' : 'No videos yet'}</p>
+              ) : videos.slice(0, 5).map(v => (
+                <div key={v.id} className="flex items-center gap-3">
+                  <img src={v.thumbnailUrl} className="w-12 h-8 rounded-lg object-cover bg-slate-800 shrink-0" alt="" referrerPolicy="no-referrer" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white font-medium truncate">{v.title}</p>
+                    <p className="text-[10px] text-slate-500"><Eye className="w-3 h-3 inline mr-1" />{v.views}</p>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${v.contentType === 'shorts' ? 'bg-teal-500/10 text-teal-400' : 'bg-purple-500/10 text-purple-400'}`}>
+                    {v.contentType === 'shorts' ? 'Short' : 'Video'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6">
+            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-green-400" />
+              {language === 'ru' ? 'Производительность' : 'Performance'}
+            </h3>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs"><span className="text-slate-400">{language === 'ru' ? 'Среднее просмотров' : 'Avg Views/Video'}</span><span className="text-white font-bold">{videos.length > 0 ? Math.round(stats.totalViews / videos.length) : 0}</span></div>
+                <div className="w-full bg-white/5 rounded-full h-1.5">
+                  <div className="h-full bg-gradient-to-r from-[#70d6ff] to-blue-500 rounded-full" style={{ width: `${Math.min(100, (stats.totalViews / Math.max(1, stats.totalVideos)) * 10)}%` }} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs"><span className="text-slate-400">{language === 'ru' ? 'Подписчиков' : 'Subscribers'}</span><span className="text-white font-bold">{stats.subscriberCount}</span></div>
+                <div className="w-full bg-white/5 rounded-full h-1.5">
+                  <div className="h-full bg-gradient-to-r from-blue-500 to-teal-400 rounded-full" style={{ width: `${Math.min(100, stats.subscriberCount * 5)}%` }} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs"><span className="text-slate-400">{language === 'ru' ? 'Shorts' : 'Shorts'}</span><span className="text-white font-bold">{stats.totalShorts}</span></div>
+                <div className="w-full bg-white/5 rounded-full h-1.5">
+                  <div className="h-full bg-gradient-to-r from-teal-400 to-green-400 rounded-full" style={{ width: `${videos.length > 0 ? (stats.totalShorts / videos.length) * 100 : 0}%` }} />
+                </div>
+              </div>
+              <div className="mt-4 p-3 bg-[#70d6ff]/5 border border-[#70d6ff]/10 rounded-xl">
+                <div className="flex items-center gap-2 text-[#70d6ff] text-xs font-bold">
+                  <Clock className="w-3 h-3" />
+                  {language === 'ru' ? 'Обновление каждые 15 сек' : 'Auto-updates every 15s'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Edit Video Modal */}
       {editingVideo && (

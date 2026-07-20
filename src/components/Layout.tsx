@@ -10,7 +10,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
 
-  const isStudioView = location.pathname.startsWith('/studio') || location.pathname.startsWith('/admin');
+  const isStudioView = location.pathname.startsWith('/studio');
+  const isAdminView = location.pathname.startsWith('/admin');
 
   // On mobile, close sidebar when changing routes
   useEffect(() => {
@@ -49,20 +50,20 @@ export function Layout({ children }: { children: ReactNode }) {
       <div className="relative z-10 w-full h-full flex flex-col flex-1">
         <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         <div className="flex flex-1 overflow-hidden pt-16 relative">
-          {isStudioView ? (
+          {isAdminView ? null : isStudioView ? (
             <StudioSidebar isOpen={sidebarOpen} onClose={() => window.innerWidth < 1024 && setSidebarOpen(false)} />
           ) : (
             <Sidebar isOpen={sidebarOpen} />
           )}
           {/* Click-away overlay for mobile */}
-          {sidebarOpen && (
+          {!isAdminView && sidebarOpen && (
             <div 
               className="fixed inset-0 bg-black/60 z-[55] lg:hidden"
               onClick={() => setSidebarOpen(false)}
             />
           )}
           {/* Adjusted padding: Main layout has padding bottom for mobile nav */}
-          <main className={`flex-1 overflow-y-auto custom-scrollbar transition-all duration-300 ${sidebarOpen ? 'sm:ml-64' : 'ml-0'} ${location.pathname.startsWith('/watch') ? 'pb-0' : 'pb-20 sm:pb-0'}`}>
+          <main className={`flex-1 overflow-y-auto custom-scrollbar transition-all duration-300 ${!isAdminView && sidebarOpen ? 'sm:ml-64' : 'ml-0'} ${location.pathname.startsWith('/watch') ? 'pb-0' : 'pb-20 sm:pb-0'}`}>
             <div className="p-0 sm:p-6 lg:p-8 mx-auto max-w-[2000px]">
               {children}
             </div>

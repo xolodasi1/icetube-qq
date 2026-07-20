@@ -1,27 +1,17 @@
-import { LayoutDashboard, Film, Wand2, ShieldAlert, Settings, Home, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Film, Wand2, ArrowLeft } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import clsx from "clsx";
 import { useLanguage } from "../lib/LanguageContext";
-import { useAuth } from "../lib/AuthContext";
 
 export function StudioSidebar({ isOpen, onClose }: { isOpen: boolean, onClose?: () => void }) {
   const location = useLocation();
   const { t, language } = useLanguage();
-  const { user, profile } = useAuth();
 
   const studioItems = [
     { icon: LayoutDashboard, label: t('studio_title'), path: "/studio" },
     { icon: Film, label: t('studio_content'), path: "/studio/content" },
     { icon: Wand2, label: t('studio_customize'), path: "/studio/editor" },
-    { divider: true },
-    { icon: Home, label: t('nav_home'), path: "/" },
   ];
-
-  // If admin or moderator, show admin panel
-  if (user?.email === 'xolodtop889@gmail.com' || ['admin', 'moderator', 'proprietor'].includes(profile?.role || '')) {
-    studioItems.push({ divider: true } as any);
-    studioItems.push({ icon: ShieldAlert, label: t('nav_admin'), path: "/admin" } as any);
-  }
 
   return (
     <aside className={clsx(
