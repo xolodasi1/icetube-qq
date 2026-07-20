@@ -7,7 +7,7 @@ import { Query, ID } from "appwrite";
 import { useAuth } from "../lib/AuthContext";
 import { useLanguage } from "../lib/LanguageContext";
 import { createNotification } from "../lib/notifications";
-import { SafeStorage } from "../lib/storage";
+import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENTS_PER_VIDEO } from "../lib/storage";
 import { getXP, getLevelInfo, addXP } from "../lib/achievements";
 
 import { getOptimizedThumbnail, getOptimizedVideoUrl } from '../lib/cloudinary';
@@ -953,6 +953,16 @@ export default function Watch() {
     e.preventDefault();
     if (!newComment.trim() || isCommenting) return;
     
+    if (!user) {
+      const anonCount = getAnonCommentCount(id!);
+      if (anonCount >= MAX_ANON_COMMENTS_PER_VIDEO) {
+        alert(language === 'ru' 
+          ? `Аноним может оставить не более ${MAX_ANON_COMMENTS_PER_VIDEO} комментариев под одним видео. Войдите в аккаунт, чтобы продолжить.` 
+          : `Anonymous users can post at most ${MAX_ANON_COMMENTS_PER_VIDEO} comments per video. Log in to continue.`);
+        return;
+      }
+    }
+
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const commsCol = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
     if (!dbId || !commsCol) {
@@ -1010,6 +1020,8 @@ export default function Watch() {
         ...comments
       ]);
       setNewComment("");
+
+      if (!user) registerAnonComment(id!);
 
       if (video) {
         createNotification({
@@ -1102,6 +1114,16 @@ export default function Watch() {
   const handleAddReply = async (parentId: string) => {
     if (!replyText.trim() || isCommenting) return;
     
+    if (!user) {
+      const anonCount = getAnonCommentCount(id!);
+      if (anonCount >= MAX_ANON_COMMENTS_PER_VIDEO) {
+        alert(language === 'ru' 
+          ? `Аноним может оставить не более ${MAX_ANON_COMMENTS_PER_VIDEO} комментариев под одним видео. Войдите в аккаунт, чтобы продолжить.` 
+          : `Anonymous users can post at most ${MAX_ANON_COMMENTS_PER_VIDEO} comments per video. Log in to continue.`);
+        return;
+      }
+    }
+
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const commsCol = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
     if (!dbId || !commsCol) return;
@@ -1155,6 +1177,8 @@ export default function Watch() {
       ]);
       setReplyText("");
       setReplyingToId(null);
+
+      if (!user) registerAnonComment(id!);
       
       if (video) {
         const parentComment = comments.find(c => c.id === parentId);

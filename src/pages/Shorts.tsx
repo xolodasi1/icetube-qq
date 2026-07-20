@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ThumbsUp, ThumbsDown, MessageSquare, Share2, MoreHorizontal, X, Loader2, Send, AlertTriangle, Reply } from 'lucide-react';
 import { databases } from '../lib/appwrite';
 import { Query, ID } from 'appwrite';
@@ -6,7 +6,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { useLanguage } from '../lib/LanguageContext';
 import { createNotification } from '../lib/notifications';
-import { SafeStorage } from '../lib/storage';
+import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENTS_PER_VIDEO } from '../lib/storage';
 import { getOptimizedThumbnail, getOptimizedVideoUrl } from '../lib/cloudinary';
 
 
@@ -35,6 +35,26 @@ export default function Shorts() {
   const [newComment, setNewComment] = useState("");
   const [isCommenting, setIsCommenting] = useState(false);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+
+  const touchStartY = useRef(0);
+  const touchEndY = useRef(0);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    touchEndY.current = e.changedTouches[0].clientY;
+    const diff = touchStartY.current - touchEndY.current;
+    if (Math.abs(diff) < 50) return;
+    if (diff > 0) {
+      setCurrentVideoIndex(prev => (prev + 1) % videos.length);
+    } else {
+      setCurrentVideoIndex(prev => (prev - 1 + videos.length) % videos.length);
+    }
+  }, [videos.length]);
 
   useEffect(() => {
     const fetchShorts = async () => {
@@ -412,6 +432,17 @@ export default function Shorts() {
     if (!newComment.trim() || isCommenting || videos.length === 0) return;
     
     const current = videos[currentVideoIndex];
+
+    if (!user) {
+      const anonCount = getAnonCommentCount(current.$id);
+      if (anonCount >= MAX_ANON_COMMENTS_PER_VIDEO) {
+        alert(language === 'ru' 
+          ? `Аноним может оставить не более ${MAX_ANON_COMMENTS_PER_VIDEO} комментариев под одним видео. Войдите в аккаунт, чтобы продолжить.` 
+          : `Anonymous users can post at most ${MAX_ANON_COMMENTS_PER_VIDEO} comments per video. Log in to continue.`);
+        return;
+      }
+    }
+
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const commsCol = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
     if (!dbId || !commsCol) return;
@@ -443,6 +474,8 @@ export default function Shorts() {
       }, ...comments]);
       setNewComment("");
 
+      if (!user) registerAnonComment(current.$id);
+
       createNotification({
         userId: current.uploaderId,
         actorId: authorId,
@@ -460,7 +493,60 @@ export default function Shorts() {
     }
   };
 
-  
+  const handleAddReply = async (parentId: string) => {
+    if (!replyText.trim() || isCommenting || videos.length === 0) return;
+    const current = videos[currentVideoIndex];
+
+    if (!user) {
+      const anonCount = getAnonCommentCount(current.$id);
+      if (anonCount >= MAX_ANON_COMMENTS_PER_VIDEO) {
+        alert(language === 'ru' 
+          ? `Аноним может оставить не более ${MAX_ANON_COMMENTS_PER_VIDEO} комментариев под одним видео. Войдите в аккаунт, чтобы продолжить.` 
+          : `Anonymous users can post at most ${MAX_ANON_COMMENTS_PER_VIDEO} comments per video. Log in to continue.`);
+        return;
+      }
+    }
+
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const commsCol = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
+    if (!dbId || !commsCol) return;
+
+    try {
+      setIsCommenting(true);
+      const authorName = user ? (profile?.name || user.name || 'User') : (language === 'ru' ? 'Аноним' : 'Anonymous');
+      const authorAvatar = user && profile?.avatar ? profile.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random`;
+      const authorId = user ? user.$id : 'anonymous';
+
+      const res = await databases.createDocument(dbId, commsCol, ID.unique(), {
+        videoId: current.$id,
+        authorId: authorId,
+        authorName: authorName,
+        authorAvatar: authorAvatar,
+        text: replyText,
+        likes: 0,
+        likedBy: [],
+        dislikedBy: [],
+        parentId: parentId
+      });
+
+      setComments([...comments, {
+        id: res.$id,
+        author: authorName,
+        text: replyText,
+        authorAvatar: authorAvatar,
+        ts: t('video_recently'),
+        parentId: parentId
+      }]);
+      setReplyText("");
+      setReplyingToId(null);
+
+      if (!user) registerAnonComment(current.$id);
+    } catch (err) {
+      console.error("Reply failed in Shorts:", err);
+    } finally {
+      setIsCommenting(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -496,7 +582,11 @@ export default function Shorts() {
     <div className="flex flex-col items-center justify-center w-full min-h-[calc(100vh-64px)] px-0 bg-black pt-0 sm:pt-4 overflow-hidden">
       
       {/* Immersive Video Container */}
-      <div className="relative w-full sm:max-w-[380px] h-full sm:h-[calc(100vh-140px)] aspect-[9/16] bg-slate-900 sm:rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] flex-shrink-0 border border-white/5 group">
+      <div 
+        className="relative w-full sm:max-w-[380px] h-full sm:h-[calc(100vh-140px)] aspect-[9/16] bg-slate-900 sm:rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] flex-shrink-0 border border-white/5 group"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         
         <video 
           key={current.$id}
@@ -609,46 +699,44 @@ export default function Shorts() {
           </h2>
         </div>
 
-        {/* Next/Prev Navigation Hints */}
-        <div className="absolute top-1/2 -translate-y-1/2 left-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-           <button 
-             onClick={() => setCurrentVideoIndex(Math.max(0, currentVideoIndex - 1))}
-             className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20"
-           >
-             ↑
-           </button>
-           <button 
-             onClick={() => setCurrentVideoIndex(Math.min(videos.length - 1, currentVideoIndex + 1))}
-             className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20"
-           >
-             ↓
-           </button>
-        </div>
+        {/* Next/Prev Navigation Hints - Desktop only */}
+        <div className="hidden sm:flex absolute top-1/2 -translate-y-1/2 left-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+             <button 
+               onClick={() => setCurrentVideoIndex((currentVideoIndex - 1 + videos.length) % videos.length)}
+               className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20"
+             >
+               ↑
+             </button>
+             <button 
+               onClick={() => setCurrentVideoIndex((currentVideoIndex + 1) % videos.length)}
+               className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20"
+             >
+              ↓
+            </button>
+         </div>
 
       </div>
 
       {/* Desktop Navigation */}
       <div className="hidden sm:flex mt-6 gap-6 items-center">
          <button 
-           onClick={() => setCurrentVideoIndex(Math.max(0, currentVideoIndex - 1))}
-           disabled={currentVideoIndex === 0}
-           className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all disabled:opacity-20 border border-white/5"
+           onClick={() => setCurrentVideoIndex((currentVideoIndex - 1 + videos.length) % videos.length)}
+           className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all border border-white/5"
          >
            {language === 'ru' ? 'Назад' : 'Previous'}
          </button>
          <div className="text-white/40 text-sm font-mono">{currentVideoIndex + 1} / {videos.length}</div>
          <button 
-           onClick={() => setCurrentVideoIndex(Math.min(videos.length - 1, currentVideoIndex + 1))}
-           disabled={currentVideoIndex === videos.length - 1}
-           className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all disabled:opacity-20 border border-white/5"
+           onClick={() => setCurrentVideoIndex((currentVideoIndex + 1) % videos.length)}
+           className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all border border-white/5"
          >
            {language === 'ru' ? 'Далее' : 'Next'}
          </button>
       </div>
 
-      {/* Mobile Swipe Simulation Hint */}
+      {/* Mobile Swipe Hint */}
       <div className="sm:hidden mt-2 text-white/30 text-[10px] pb-4">
-        Swipe buttons up/down to see more
+        {language === 'ru' ? 'Свайпайте вверх/вниз' : 'Swipe up/down'}
       </div>
 
       {/* Comments Sidebar/Overlay */}

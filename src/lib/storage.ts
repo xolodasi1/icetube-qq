@@ -50,3 +50,27 @@ export const SafeStorage = {
     }
   }
 };
+
+export const MAX_ANON_COMMENTS_PER_VIDEO = 3;
+
+const anonCommentKey = (videoId: string) => `anon_comments_${videoId}`;
+
+export const getAnonCommentCount = (videoId: string): number => {
+  try {
+    const list = SafeStorage.get<number[]>(anonCommentKey(videoId), []);
+    return Array.isArray(list) ? list.length : 0;
+  } catch (e) {
+    return 0;
+  }
+};
+
+export const registerAnonComment = (videoId: string): void => {
+  try {
+    const list = SafeStorage.get<number[]>(anonCommentKey(videoId), []);
+    const next = Array.isArray(list) ? [...list, Date.now()] : [Date.now()];
+    const trimmed = next.slice(-MAX_ANON_COMMENTS_PER_VIDEO);
+    SafeStorage.set(anonCommentKey(videoId), trimmed);
+  } catch (e) {
+    // ignore
+  }
+};

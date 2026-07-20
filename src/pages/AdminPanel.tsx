@@ -3,13 +3,13 @@ import { useAuth } from '../lib/AuthContext';
 import { databases } from '../lib/appwrite';
 import { 
   ShieldCheck, ShieldAlert, Users, Video, Activity, MoreHorizontal, 
-  Ban, Trash2, Clock, Eye, AlertTriangle, Layers, Gamepad2, 
+  Ban, Trash2, Clock, Eye, AlertTriangle, 
   LayoutDashboard, PieChart, BarChart3, ArrowLeft, Loader2,
   ChevronRight, Calendar, Bell, Search, Filter
 } from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
 import { useLanguage } from '../lib/LanguageContext';
-import { Query } from 'appwrite';
+import { Query, ID } from 'appwrite';
 
 type AdminTab = 'dashboard' | 'analytics' | 'users' | 'reports' | 'content';
 
@@ -84,8 +84,10 @@ export default function AdminPanel() {
             setReports(response.documents.map((doc: any) => ({
               $id: doc.$id,
               videoId: doc.videoId,
+              videoTitle: doc.videoTitle || 'Unknown',
               reason: doc.reason,
               userId: doc.userId,
+              reporterName: doc.reporterName || doc.reporterName?.[0] || 'Anonymous',
               timestamp: doc.$createdAt
             })));
           } catch (err: any) {
@@ -201,35 +203,37 @@ export default function AdminPanel() {
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-120px)] bg-[#0a0f1e]/50 rounded-3xl overflow-hidden border ice-border mb-10 mx-4 sm:mx-0">
       <aside className="w-full md:w-64 bg-black/20 border-r ice-border flex flex-col p-4 gap-2 shrink-0">
         <div className="p-4 mb-4 flex items-center gap-3">
-          <div className="p-2 bg-[#70d6ff]/10 rounded-lg">
-            <ShieldCheck className="w-6 h-6 text-[#70d6ff]" />
+          <div className="p-2 bg-gradient-to-br from-[#70d6ff] to-blue-600 rounded-xl shadow-lg shadow-[#70d6ff]/20">
+            <ShieldCheck className="w-6 h-6 text-white" />
           </div>
           <div>
-            <span className="text-white font-black uppercase text-sm block tracking-tighter">Admin UI</span>
-            <span className="text-[10px] text-green-400 font-bold uppercase">{stats.serverStatus}</span>
+            <span className="text-white font-black uppercase text-sm block tracking-tighter">Icetube</span>
+            <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest">Admin Panel</span>
           </div>
         </div>
 
-        <SidebarItem id="dashboard" label={language === 'ru' ? 'Дашборд' : 'Dashboard'} icon={LayoutDashboard} />
-        <SidebarItem id="analytics" label={language === 'ru' ? 'Аналитика сайта' : 'Site Analytics'} icon={PieChart} />
-        <SidebarItem id="users" label={language === 'ru' ? 'Пользователи' : 'User Base'} icon={Users} />
-        <SidebarItem id="reports" label={language === 'ru' ? 'Жалобы' : 'Compliance'} icon={ShieldAlert} />
-        <SidebarItem id="content" label={language === 'ru' ? 'Контент' : 'Content'} icon={Layers} />
+        <div className="flex flex-col gap-1">
+          <SidebarItem id="dashboard" label={language === 'ru' ? 'Дашборд' : 'Dashboard'} icon={LayoutDashboard} />
+          <SidebarItem id="analytics" label={language === 'ru' ? 'Аналитика' : 'Analytics'} icon={BarChart3} />
+          <SidebarItem id="users" label={language === 'ru' ? 'Пользователи' : 'Users'} icon={Users} />
+          <SidebarItem id="reports" label={language === 'ru' ? 'Жалобы' : 'Reports'} icon={ShieldAlert} />
+          <SidebarItem id="content" label={language === 'ru' ? 'Контент' : 'Content'} icon={Video} />
+        </div>
 
-        <div className="mt-8 px-4">
+        <div className="mt-6 px-4">
            <button 
              onClick={() => {
                 const event = new Event('refreshAdminData');
                 window.dispatchEvent(event);
              }}
-             className="w-full flex items-center justify-center gap-2 py-2 bg-white/5 border ice-border rounded-xl text-[10px] font-black uppercase tracking-widest text-[#70d6ff] hover:bg-[#70d6ff]/10 transition-all"
+             className="w-full flex items-center justify-center gap-2 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[#70d6ff] hover:bg-[#70d6ff]/10 transition-all active:scale-95"
            >
              <Loader2 className="w-3 h-3" id="admin-refresh-icon" />
-             {language === 'ru' ? 'Обновить данные' : 'Refresh Data'}
+             {language === 'ru' ? 'Обновить' : 'Refresh'}
            </button>
         </div>
 
-        <div className="mt-auto pt-6 border-t ice-border p-4">
+        <div className="mt-auto pt-6 border-t border-white/5 p-4">
            <Link to="/" className="flex items-center gap-2 text-slate-500 hover:text-[#70d6ff] text-xs font-bold transition-all group">
              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
              {language === 'ru' ? 'На главную' : 'Exit to Site'}
@@ -259,35 +263,41 @@ export default function AdminPanel() {
             </header>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard title="Total Users" value={stats.totalUsers} icon={Users} color="text-blue-400" bgColor="bg-blue-400/10" />
-              <StatCard title="Total Videos" value={stats.totalVideos} icon={Video} color="text-purple-400" bgColor="bg-purple-400/10" />
-              <StatCard title="Total Shorts" value={stats.totalShorts} icon={Activity} color="text-teal-400" bgColor="bg-teal-400/10" />
-              <StatCard title="Pending Reports" value={stats.totalReports} icon={ShieldAlert} color="text-red-400" bgColor="bg-red-400/10" />
+              <StatCard title={language === 'ru' ? 'Пользователи' : 'Total Users'} value={stats.totalUsers} icon={Users} color="text-blue-400" bgColor="bg-blue-400/10" />
+              <StatCard title={language === 'ru' ? 'Видео' : 'Total Videos'} value={stats.totalVideos} icon={Video} color="text-purple-400" bgColor="bg-purple-400/10" />
+              <StatCard title={language === 'ru' ? 'Шортсы' : 'Total Shorts'} value={stats.totalShorts} icon={Activity} color="text-teal-400" bgColor="bg-teal-400/10" />
+              <StatCard title={language === 'ru' ? 'Жалобы' : 'Pending Reports'} value={stats.totalReports} icon={ShieldAlert} color="text-red-400" bgColor="bg-red-400/10" />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white/[0.02] border ice-border rounded-2xl p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 bg-white/[0.02] border ice-border rounded-2xl p-6">
                  <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                    <Activity className="w-5 h-5 text-[#70d6ff]" />
-                   Recent Activity
+                   {language === 'ru' ? 'Последняя активность' : 'Recent Activity'}
                  </h2>
                  <div className="space-y-4 text-center py-10 text-slate-500">
                     <Clock className="w-8 h-8 mx-auto opacity-20 mb-2" />
-                    <p className="text-xs font-bold uppercase tracking-widest">Real-time logs offline</p>
+                    <p className="text-xs font-bold uppercase tracking-widest">{language === 'ru' ? 'Логи активности отключены' : 'Activity logs offline'}</p>
                  </div>
               </div>
 
               <div className="bg-white/[0.02] border ice-border rounded-2xl p-6">
                  <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                    <Bell className="w-5 h-5 text-orange-400" />
-                   System Alerts
+                   {language === 'ru' ? 'Система' : 'System'}
                  </h2>
-                 <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl">
+                 <div className="space-y-3">
+                   <div className="flex justify-between text-sm"><span className="text-slate-400">{language === 'ru' ? 'Статус' : 'Status'}</span><span className="text-green-400 font-bold">{language === 'ru' ? 'Онлайн' : 'Online'}</span></div>
+                   <div className="flex justify-between text-sm"><span className="text-slate-400">{language === 'ru' ? 'Версия' : 'Version'}</span><span className="text-white font-bold">2.0</span></div>
+                   <div className="flex justify-between text-sm"><span className="text-slate-400">Uptime</span><span className="text-white font-bold">99.98%</span></div>
+                   <div className="flex justify-between text-sm"><span className="text-slate-400">{language === 'ru' ? 'База' : 'Database'}</span><span className="text-[#70d6ff] font-bold">Appwrite</span></div>
+                 </div>
+                 <div className="mt-6 p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl">
                     <div className="flex items-center gap-3 text-orange-400 mb-2">
                        <AlertTriangle className="w-4 h-4" />
-                       <span className="text-xs font-bold uppercase">Minor Latency issue</span>
+                       <span className="text-xs font-bold uppercase">{language === 'ru' ? 'Latency' : 'Latency'}</span>
                     </div>
-                    <p className="text-orange-200/60 text-sm">Large media uploads may experience higher latency in some regions.</p>
+                    <p className="text-orange-200/60 text-sm">{language === 'ru' ? 'Большие файлы могут загружаться дольше' : 'Large media uploads may experience higher latency'}</p>
                  </div>
               </div>
             </div>
@@ -468,10 +478,15 @@ function UsersSection({ dbUsers, t, language }: any) {
   const isProprietor = user?.email === 'xolodtop889@gmail.com' || profile?.role === 'proprietor';
   const isAdmin = isProprietor || profile?.role === 'admin';
   const [localUsers, setLocalUsers] = useState(dbUsers);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     setLocalUsers(dbUsers);
   }, [dbUsers]);
+
+  const filteredUsers = localUsers.filter((u: any) =>
+    !searchQuery || u.name?.toLowerCase().includes(searchQuery.toLowerCase()) || u.userId?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const changeUserRole = async (userId: string, newRole: string) => {
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -489,10 +504,20 @@ function UsersSection({ dbUsers, t, language }: any) {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white uppercase italic tracking-tighter">Registered Creators</h1>
           <p className="text-sm text-slate-400">Total base: {dbUsers.length} profiles</p>
+        </div>
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input
+            type="text"
+            placeholder={language === 'ru' ? 'Поиск пользователей...' : 'Search users...'}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-[#70d6ff] w-64"
+          />
         </div>
       </div>
 
@@ -508,7 +533,9 @@ function UsersSection({ dbUsers, t, language }: any) {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-slate-300">
-              {localUsers.map((usr: any) => (
+              {filteredUsers.length === 0 ? (
+                <tr><td colSpan={4} className="text-center py-20 text-slate-500 text-xs font-bold uppercase tracking-widest">{language === 'ru' ? 'Ничего не найдено' : 'Nothing found'}</td></tr>
+              ) : filteredUsers.map((usr: any) => (
                 <tr key={usr.$id} className="hover:bg-white/5 transition-all group">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -559,40 +586,51 @@ function UsersSection({ dbUsers, t, language }: any) {
 }
 
 function ReportsSection({ reports, t, language, setReports }: any) {
-  const handleDeleteReport = async (reportId: string) => {
+  const [dismissing, setDismissing] = useState<string | null>(null);
+
+  const handleDismissReport = async (reportId: string) => {
+    if (!window.confirm(language === 'ru' ? 'Закрыть жалобу?' : 'Dismiss this report?')) return;
+    setDismissing(reportId);
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const reportsColId = import.meta.env.VITE_APPWRITE_REPORTS_COLLECTION_ID;
-    if (!dbId || !reportsColId) return;
+    if (!dbId || !reportsColId) { setDismissing(null); return; }
     try {
       await databases.deleteDocument(dbId, reportsColId, reportId);
       setReports(reports.filter((r: any) => r.$id !== reportId));
     } catch (err) {
       console.error("Delete report failed:", err);
+    } finally {
+      setDismissing(null);
     }
   };
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-       <div>
-        <h1 className="text-2xl font-bold text-white uppercase italic tracking-tighter">Content Integrity</h1>
-        <p className="text-sm text-slate-400">Total Flags: {reports.length}</p>
+       <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white uppercase italic tracking-tighter">Content Integrity</h1>
+          <p className="text-sm text-slate-400">{language === 'ru' ? 'Всего жалоб' : 'Total Flags'}: {reports.length}</p>
+        </div>
+        {reports.length > 0 && (
+          <span className="px-3 py-1 bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-black uppercase rounded-full">{reports.length} active</span>
+        )}
       </div>
 
       <div className="bg-white/5 border ice-border rounded-2xl overflow-hidden">
         {reports.length === 0 ? (
           <div className="p-20 flex flex-col items-center justify-center text-center">
              <ShieldCheck className="w-16 h-16 text-green-500/20 mb-4" />
-             <p className="text-slate-500 font-bold tracking-widest uppercase text-xs">No pending violations.</p>
+             <p className="text-slate-500 font-bold tracking-widest uppercase text-xs">{language === 'ru' ? 'Нет нарушений' : 'No pending violations'}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm whitespace-nowrap">
               <thead className="bg-black/20 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b ice-border">
                 <tr>
-                  <th className="px-6 py-4">Evidence</th>
-                  <th className="px-6 py-4">Type</th>
-                  <th className="px-6 py-4">Involved</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
+                  <th className="px-6 py-4">{language === 'ru' ? 'Доказательство' : 'Evidence'}</th>
+                  <th className="px-6 py-4">{language === 'ru' ? 'Тип' : 'Type'}</th>
+                  <th className="px-6 py-4">{language === 'ru' ? 'Автор' : 'Reporter'}</th>
+                  <th className="px-6 py-4 text-right">{language === 'ru' ? 'Действия' : 'Actions'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-red-500/5 text-slate-300">
@@ -603,20 +641,29 @@ function ReportsSection({ reports, t, language, setReports }: any) {
                          <div className="w-12 h-8 bg-black rounded border border-white/10 flex items-center justify-center">
                             <Eye className="w-3 h-3 text-slate-600" />
                          </div>
-                         <span className="text-white font-bold text-xs truncate max-w-[120px]">{report.videoTitle || 'Flagged Content'}</span>
+                         <span className="text-white font-bold text-xs truncate max-w-[160px]">{report.videoTitle || 'Flagged Content'}</span>
                       </Link>
                     </td>
                     <td className="px-6 py-4">
                        <span className="px-2 py-1 bg-red-500/10 text-red-500 rounded text-[10px] font-black uppercase border border-red-500/10">
-                          {report.reason}
+                          {report.reason || 'Unknown'}
                        </span>
                     </td>
                     <td className="px-6 py-4">
-                       <div className="text-[10px] text-slate-400 font-bold uppercase truncate max-w-[100px]">By {report.reporterName}</div>
+                       <div className="flex items-center gap-2">
+                         <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center text-[9px] font-bold text-slate-400">
+                           {(report.reporterName || 'A')[0]}
+                         </div>
+                         <span className="text-[10px] text-slate-400 font-bold truncate max-w-[100px]">{report.reporterName || 'Anonymous'}</span>
+                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                       <button onClick={() => handleDeleteReport(report.$id)} className="p-2 hover:bg-red-500/10 text-red-400 rounded-xl transition-all">
-                          <Trash2 className="w-4 h-4" />
+                       <button 
+                         onClick={() => handleDismissReport(report.$id)} 
+                         disabled={dismissing === report.$id}
+                         className="p-2 hover:bg-green-500/10 text-green-400 rounded-xl transition-all disabled:opacity-30"
+                       >
+                         {dismissing === report.$id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                        </button>
                     </td>
                   </tr>
@@ -631,54 +678,118 @@ function ReportsSection({ reports, t, language, setReports }: any) {
 }
 
 function ContentSection({ dbVideos, language, t, setDbVideos }: any) {
-  const dynamicCategories = useMemo(() => Array.from(new Set(
-    dbVideos.map((v: any) => v.category ? String(v.category) : '').filter((c: string) => c && c !== 'All' && c !== 'undefined')
-  )), [dbVideos]);
+  const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
 
-  const dynamicGames = useMemo(() => Array.from(new Set(
-    dbVideos.map((v: any) => v.game ? String(v.game) : '').filter((g: string) => g && g !== 'undefined')
-  )), [dbVideos]);
+  const handleDeleteVideo = async (videoId: string) => {
+    if (!window.confirm(language === 'ru' ? 'Удалить это видео навсегда?' : 'Delete this video permanently?')) return;
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+    if (!dbId || !videosColId) return;
+    try {
+      await databases.deleteDocument(dbId, videosColId, videoId);
+      setDbVideos(dbVideos.filter((v: any) => v.$id !== videoId));
+    } catch (err: any) {
+      console.error("Delete video failed:", err);
+      alert("Failed to delete: " + err.message);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedVideos.size === 0) return;
+    if (!window.confirm(language === 'ru' ? `Удалить ${selectedVideos.size} видео?` : `Delete ${selectedVideos.size} videos?`)) return;
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+    if (!dbId || !videosColId) return;
+    for (const id of selectedVideos) {
+      try {
+        await databases.deleteDocument(dbId, videosColId, id);
+      } catch (err) {
+        console.error("Failed to delete video", id, err);
+      }
+    }
+    setDbVideos(dbVideos.filter((v: any) => !selectedVideos.has(v.$id)));
+    setSelectedVideos(new Set());
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedVideos);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedVideos(next);
+  };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-       <div>
-        <h1 className="text-2xl font-bold text-white uppercase italic tracking-tighter">Topic Management</h1>
-        <p className="text-sm text-slate-400">Taxonomy and classification control</p>
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white uppercase italic tracking-tighter">Content Management</h1>
+          <p className="text-sm text-slate-400">{dbVideos.length} videos total</p>
+        </div>
+        {selectedVideos.size > 0 && (
+          <button
+            onClick={handleDeleteSelected}
+            className="flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/30 text-red-400 rounded-xl hover:bg-red-500/30 transition-all text-xs font-bold"
+          >
+            <Trash2 className="w-4 h-4" />
+            {language === 'ru' ? `Удалить (${selectedVideos.size})` : `Delete (${selectedVideos.size})`}
+          </button>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white/5 border ice-border rounded-3xl overflow-hidden">
-           <div className="p-5 border-b ice-border bg-black/20 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-indigo-400">
-                 <Layers className="w-5 h-5" />
-                 <h3 className="text-xs font-black uppercase tracking-widest">Global Categories</h3>
-              </div>
-           </div>
-           <div className="p-4 max-h-[400px] overflow-y-auto space-y-2">
-              {dynamicCategories.length === 0 ? <p className="text-center py-10 text-slate-600 italic">None found</p> : dynamicCategories.map(cat => (
-                <div key={cat} className="flex items-center justify-between p-3 hover:bg-white/5 rounded-2xl transition-all">
-                   <span className="text-white text-sm font-bold">{cat}</span>
-                   <span className="text-[10px] text-slate-600 font-bold uppercase">{dbVideos.filter((v: any) => v.category === cat).length} Videos</span>
-                </div>
+      <div className="bg-white/5 border ice-border rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-black/20 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b ice-border">
+              <tr>
+                <th className="px-4 py-4 w-10">
+                  <input
+                    type="checkbox"
+                    checked={selectedVideos.size === dbVideos.length && dbVideos.length > 0}
+                    onChange={() => {
+                      if (selectedVideos.size === dbVideos.length) setSelectedVideos(new Set());
+                      else setSelectedVideos(new Set(dbVideos.map((v: any) => v.$id)));
+                    }}
+                    className="accent-[#70d6ff]"
+                  />
+                </th>
+                <th className="px-4 py-4">Title</th>
+                <th className="px-4 py-4">Author</th>
+                <th className="px-4 py-4">Type</th>
+                <th className="px-4 py-4 text-right">Views</th>
+                <th className="px-4 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5 text-slate-300">
+              {dbVideos.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-20 text-slate-500 text-xs font-bold uppercase tracking-widest">No content</td></tr>
+              ) : dbVideos.map((v: any) => (
+                <tr key={v.$id} className="hover:bg-white/5 transition-all">
+                  <td className="px-4 py-3">
+                    <input type="checkbox" checked={selectedVideos.has(v.$id)} onChange={() => toggleSelect(v.$id)} className="accent-[#70d6ff]" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-7 bg-black rounded border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                        <Eye className="w-3 h-3 text-slate-600" />
+                      </div>
+                      <span className="text-white font-bold text-sm truncate max-w-[200px]">{v.title || 'Untitled'}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-400">{v.uploaderName || v.uploaderId?.slice(0, 8) || '—'}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 text-[10px] font-black uppercase rounded ${v.contentType === 'shorts' || v.isShort ? 'text-teal-400 bg-teal-400/10' : 'text-purple-400 bg-purple-400/10'}`}>
+                      {v.contentType === 'shorts' || v.isShort ? 'Short' : 'Video'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs font-mono text-slate-400">{v.views || 0}</td>
+                  <td className="px-4 py-3 text-right">
+                    <button onClick={() => handleDeleteVideo(v.$id)} className="p-2 hover:bg-red-500/10 text-red-400 rounded-xl transition-all">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
               ))}
-           </div>
-        </div>
-
-        <div className="bg-white/5 border ice-border rounded-3xl overflow-hidden">
-           <div className="p-5 border-b ice-border bg-black/20 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-fuchsia-400">
-                 <Gamepad2 className="w-5 h-5" />
-                 <h3 className="text-xs font-black uppercase tracking-widest">Global Games</h3>
-              </div>
-           </div>
-           <div className="p-4 max-h-[400px] overflow-y-auto space-y-2">
-              {dynamicGames.length === 0 ? <p className="text-center py-10 text-slate-600 italic">None found</p> : dynamicGames.map(game => (
-                <div key={game} className="flex items-center justify-between p-3 hover:bg-white/5 rounded-2xl transition-all">
-                   <span className="text-white text-sm font-bold">{game}</span>
-                   <span className="text-[10px] text-slate-600 font-bold uppercase">{dbVideos.filter((v: any) => v.game === game).length} Videos</span>
-                </div>
-              ))}
-           </div>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

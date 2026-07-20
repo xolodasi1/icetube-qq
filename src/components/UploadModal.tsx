@@ -50,8 +50,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const selectedFile = e.target.files[0];
-      if (selectedFile.size > 100 * 1024 * 1024) {
-        setError(language === 'ru' ? 'Файл слишком большой (макс. 100МБ)' : 'File too large (max 100MB)');
+      if (selectedFile.size > 10 * 1024 * 1024 * 1024) {
+        setError(language === 'ru' ? 'Файл слишком большой (макс. 10ГБ)' : 'File too large (max 10GB)');
         return;
       }
       setFile(selectedFile);
@@ -237,7 +237,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
             >
               <UploadCloud className="w-12 h-12 text-[#70d6ff] mb-4" />
               <p className="text-slate-200 font-medium text-center">{language === 'ru' ? 'Нажмите для выбора видео' : 'Click to select video'}</p>
-              <p className="text-slate-500 text-sm mt-2 text-center">{language === 'ru' ? 'MP4, WebM до 100МБ' : 'MP4, WebM up to 100MB'}</p>
+              <p className="text-slate-500 text-sm mt-2 text-center">{language === 'ru' ? 'MP4, WebM до 10ГБ' : 'MP4, WebM up to 10GB'}</p>
               <input 
                 ref={fileInputRef}
                 type="file" 
