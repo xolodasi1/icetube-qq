@@ -706,13 +706,6 @@ export default function Shorts() {
               />
             </Link>
             <Link to={`/channel/${current.uploaderId}`} className="text-white font-bold text-sm truncate drop-shadow-md hover:underline decoration-[#70d6ff]">@{current.uploaderName || 'user'}</Link>
-            <button 
-              onClick={handleSubscribe}
-              disabled={isSubbing}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold ml-1 transition-all ${isSubscribed ? 'bg-white/20 text-white' : 'bg-[#70d6ff] text-black hover:bg-white'}`}
-            >
-              {isSubscribed ? (language === 'ru' ? 'Вы подписаны' : 'Subscribed') : (language === 'ru' ? 'Подписаться' : 'Subscribe')}
-            </button>
           </div>
           <h2 className="text-white text-sm font-medium line-clamp-2 leading-snug drop-shadow-md">
             {current.title}

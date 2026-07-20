@@ -76,9 +76,16 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
           }}
         />
         <div className="absolute inset-0 bg-blue-900/10 z-20 pointer-events-none"></div>
-        <div className="duration-badge z-30">
-          {video.duration}
-        </div>
+        {isShortContentType ? (
+          <div className="absolute top-2 left-2 z-30 bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded inline-flex items-center gap-1">
+            <Zap className="w-3 h-3 text-[#70d6ff] fill-[#70d6ff]" />
+            <span className="text-[10px] font-bold text-white uppercase tracking-wider">Short</span>
+          </div>
+        ) : (
+          <div className="duration-badge z-30">
+            {video.duration}
+          </div>
+        )}
       </Link>
       
       <div className={clsx("flex gap-3 items-start", isList ? "mt-0 pl-1 pr-4 sm:px-2 py-4 sm:py-1" : "p-4 px-4 sm:px-0 sm:py-4")}>

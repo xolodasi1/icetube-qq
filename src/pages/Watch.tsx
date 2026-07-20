@@ -1437,13 +1437,6 @@ export default function Watch() {
                   </span>
                 </div>
               </div>
-              <button 
-                disabled={isSubbing || !user}
-                onClick={handleSubscribe}
-                className={`font-medium px-4 py-2 rounded-full transition-colors text-sm shrink-0 ${isSubscribed ? 'bg-white/10 text-slate-200 hover:bg-white/20' : 'bg-slate-100 text-black hover:bg-slate-200'}`}
-              >
-                {isSubscribed ? t('video_subscribed') : t('video_subscribe')}
-              </button>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
