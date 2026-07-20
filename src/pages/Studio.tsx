@@ -17,6 +17,8 @@ export default function Studio() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [stats, setStats] = useState({ totalViews: 0, totalVideos: 0, totalShorts: 0, subscriberCount: 0, snowflakesCount: 0 });
   const [requestingVerify, setRequestingVerify] = useState(false);
+  const [studioTab, setStudioTab] = useState<'dashboard' | 'content' | 'verification'>('dashboard');
+  const [contentFilter, setContentFilter] = useState<'new' | 'old' | 'popular' | 'shorts'>('new');
 
   const handleDelete = async (videoId: string) => {
     if (!window.confirm(language === 'ru' ? 'Вы уверены, что хотите удалить это видео? Это действие нельзя отменить.' : 'Are you sure you want to delete this video? This action cannot be undone.')) return;
@@ -250,180 +252,278 @@ export default function Studio() {
         onUploadSuccess={fetchStats}
       />
 
-      {/* Analytics Dashboard */}
-      <div className="space-y-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6 relative overflow-hidden group">
-            <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#70d6ff]/10 rounded-full blur-2xl group-hover:bg-[#70d6ff]/20 transition-all" />
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2.5 bg-[#70d6ff]/10 rounded-xl">
-                <Eye className="w-5 h-5 text-[#70d6ff]" />
-              </div>
-            </div>
-            <div className="text-3xl font-black text-white mb-1">
-              {new Intl.NumberFormat().format(stats.totalViews)}
-            </div>
-            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{language === 'ru' ? 'Всего просмотров' : 'Total Views'}</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6 relative overflow-hidden group">
-            <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all" />
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2.5 bg-blue-500/10 rounded-xl">
-                <Users className="w-5 h-5 text-blue-400" />
-              </div>
-            </div>
-            <div className="text-3xl font-black text-white mb-1">
-              {new Intl.NumberFormat().format(stats.subscriberCount)}
-            </div>
-            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{language === 'ru' ? 'Подписчики' : 'Subscribers'}</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6 relative overflow-hidden group">
-            <div className="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all" />
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2.5 bg-purple-500/10 rounded-xl">
-                <Film className="w-5 h-5 text-purple-400" />
-              </div>
-            </div>
-            <div className="text-3xl font-black text-white mb-1">
-              {stats.totalVideos}
-            </div>
-            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{language === 'ru' ? 'Всего видео' : 'Total Videos'}</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6 relative overflow-hidden group">
-            <div className="absolute -right-4 -top-4 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl group-hover:bg-teal-500/20 transition-all" />
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2.5 bg-teal-500/10 rounded-xl">
-                <Activity className="w-5 h-5 text-teal-400" />
-              </div>
-            </div>
-            <div className="text-3xl font-black text-white mb-1">
-              {stats.totalShorts}
-            </div>
-            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Shorts</p>
-          </div>
-        </div>
-
-        {/* Quick Insights */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6">
-            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-[#70d6ff]" />
-              {language === 'ru' ? 'Последние видео' : 'Recent Uploads'}
-            </h3>
-            <div className="space-y-3">
-              {videos.slice(0, 5).length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-8">{language === 'ru' ? 'Нет видео' : 'No videos yet'}</p>
-              ) : videos.slice(0, 5).map(v => (
-                <div key={v.id} className="flex items-center gap-3">
-                  <img src={v.thumbnailUrl} className="w-12 h-8 rounded-lg object-cover bg-slate-800 shrink-0" alt="" referrerPolicy="no-referrer" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white font-medium truncate">{v.title}</p>
-                    <p className="text-[10px] text-slate-500"><Eye className="w-3 h-3 inline mr-1" />{v.views}</p>
-                  </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${v.contentType === 'shorts' ? 'bg-teal-500/10 text-teal-400' : 'bg-purple-500/10 text-purple-400'}`}>
-                    {v.contentType === 'shorts' ? 'Short' : 'Video'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6">
-            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-green-400" />
-              {language === 'ru' ? 'Производительность' : 'Performance'}
-            </h3>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs"><span className="text-slate-400">{language === 'ru' ? 'Среднее просмотров' : 'Avg Views/Video'}</span><span className="text-white font-bold">{videos.length > 0 ? Math.round(stats.totalViews / videos.length) : 0}</span></div>
-                <div className="w-full bg-white/5 rounded-full h-1.5">
-                  <div className="h-full bg-gradient-to-r from-[#70d6ff] to-blue-500 rounded-full" style={{ width: `${Math.min(100, (stats.totalViews / Math.max(1, stats.totalVideos)) * 10)}%` }} />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs"><span className="text-slate-400">{language === 'ru' ? 'Подписчиков' : 'Subscribers'}</span><span className="text-white font-bold">{stats.subscriberCount}</span></div>
-                <div className="w-full bg-white/5 rounded-full h-1.5">
-                  <div className="h-full bg-gradient-to-r from-blue-500 to-teal-400 rounded-full" style={{ width: `${Math.min(100, stats.subscriberCount * 5)}%` }} />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs"><span className="text-slate-400">{language === 'ru' ? 'Shorts' : 'Shorts'}</span><span className="text-white font-bold">{stats.totalShorts}</span></div>
-                <div className="w-full bg-white/5 rounded-full h-1.5">
-                  <div className="h-full bg-gradient-to-r from-teal-400 to-green-400 rounded-full" style={{ width: `${videos.length > 0 ? (stats.totalShorts / videos.length) * 100 : 0}%` }} />
-                </div>
-              </div>
-              <div className="mt-4 p-3 bg-[#70d6ff]/5 border border-[#70d6ff]/10 rounded-xl">
-                <div className="flex items-center gap-2 text-[#70d6ff] text-xs font-bold">
-                  <Clock className="w-3 h-3" />
-                  {language === 'ru' ? 'Обновление каждые 15 сек' : 'Auto-updates every 15s'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Verification Request */}
-      <div className="mt-8 bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-[#70d6ff]/10 rounded-xl">
-            <ShieldCheck className="w-5 h-5 text-[#70d6ff]" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-white">{language === 'ru' ? 'Верификация канала' : 'Channel Verification'}</h3>
-            <p className="text-xs text-slate-400">{language === 'ru' ? 'Получите синюю галочку' : 'Get your verified badge'}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className={`p-4 rounded-xl border ${stats.subscriberCount >= 1000 ? 'bg-green-500/5 border-green-500/20' : 'bg-white/5 border-white/10'}`}>
-            <div className="flex items-center gap-2 mb-1">
-              {stats.subscriberCount >= 1000 ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <div className="w-4 h-4 rounded-full border-2 border-slate-500" />}
-              <span className="text-sm font-bold text-white">1 000</span>
-            </div>
-            <p className="text-[10px] text-slate-400">{language === 'ru' ? 'Подписчиков' : 'Subscribers'}</p>
-            <p className="text-xs text-slate-500 mt-1">{stats.subscriberCount} / 1 000</p>
-          </div>
-          <div className={`p-4 rounded-xl border ${stats.totalVideos >= 1000 ? 'bg-green-500/5 border-green-500/20' : 'bg-white/5 border-white/10'}`}>
-            <div className="flex items-center gap-2 mb-1">
-              {stats.totalVideos >= 1000 ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <div className="w-4 h-4 rounded-full border-2 border-slate-500" />}
-              <span className="text-sm font-bold text-white">1 000</span>
-            </div>
-            <p className="text-[10px] text-slate-400">{language === 'ru' ? 'Загружено видео' : 'Videos Uploaded'}</p>
-            <p className="text-xs text-slate-500 mt-1">{stats.totalVideos} / 1 000</p>
-          </div>
-          <div className={`p-4 rounded-xl border ${stats.snowflakesCount >= 100 ? 'bg-green-500/5 border-green-500/20' : 'bg-white/5 border-white/10'}`}>
-            <div className="flex items-center gap-2 mb-1">
-              {stats.snowflakesCount >= 100 ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <div className="w-4 h-4 rounded-full border-2 border-slate-500" />}
-              <span className="text-sm font-bold text-white">100</span>
-            </div>
-            <p className="text-[10px] text-slate-400">{language === 'ru' ? 'Снежинок' : 'Snowflakes'}</p>
-            <p className="text-xs text-slate-500 mt-1">{stats.snowflakesCount} / 100</p>
-          </div>
-        </div>
-
-        {stats.subscriberCount >= 1000 && stats.totalVideos >= 1000 && stats.snowflakesCount >= 100 ? (
+      <div className="flex flex-col lg:flex-row gap-6 mt-8">
+        {/* Sidebar */}
+        <aside className="w-full lg:w-56 shrink-0 flex lg:flex-col gap-1 overflow-x-auto hide-scrollbar">
           <button
-            onClick={handleRequestVerification}
-            disabled={requestingVerify}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#70d6ff] text-black px-6 py-3 rounded-xl font-bold hover:bg-[#70d6ff]/90 transition-all disabled:opacity-50"
+            onClick={() => setStudioTab('dashboard')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
+              studioTab === 'dashboard' ? 'bg-[#70d6ff]/10 text-[#70d6ff] border border-[#70d6ff]/20' : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+            }`}
           >
-            {requestingVerify ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-            {language === 'ru' ? 'Подать заявку на верификацию' : 'Request Verification'}
+            <LayoutDashboard className="w-4 h-4" />
+            {language === 'ru' ? 'Дашборд' : 'Dashboard'}
           </button>
-        ) : (
-          <div className="p-3 bg-slate-500/10 border border-slate-500/20 rounded-xl">
-            <p className="text-xs text-slate-400 text-center">
-              {language === 'ru'
-                ? 'Выполните все требования выше, чтобы подать заявку на верификацию.'
-                : 'Meet all requirements above to apply for verification.'}
-            </p>
-          </div>
-        )}
+          <button
+            onClick={() => setStudioTab('content')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
+              studioTab === 'content' ? 'bg-[#70d6ff]/10 text-[#70d6ff] border border-[#70d6ff]/20' : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+            }`}
+          >
+            <Film className="w-4 h-4" />
+            {language === 'ru' ? 'Контент' : 'Content'}
+          </button>
+          <button
+            onClick={() => setStudioTab('verification')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
+              studioTab === 'verification' ? 'bg-[#70d6ff]/10 text-[#70d6ff] border border-[#70d6ff]/20' : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            {language === 'ru' ? 'Верификация' : 'Verification'}
+          </button>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 min-w-0">
+          {studioTab === 'dashboard' && (
+            <div className="space-y-8">
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6 relative overflow-hidden group">
+                  <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#70d6ff]/10 rounded-full blur-2xl group-hover:bg-[#70d6ff]/20 transition-all" />
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2.5 bg-[#70d6ff]/10 rounded-xl">
+                      <Eye className="w-5 h-5 text-[#70d6ff]" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-black text-white mb-1">
+                    {new Intl.NumberFormat().format(stats.totalViews)}
+                  </div>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{language === 'ru' ? 'Всего просмотров' : 'Total Views'}</p>
+                </div>
+                <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6 relative overflow-hidden group">
+                  <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all" />
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2.5 bg-blue-500/10 rounded-xl">
+                      <Users className="w-5 h-5 text-blue-400" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-black text-white mb-1">
+                    {new Intl.NumberFormat().format(stats.subscriberCount)}
+                  </div>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{language === 'ru' ? 'Подписчики' : 'Subscribers'}</p>
+                </div>
+                <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6 relative overflow-hidden group">
+                  <div className="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all" />
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2.5 bg-purple-500/10 rounded-xl">
+                      <Film className="w-5 h-5 text-purple-400" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-black text-white mb-1">
+                    {stats.totalVideos}
+                  </div>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{language === 'ru' ? 'Всего видео' : 'Total Videos'}</p>
+                </div>
+                <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6 relative overflow-hidden group">
+                  <div className="absolute -right-4 -top-4 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl group-hover:bg-teal-500/20 transition-all" />
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2.5 bg-teal-500/10 rounded-xl">
+                      <Activity className="w-5 h-5 text-teal-400" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-black text-white mb-1">
+                    {stats.totalShorts}
+                  </div>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Shorts</p>
+                </div>
+              </div>
+
+              {/* Quick Insights */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6">
+                  <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-[#70d6ff]" />
+                    {language === 'ru' ? 'Последние видео' : 'Recent Uploads'}
+                  </h3>
+                  <div className="space-y-3">
+                    {videos.slice(0, 5).length === 0 ? (
+                      <p className="text-xs text-slate-500 text-center py-8">{language === 'ru' ? 'Нет видео' : 'No videos yet'}</p>
+                    ) : videos.slice(0, 5).map(v => (
+                      <div key={v.id} className="flex items-center gap-3">
+                        <img src={v.thumbnailUrl} className="w-12 h-8 rounded-lg object-cover bg-slate-800 shrink-0" alt="" referrerPolicy="no-referrer" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white font-medium truncate">{v.title}</p>
+                          <p className="text-[10px] text-slate-500"><Eye className="w-3 h-3 inline mr-1" />{v.views}</p>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${v.contentType === 'shorts' ? 'bg-teal-500/10 text-teal-400' : 'bg-purple-500/10 text-purple-400'}`}>
+                          {v.contentType === 'shorts' ? 'Short' : 'Video'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6">
+                  <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-green-400" />
+                    {language === 'ru' ? 'Производительность' : 'Performance'}
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs"><span className="text-slate-400">{language === 'ru' ? 'Среднее просмотров' : 'Avg Views/Video'}</span><span className="text-white font-bold">{videos.length > 0 ? Math.round(stats.totalViews / videos.length) : 0}</span></div>
+                      <div className="w-full bg-white/5 rounded-full h-1.5">
+                        <div className="h-full bg-gradient-to-r from-[#70d6ff] to-blue-500 rounded-full" style={{ width: `${Math.min(100, (stats.totalViews / Math.max(1, stats.totalVideos)) * 10)}%` }} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs"><span className="text-slate-400">{language === 'ru' ? 'Подписчиков' : 'Subscribers'}</span><span className="text-white font-bold">{stats.subscriberCount}</span></div>
+                      <div className="w-full bg-white/5 rounded-full h-1.5">
+                        <div className="h-full bg-gradient-to-r from-blue-500 to-teal-400 rounded-full" style={{ width: `${Math.min(100, stats.subscriberCount * 5)}%` }} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs"><span className="text-slate-400">{language === 'ru' ? 'Shorts' : 'Shorts'}</span><span className="text-white font-bold">{stats.totalShorts}</span></div>
+                      <div className="w-full bg-white/5 rounded-full h-1.5">
+                        <div className="h-full bg-gradient-to-r from-teal-400 to-green-400 rounded-full" style={{ width: `${videos.length > 0 ? (stats.totalShorts / videos.length) * 100 : 0}%` }} />
+                      </div>
+                    </div>
+                    <div className="mt-4 p-3 bg-[#70d6ff]/5 border border-[#70d6ff]/10 rounded-xl">
+                      <div className="flex items-center gap-2 text-[#70d6ff] text-xs font-bold">
+                        <Clock className="w-3 h-3" />
+                        {language === 'ru' ? 'Обновление каждые 15 сек' : 'Auto-updates every 15s'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {studioTab === 'content' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <h3 className="text-lg font-bold text-white">{language === 'ru' ? 'Мой контент' : 'My Content'}</h3>
+                <div className="flex gap-2 overflow-x-auto hide-scrollbar">
+                  {[
+                    { id: 'new', label: language === 'ru' ? 'Новые' : 'New' },
+                    { id: 'shorts', label: 'Shorts' },
+                    { id: 'old', label: language === 'ru' ? 'Старые' : 'Old' },
+                    { id: 'popular', label: language === 'ru' ? 'Популярные' : 'Popular' }
+                  ].map(f => (
+                    <button
+                      key={f.id}
+                      onClick={() => setContentFilter(f.id as any)}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                        contentFilter === f.id ? 'bg-white text-black' : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                {videos.length === 0 ? (
+                  <div className="p-10 text-center text-slate-500 text-sm">{language === 'ru' ? 'Нет контента' : 'No content yet'}</div>
+                ) : (
+                  <div className="divide-y divide-white/5">
+                    {videos
+                      .filter(v => contentFilter === 'shorts' ? v.contentType === 'shorts' : v.contentType !== 'shorts')
+                      .sort((a, b) => {
+                        if (contentFilter === 'old') return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+                        if (contentFilter === 'popular') return (b.views || 0) - (a.views || 0);
+                        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+                      })
+                      .map(v => (
+                        <div key={v.id} className="flex items-center gap-4 p-4 hover:bg-white/5 transition-all group">
+                          <img src={v.thumbnailUrl} className="w-16 h-10 rounded-lg object-cover bg-slate-800 shrink-0" alt="" referrerPolicy="no-referrer" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-white font-medium truncate">{v.title}</p>
+                            <p className="text-[10px] text-slate-500 flex items-center gap-2">
+                              <Eye className="w-3 h-3 inline" /> {v.views}
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${v.contentType === 'shorts' ? 'bg-teal-500/10 text-teal-400' : 'bg-purple-500/10 text-purple-400'}`}>
+                                {v.contentType === 'shorts' ? 'Short' : 'Video'}
+                              </span>
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => { setEditingVideo(v); }} className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-[#70d6ff] transition-all">
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => handleDelete(v.id)} disabled={isDeleting === v.id} className="p-2 hover:bg-red-500/10 rounded-lg text-slate-400 hover:text-red-400 transition-all">
+                              {isDeleting === v.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {studioTab === 'verification' && (
+            <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-[#70d6ff]/10 rounded-xl">
+                  <ShieldCheck className="w-5 h-5 text-[#70d6ff]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">{language === 'ru' ? 'Верификация канала' : 'Channel Verification'}</h3>
+                  <p className="text-xs text-slate-400">{language === 'ru' ? 'Получите синюю галочку' : 'Get your verified badge'}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div className={`p-4 rounded-xl border ${stats.subscriberCount >= 1000 ? 'bg-green-500/5 border-green-500/20' : 'bg-white/5 border-white/10'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    {stats.subscriberCount >= 1000 ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <div className="w-4 h-4 rounded-full border-2 border-slate-500" />}
+                    <span className="text-sm font-bold text-white">1 000</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">{language === 'ru' ? 'Подписчиков' : 'Subscribers'}</p>
+                  <p className="text-xs text-slate-500 mt-1">{stats.subscriberCount} / 1 000</p>
+                </div>
+                <div className={`p-4 rounded-xl border ${stats.totalVideos >= 1000 ? 'bg-green-500/5 border-green-500/20' : 'bg-white/5 border-white/10'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    {stats.totalVideos >= 1000 ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <div className="w-4 h-4 rounded-full border-2 border-slate-500" />}
+                    <span className="text-sm font-bold text-white">1 000</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">{language === 'ru' ? 'Загружено видео' : 'Videos Uploaded'}</p>
+                  <p className="text-xs text-slate-500 mt-1">{stats.totalVideos} / 1 000</p>
+                </div>
+                <div className={`p-4 rounded-xl border ${stats.snowflakesCount >= 100 ? 'bg-green-500/5 border-green-500/20' : 'bg-white/5 border-white/10'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    {stats.snowflakesCount >= 100 ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <div className="w-4 h-4 rounded-full border-2 border-slate-500" />}
+                    <span className="text-sm font-bold text-white">100</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">{language === 'ru' ? 'Снежинок' : 'Snowflakes'}</p>
+                  <p className="text-xs text-slate-500 mt-1">{stats.snowflakesCount} / 100</p>
+                </div>
+              </div>
+
+              {stats.subscriberCount >= 1000 && stats.totalVideos >= 1000 && stats.snowflakesCount >= 100 ? (
+                <button
+                  onClick={handleRequestVerification}
+                  disabled={requestingVerify}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#70d6ff] text-black px-6 py-3 rounded-xl font-bold hover:bg-[#70d6ff]/90 transition-all disabled:opacity-50"
+                >
+                  {requestingVerify ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                  {language === 'ru' ? 'Подать заявку на верификацию' : 'Request Verification'}
+                </button>
+              ) : (
+                <div className="p-3 bg-slate-500/10 border border-slate-500/20 rounded-xl">
+                  <p className="text-xs text-slate-400 text-center">
+                    {language === 'ru'
+                      ? 'Выполните все требования выше, чтобы подать заявку на верификацию.'
+                      : 'Meet all requirements above to apply for verification.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </main>
       </div>
 
       {/* Edit Video Modal */}
