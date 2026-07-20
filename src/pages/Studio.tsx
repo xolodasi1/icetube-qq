@@ -252,40 +252,31 @@ export default function Studio() {
         onUploadSuccess={fetchStats}
       />
 
-      <div className="flex flex-col lg:flex-row gap-6 mt-8">
-        {/* Sidebar */}
-        <aside className="w-full lg:w-56 shrink-0 flex lg:flex-col gap-1 overflow-x-auto hide-scrollbar">
-          <button
-            onClick={() => setStudioTab('dashboard')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-              studioTab === 'dashboard' ? 'bg-[#70d6ff]/10 text-[#70d6ff] border border-[#70d6ff]/20' : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-            }`}
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            {language === 'ru' ? 'Дашборд' : 'Dashboard'}
-          </button>
-          <button
-            onClick={() => setStudioTab('content')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-              studioTab === 'content' ? 'bg-[#70d6ff]/10 text-[#70d6ff] border border-[#70d6ff]/20' : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-            }`}
-          >
-            <Film className="w-4 h-4" />
-            {language === 'ru' ? 'Контент' : 'Content'}
-          </button>
-          <button
-            onClick={() => setStudioTab('verification')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-              studioTab === 'verification' ? 'bg-[#70d6ff]/10 text-[#70d6ff] border border-[#70d6ff]/20' : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            {language === 'ru' ? 'Верификация' : 'Verification'}
-          </button>
-        </aside>
+      <div className="mt-8">
+        {/* Tab Navigation */}
+        <div className="flex gap-2 mb-8 overflow-x-auto hide-scrollbar border-b ice-border pb-px">
+          {[
+            { id: 'dashboard', label: language === 'ru' ? 'Дашборд' : 'Dashboard', icon: LayoutDashboard },
+            { id: 'content', label: language === 'ru' ? 'Контент' : 'Content', icon: Film },
+            { id: 'verification', label: language === 'ru' ? 'Верификация' : 'Verification', icon: ShieldCheck }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setStudioTab(tab.id as any)}
+              className={`flex items-center gap-2 px-5 py-3 text-sm font-bold transition-all whitespace-nowrap border-b-2 -mb-px ${
+                studioTab === tab.id
+                  ? 'border-[#70d6ff] text-[#70d6ff]'
+                  : 'border-transparent text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
         {/* Main Content */}
-        <main className="flex-1 min-w-0">
+        <main className="min-w-0">
           {studioTab === 'dashboard' && (
             <div className="space-y-8">
               {/* Stats Grid */}
