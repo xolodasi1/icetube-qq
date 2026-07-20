@@ -45,6 +45,7 @@ export default function App() {
           <Route path="/history" element={<History />} />
           <Route path="/your-videos" element={<YourVideos />} />
           <Route path="/studio" element={<Studio />} />
+          <Route path="/studio/verification" element={<Studio />} />
           <Route path="/studio/content" element={<Content />} />
           <Route path="/studio/editor" element={<ChannelEditor />} />
           <Route path="/watch-later" element={<WatchLater />} />

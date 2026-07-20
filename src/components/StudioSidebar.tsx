@@ -1,4 +1,4 @@
-import { LayoutDashboard, Film, Wand2, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Film, Wand2, ArrowLeft, ShieldCheck } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import clsx from "clsx";
 import { useLanguage } from "../lib/LanguageContext";
@@ -10,6 +10,7 @@ export function StudioSidebar({ isOpen, onClose }: { isOpen: boolean, onClose?: 
   const studioItems = [
     { icon: LayoutDashboard, label: t('studio_title'), path: "/studio" },
     { icon: Film, label: t('studio_content'), path: "/studio/content" },
+    { icon: ShieldCheck, label: t('studio_verification'), path: "/studio/verification" },
     { icon: Wand2, label: t('studio_customize'), path: "/studio/editor" },
   ];
 
