@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { databases } from '../lib/appwrite';
 import { useLanguage } from '../lib/LanguageContext';
-import { Loader2, LayoutDashboard, Film, TrendingUp, Edit2, Trash2, AlertCircle, Upload, Wand2, X, Users, Clock, Eye, Activity } from 'lucide-react';
+import { Loader2, LayoutDashboard, Film, TrendingUp, Edit2, Trash2, AlertCircle, Upload, Wand2, X, Users, Clock, Eye, Activity, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { Query, ID } from 'appwrite';
 import { UploadModal } from '../components/UploadModal';
 import { Link } from 'react-router-dom';
@@ -15,7 +15,8 @@ export default function Studio() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editingVideo, setEditingVideo] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [stats, setStats] = useState({ totalViews: 0, totalVideos: 0, totalShorts: 0, subscriberCount: 0 });
+  const [stats, setStats] = useState({ totalViews: 0, totalVideos: 0, totalShorts: 0, subscriberCount: 0, snowflakesCount: 0 });
+  const [requestingVerify, setRequestingVerify] = useState(false);
 
   const handleDelete = async (videoId: string) => {
     if (!window.confirm(language === 'ru' ? 'Вы уверены, что хотите удалить это видео? Это действие нельзя отменить.' : 'Are you sure you want to delete this video? This action cannot be undone.')) return;
@@ -99,6 +100,7 @@ export default function Studio() {
         description: v.description,
         category: v.category,
         contentType: v.contentType,
+        verified: v.verified || false,
         game: v.game,
         thumbnailUrl: v.thumbnailUrl,
         views: v.views || 0,
@@ -123,16 +125,63 @@ export default function Studio() {
         }
       }
 
+      let snowflakesCount = 0;
+      try {
+        const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+        if (profilesCol) {
+          const profileRes = await databases.listDocuments(dbId, profilesCol, [
+            Query.equal('userId', user.$id)
+          ]);
+          if (profileRes.documents.length > 0) {
+            snowflakesCount = profileRes.documents[0].snowflakesCount || 0;
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to fetch snowflakes:", e);
+      }
+
       setStats({
         totalVideos: response.total,
         totalViews: userVids.reduce((acc, curr) => acc + curr.views, 0),
         totalShorts: userVids.filter(v => v.contentType === 'shorts').length,
-        subscriberCount
+        subscriberCount,
+        snowflakesCount
       });
     } catch (err) {
       console.error("Studio fetch failed:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleRequestVerification = async () => {
+    if (!user) return;
+    setRequestingVerify(true);
+    try {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+      if (!dbId || !profilesCol) {
+        alert(language === 'ru' ? 'Ошибка конфигурации.' : 'Configuration error.');
+        return;
+      }
+
+      const profileRes = await databases.listDocuments(dbId, profilesCol, [
+        Query.equal('userId', user.$id)
+      ]);
+      if (profileRes.documents.length > 0) {
+        await databases.updateDocument(dbId, profilesCol, profileRes.documents[0].$id, {
+          verificationRequested: true
+        });
+      }
+
+      alert(language === 'ru'
+        ? 'Заявка на верификацию отправлена администратору!'
+        : 'Verification request sent to admin!');
+    } catch (err: any) {
+      console.error("Verification request failed:", err);
+      alert(language === 'ru' ? 'Ошибка при отправке заявки.' : 'Failed to send request.');
+    } finally {
+      setRequestingVerify(false);
     }
   };
 
@@ -316,6 +365,65 @@ export default function Studio() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Verification Request */}
+      <div className="mt-8 bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-[#70d6ff]/10 rounded-xl">
+            <ShieldCheck className="w-5 h-5 text-[#70d6ff]" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-white">{language === 'ru' ? 'Верификация канала' : 'Channel Verification'}</h3>
+            <p className="text-xs text-slate-400">{language === 'ru' ? 'Получите синюю галочку' : 'Get your verified badge'}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className={`p-4 rounded-xl border ${stats.subscriberCount >= 1000 ? 'bg-green-500/5 border-green-500/20' : 'bg-white/5 border-white/10'}`}>
+            <div className="flex items-center gap-2 mb-1">
+              {stats.subscriberCount >= 1000 ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <div className="w-4 h-4 rounded-full border-2 border-slate-500" />}
+              <span className="text-sm font-bold text-white">1 000</span>
+            </div>
+            <p className="text-[10px] text-slate-400">{language === 'ru' ? 'Подписчиков' : 'Subscribers'}</p>
+            <p className="text-xs text-slate-500 mt-1">{stats.subscriberCount} / 1 000</p>
+          </div>
+          <div className={`p-4 rounded-xl border ${stats.totalVideos >= 1000 ? 'bg-green-500/5 border-green-500/20' : 'bg-white/5 border-white/10'}`}>
+            <div className="flex items-center gap-2 mb-1">
+              {stats.totalVideos >= 1000 ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <div className="w-4 h-4 rounded-full border-2 border-slate-500" />}
+              <span className="text-sm font-bold text-white">1 000</span>
+            </div>
+            <p className="text-[10px] text-slate-400">{language === 'ru' ? 'Загружено видео' : 'Videos Uploaded'}</p>
+            <p className="text-xs text-slate-500 mt-1">{stats.totalVideos} / 1 000</p>
+          </div>
+          <div className={`p-4 rounded-xl border ${stats.snowflakesCount >= 100 ? 'bg-green-500/5 border-green-500/20' : 'bg-white/5 border-white/10'}`}>
+            <div className="flex items-center gap-2 mb-1">
+              {stats.snowflakesCount >= 100 ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <div className="w-4 h-4 rounded-full border-2 border-slate-500" />}
+              <span className="text-sm font-bold text-white">100</span>
+            </div>
+            <p className="text-[10px] text-slate-400">{language === 'ru' ? 'Снежинок' : 'Snowflakes'}</p>
+            <p className="text-xs text-slate-500 mt-1">{stats.snowflakesCount} / 100</p>
+          </div>
+        </div>
+
+        {stats.subscriberCount >= 1000 && stats.totalVideos >= 1000 && stats.snowflakesCount >= 100 ? (
+          <button
+            onClick={handleRequestVerification}
+            disabled={requestingVerify}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#70d6ff] text-black px-6 py-3 rounded-xl font-bold hover:bg-[#70d6ff]/90 transition-all disabled:opacity-50"
+          >
+            {requestingVerify ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+            {language === 'ru' ? 'Подать заявку на верификацию' : 'Request Verification'}
+          </button>
+        ) : (
+          <div className="p-3 bg-slate-500/10 border border-slate-500/20 rounded-xl">
+            <p className="text-xs text-slate-400 text-center">
+              {language === 'ru'
+                ? 'Выполните все требования выше, чтобы подать заявку на верификацию.'
+                : 'Meet all requirements above to apply for verification.'}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Edit Video Modal */}

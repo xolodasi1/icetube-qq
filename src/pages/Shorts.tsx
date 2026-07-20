@@ -148,7 +148,8 @@ export default function Shorts() {
           uploaderAvatar: doc.uploaderAvatar,
           views: doc.views || 0,
           description: doc.description,
-          contentType: doc.contentType || 'short'
+          contentType: doc.contentType || 'short',
+          verified: doc.verified || false,
         }));
 
         if (finalDocs.length === 0) {
@@ -265,6 +266,23 @@ export default function Shorts() {
       } catch (e) {
         console.error("Failed to save to history", e);
       }
+
+      // Increment view count
+      const runViewUpdate = async () => {
+        try {
+          const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+          const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+          if (dbId && colId) {
+            const increment = Math.floor(Math.random() * 3) + 1;
+            await databases.updateDocument(dbId, colId, current.$id, {
+              views: (current.views || 0) + increment
+            });
+          }
+        } catch (e) {
+          console.error("View increment failed:", e);
+        }
+      };
+      runViewUpdate();
     }
   }, [currentVideoIndex, videos, user, language]);
 

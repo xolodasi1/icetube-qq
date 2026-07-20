@@ -95,7 +95,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         views: 0,
         category: category.trim() || 'All',
         contentType: isShorts ? 'shorts' : 'video',
-        game: game.trim() || undefined
+        game: game.trim() || undefined,
+        verified: false
       };
 
       try {
@@ -120,7 +121,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
           uploaderId: uploadData.uploaderId,
           uploaderName: uploadData.uploaderName,
           uploaderAvatar: uploadData.uploaderAvatar,
-          views: uploadData.views
+          views: uploadData.views,
+          verified: false
         }
       );
     } else {

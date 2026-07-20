@@ -65,6 +65,7 @@ export default function Channel() {
           uploadDate: t('video_recently'),
           duration: "10:00",
           contentType: v.contentType || 'video',
+          verified: v.verified || false,
           createdAt: v.$createdAt
         }));
 

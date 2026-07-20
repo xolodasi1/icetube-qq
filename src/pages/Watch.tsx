@@ -515,6 +515,7 @@ export default function Watch() {
             description: currentDoc.description || t('video_no_description'),
             category: currentDoc.category || 'All',
             contentType: currentDoc.contentType || 'video',
+            verified: currentDoc.verified || false,
             duration: currentDoc.duration || '0:00'
           };
 
@@ -552,7 +553,8 @@ export default function Watch() {
                 channelAvatar: v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
                 views: v.views || 0,
                 uploadDate: t('video_recently'),
-                category: v.category || 'All'
+                category: v.category || 'All',
+                verified: v.verified || false,
               }));
             setSuggestedVideos(suggested);
           } catch (sErr) {
@@ -563,13 +565,14 @@ export default function Watch() {
           // Increment View Count (Live mode only)
           const runUpdate = async () => {
             try {
+              const increment = Math.floor(Math.random() * 3) + 1;
               await databases.updateDocument(dbId, colId, currentVideo.id, {
-                views: (currentVideo.views || 0) + 1
+                views: (currentVideo.views || 0) + increment
               });
 
               if (profilesCol && uploaderProfile) {
                 await databases.updateDocument(dbId, profilesCol, uploaderProfile.$id, {
-                  viewsCount: (uploaderProfile.viewsCount || 0) + 1
+                  viewsCount: (uploaderProfile.viewsCount || 0) + increment
                 });
               }
             } catch (viewErr) {
@@ -1424,9 +1427,11 @@ export default function Watch() {
                 <div className="flex flex-col">
                   <Link to={`/channel/${video.uploaderId}`} className="font-bold text-slate-100 hover:text-white transition-colors flex items-center gap-1">
                     {video.channelName}
-                    <div className="w-3.5 h-3.5 bg-slate-400 text-black rounded-full flex items-center justify-center">
-                      <Check className="w-2.5 h-2.5" />
-                    </div>
+                    {video.verified && (
+                      <div className="w-3.5 h-3.5 bg-[#70d6ff] text-black rounded-full flex items-center justify-center">
+                        <Check className="w-2.5 h-2.5" />
+                      </div>
+                    )}
                   </Link>
                   <span className="text-xs text-slate-400">
                     {subsCount} {language === 'ru' ? (

@@ -35,6 +35,7 @@ export default function Clips() {
             channelName: v.uploaderName || 'User',
             channelAvatar: v.uploaderAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${v.uploaderId}`,
             views: v.views || 0,
+            verified: v.verified || false,
             uploadDate: t('video_recently'),
             duration: v.duration || '0:00'
           }));

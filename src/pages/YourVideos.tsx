@@ -43,7 +43,8 @@ export default function YourVideos() {
           views: v.views || 0,
           uploadDate: new Date(v.$createdAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'),
           description: v.description,
-          contentType: v.contentType || 'video'
+          contentType: v.contentType || 'video',
+          verified: v.verified || false,
         }));
 
       setVideos(userVids.reverse());

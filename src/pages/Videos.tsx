@@ -78,6 +78,7 @@ export default function Videos() {
                   uploadDate: t('video_recently'),
                   category: v.category || 'All',
                   contentType: v.contentType || 'video',
+                  verified: v.verified || false,
                   description: v.description || ''
                 };
             });

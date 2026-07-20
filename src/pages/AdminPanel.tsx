@@ -65,6 +65,8 @@ export default function AdminPanel() {
               avatar: doc.avatar || doc.photoUrl,
               email: doc.email,
               role: doc.role || 'user',
+              verified: doc.verified || false,
+              verificationRequested: doc.verificationRequested || false,
               subscribersCount: doc.subscribersCount,
               likesCount: doc.likesCount,
               viewsCount: doc.viewsCount,
@@ -107,7 +109,8 @@ export default function AdminPanel() {
               views: doc.views || 0,
               contentType: doc.contentType,
               isShort: doc.isShort,
-              isShorts: doc.isShorts
+              isShorts: doc.isShorts,
+              verified: doc.verified || false,
             })));
           } catch (err: any) {
             console.error("Videos Fetch Error:", err);
@@ -502,6 +505,20 @@ function UsersSection({ dbUsers, t, language }: any) {
     }
   };
 
+  const toggleVerification = async (userId: string, verified: boolean) => {
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const usersColId = import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+    if (!dbId || !usersColId) return;
+
+    try {
+      await databases.updateDocument(dbId, usersColId, userId, { verified, verificationRequested: false });
+      setLocalUsers(localUsers.map((u: any) => u.$id === userId ? { ...u, verified, verificationRequested: false } : u));
+    } catch (err: any) {
+      console.error("Failed to toggle verification:", err);
+      alert("Failed to update verification status. Add a boolean attribute named 'verified' to your users collection in Appwrite.");
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -534,7 +551,7 @@ function UsersSection({ dbUsers, t, language }: any) {
             </thead>
             <tbody className="divide-y divide-white/5 text-slate-300">
               {filteredUsers.length === 0 ? (
-                <tr><td colSpan={4} className="text-center py-20 text-slate-500 text-xs font-bold uppercase tracking-widest">{language === 'ru' ? 'Ничего не найдено' : 'Nothing found'}</td></tr>
+                <tr><td colSpan={5} className="text-center py-20 text-slate-500 text-xs font-bold uppercase tracking-widest">{language === 'ru' ? 'Ничего не найдено' : 'Nothing found'}</td></tr>
               ) : filteredUsers.map((usr: any) => (
                 <tr key={usr.$id} className="hover:bg-white/5 transition-all group">
                   <td className="px-6 py-4">
@@ -551,25 +568,45 @@ function UsersSection({ dbUsers, t, language }: any) {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 bg-white/5 border border-white/5 text-[10px] font-black uppercase rounded ${usr.email === 'xolodtop889@gmail.com' ? 'text-purple-400 border-purple-400/20' : usr.role === 'admin' ? 'text-red-400 border-red-400/20' : usr.role === 'moderator' ? 'text-yellow-400 border-yellow-400/20' : 'text-slate-400'}`}>
-                      {usr.email === 'xolodtop889@gmail.com' ? 'Proprietor' : (usr.role || 'user')}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2.5 py-1 bg-white/5 border border-white/5 text-[10px] font-black uppercase rounded ${usr.email === 'xolodtop889@gmail.com' ? 'text-purple-400 border-purple-400/20' : usr.role === 'admin' ? 'text-red-400 border-red-400/20' : usr.role === 'moderator' ? 'text-yellow-400 border-yellow-400/20' : 'text-slate-400'}`}>
+                        {usr.email === 'xolodtop889@gmail.com' ? 'Proprietor' : (usr.role || 'user')}
+                      </span>
+                      {usr.verificationRequested && !usr.verified && (
+                        <span className="px-2 py-0.5 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-[9px] font-black uppercase rounded">
+                          Req Verify
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-xs font-mono text-slate-500">
                      {new Date(usr.$createdAt || Date.now()).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 text-right">
-                     {isAdmin && usr.email !== 'xolodtop889@gmail.com' ? (
-                        <select 
-                          value={usr.role || 'user'}
-                          onChange={(e) => changeUserRole(usr.$id, e.target.value)}
-                          className="bg-black/50 border border-white/10 text-xs rounded-lg p-2 text-slate-300 focus:outline-none focus:border-[#70d6ff]"
-                        >
-                           <option value="user">User</option>
-                           <option value="moderator">Moderator</option>
-                           {isProprietor && <option value="admin">Admin</option>}
-                        </select>
-                     ) : (
+            {isAdmin && usr.email !== 'xolodtop889@gmail.com' ? (
+              <div className="flex items-center gap-2 justify-end">
+                <button
+                  onClick={() => toggleVerification(usr.$id, !usr.verified)}
+                  className={`p-1.5 rounded-lg transition-all text-[10px] font-bold flex items-center gap-1 ${
+                    usr.verified
+                      ? 'bg-[#70d6ff]/10 text-[#70d6ff] border border-[#70d6ff]/20'
+                      : 'bg-slate-500/10 text-slate-400 border border-transparent hover:border-white/10'
+                  }`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  {usr.verified ? 'Verified' : 'Verify'}
+                </button>
+                <select 
+                  value={usr.role || 'user'}
+                  onChange={(e) => changeUserRole(usr.$id, e.target.value)}
+                  className="bg-black/50 border border-white/10 text-xs rounded-lg p-2 text-slate-300 focus:outline-none focus:border-[#70d6ff]"
+                >
+                   <option value="user">User</option>
+                   <option value="moderator">Moderator</option>
+                   {isProprietor && <option value="admin">Admin</option>}
+                </select>
+              </div>
+            ) : (
                         <button className="p-2 hover:bg-white/10 rounded-xl transition-all text-slate-400 hidden">
                           <MoreHorizontal className="w-4 h-4" />
                         </button>

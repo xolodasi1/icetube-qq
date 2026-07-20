@@ -33,6 +33,7 @@ export default function Content() {
         thumbnailUrl: v.thumbnailUrl,
         views: v.views || 0,
         contentType: v.contentType || 'video',
+        verified: v.verified || false,
         uploadDate: new Date(v.$createdAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'),
         createdAt: v.$createdAt,
         status: 'Published'

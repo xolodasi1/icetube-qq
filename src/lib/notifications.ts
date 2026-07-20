@@ -6,7 +6,7 @@ export const createNotification = async (params: {
   actorId: string; // The person doing the action
   actorName: string;
   actorAvatar?: string;
-  type: 'like' | 'snowflake' | 'comment' | 'subscribe' | 'upload';
+  type: 'like' | 'snowflake' | 'comment' | 'subscribe' | 'upload' | 'verify';
   videoId?: string;
   videoTitle?: string;
   contentType?: 'video' | 'shorts';

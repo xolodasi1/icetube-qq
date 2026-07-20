@@ -12,6 +12,7 @@ export interface Video {
   description: string;
   category: string;
   contentType?: 'video' | 'shorts';
+  verified?: boolean;
 }
 
 export const mockVideos: Video[] = [
