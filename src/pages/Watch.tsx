@@ -1925,12 +1925,12 @@ export default function Watch() {
                               <button onClick={() => setReplyingToId(null)} className="text-xs text-slate-400 hover:text-white px-2 py-1">{t('comment_cancel')}</button>
                               <button onClick={() => handleAddReply(comment.id)} disabled={isCommenting} className="text-xs bg-white text-black px-3 py-1 rounded-full font-medium hover:bg-slate-200 transition-colors disabled:opacity-50">{t('comment_reply')}</button>
                             </div>
-              </div>
-            </div>
-            </div>
-          )}
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
                   </div>
-                </div>
                 {/* Replies */}
                 <div className="ml-14 flex flex-col gap-4 mt-2">
                   {comments.filter(reply => reply.parentId === comment.id).reverse().map(reply => (
