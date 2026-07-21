@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { databases } from '../lib/appwrite';
 import { useLanguage } from '../lib/LanguageContext';
-import { Loader2, Film, Edit2, Trash2, AlertCircle, Search, Eye, Calendar, Clock, TrendingUp, Video, Scissors, CheckCircle2, X } from 'lucide-react';
+import { Loader2, Film, Edit2, Trash2, AlertCircle, Search, Eye, Calendar, Clock, TrendingUp, Video, Scissors, CheckCircle2, X, Image } from 'lucide-react';
 import { Query, ID } from 'appwrite';
 import { getOptimizedThumbnail } from '../lib/cloudinary';
 
@@ -11,7 +11,7 @@ export default function Content() {
   const { t, language } = useLanguage();
   const [videos, setVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [tab, setTab] = useState<'videos' | 'shorts'>('videos');
+  const [tab, setTab] = useState<'videos' | 'shorts' | 'photos'>('videos');
   const [searchQuery, setSearchQuery] = useState('');
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [editingVideo, setEditingVideo] = useState<any | null>(null);
@@ -57,11 +57,12 @@ export default function Content() {
     fetchVideos();
   }, [user, language]);
 
-  const regularVideos = useMemo(() => videos.filter(v => v.contentType !== 'shorts'), [videos]);
+  const regularVideos = useMemo(() => videos.filter(v => v.contentType !== 'shorts' && v.contentType !== 'photo'), [videos]);
   const shortsVideos = useMemo(() => videos.filter(v => v.contentType === 'shorts'), [videos]);
+  const photosVideos = useMemo(() => videos.filter(v => v.contentType === 'photo'), [videos]);
 
   const filteredVideos = useMemo(() => {
-    const source = tab === 'videos' ? regularVideos : shortsVideos;
+    const source = tab === 'videos' ? regularVideos : tab === 'shorts' ? shortsVideos : photosVideos;
     let result = searchQuery
       ? source.filter(v => v.title?.toLowerCase().includes(searchQuery.toLowerCase()))
       : [...source];
@@ -70,7 +71,7 @@ export default function Content() {
     else if (sortBy === 'views') result.sort((a, b) => b.views - a.views);
     else if (sortBy === 'likes') result.sort((a, b) => (b.likes || 0) - (a.likes || 0));
     return result;
-  }, [tab, regularVideos, shortsVideos, searchQuery, sortBy]);
+  }, [tab, regularVideos, shortsVideos, photosVideos, searchQuery, sortBy]);
 
   const handleDelete = async (videoId: string) => {
     if (!window.confirm(language === 'ru' ? 'Удалить навсегда?' : 'Delete permanently?')) return;
@@ -199,6 +200,14 @@ export default function Content() {
             <span>Shorts</span>
             <span className="text-[10px] opacity-60 ml-1">({shortsVideos.length})</span>
           </button>
+          <button
+            onClick={() => setTab('photos')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 cursor-pointer ${tab === 'photos' ? 'bg-purple-500 text-black shadow-lg shadow-purple-500/30' : 'text-slate-400 hover:text-white'}`}
+          >
+            <Image className="w-4 h-4" />
+            <span>{language === 'ru' ? 'Фото' : 'Photos'}</span>
+            <span className="text-[10px] opacity-60 ml-1">({photosVideos.length})</span>
+          </button>
         </div>
         <div className="relative w-full sm:w-72">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -217,7 +226,7 @@ export default function Content() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
           <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
             <span className="text-2xl font-black text-white">{currentList.length}</span>
-            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-1">{tab === 'videos' ? (language === 'ru' ? 'Видео' : 'Videos') : 'Shorts'}</p>
+            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-1">{tab === 'videos' ? (language === 'ru' ? 'Видео' : 'Videos') : tab === 'shorts' ? 'Shorts' : (language === 'ru' ? 'Фото' : 'Photos')}</p>
           </div>
           <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
             <span className="text-2xl font-black text-white">{currentList.reduce((s, v) => s + v.views, 0)}</span>
@@ -260,7 +269,9 @@ export default function Content() {
                 ? (language === 'ru' ? 'Ничего не найдено' : 'Nothing found')
                 : (tab === 'videos' 
                   ? (language === 'ru' ? 'Нет видео. Загрузите первый ролик!' : 'No videos. Upload your first!')
-                  : (language === 'ru' ? 'Нет шортсов. Создайте первый!' : 'No shorts. Create your first!'))}
+                  : tab === 'shorts'
+                  ? (language === 'ru' ? 'Нет шортсов. Создайте первый!' : 'No shorts. Create your first!')
+                  : (language === 'ru' ? 'Нет фото. Загрузите первое!' : 'No photos. Upload your first!'))}
             </p>
           </div>
         ) : (
@@ -278,6 +289,9 @@ export default function Content() {
                   />
                   {tab === 'shorts' && (
                     <div className="absolute top-1 right-1 bg-teal-500/80 text-[7px] font-black px-1 py-0.5 rounded uppercase">Short</div>
+                  )}
+                  {tab === 'photos' && (
+                    <div className="absolute top-1 right-1 bg-purple-500/80 text-[7px] font-black px-1 py-0.5 rounded uppercase">Photo</div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -315,7 +329,7 @@ export default function Content() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#0f1115] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-4 border-b border-white/10">
-              <h2 className="text-xl font-bold font-display text-white">{language === 'ru' ? 'Редактировать' : 'Edit'} {tab === 'shorts' ? 'Short' : 'Video'}</h2>
+              <h2 className="text-xl font-bold font-display text-white">{language === 'ru' ? 'Редактировать' : 'Edit'} {tab === 'shorts' ? 'Short' : tab === 'photos' ? 'Photo' : 'Video'}</h2>
               <button onClick={() => setEditingVideo(null)} className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-colors">
                 <X className="w-5 h-5" />
               </button>

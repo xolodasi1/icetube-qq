@@ -224,7 +224,13 @@ export const translations: Translations = {
     music_pro_tip: 'PRO-TIP:',
     live_badge: 'LIVE',
     live_broadcast_active: 'BROADCAST ACTIVE',
-    live_watching_now: '{count} watching now'
+    live_watching_now: '{count} watching now',
+    nav_photos: 'Photos',
+    photos_title: 'Photos',
+    photos_empty: 'No photos uploaded yet.',
+    photos_upload_first: 'Upload your first photo!',
+    upload_photo: 'Photo',
+    upload_publish_photo: 'Publish Photo'
   },
   ru: {
     nav_home: 'Главная',
@@ -439,7 +445,13 @@ export const translations: Translations = {
     music_pro_tip: 'СОВЕТ:',
     live_badge: 'ЭФИР',
     live_broadcast_active: 'ТРАНСЛЯЦИЯ АКТИВНА',
-    live_watching_now: '{count} смотрят сейчас'
+    live_watching_now: '{count} смотрят сейчас',
+    nav_photos: 'Фото',
+    photos_title: 'Фотографии',
+    photos_empty: 'Фото пока нет.',
+    photos_upload_first: 'Загрузите первое фото!',
+    upload_photo: 'Фото',
+    upload_publish_photo: 'Опубликовать фото'
   }
 };
 

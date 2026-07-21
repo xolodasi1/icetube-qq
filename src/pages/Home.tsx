@@ -1,9 +1,10 @@
 import { VideoCard } from "../components/VideoCard";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { databases, withTimeout, getOfflineFlag, setOfflineFlag } from "../lib/appwrite";
-import { Loader2, ServerCrash, Video, Wifi, ShieldAlert, RotateCw } from "lucide-react";
+import { Loader2, ServerCrash, Video, Wifi, ShieldAlert, RotateCw, Image } from "lucide-react";
 import { useLanguage } from "../lib/LanguageContext";
+import { getOptimizedThumbnail } from "../lib/cloudinary";
 
 export default function Home() {
   const { t, language } = useLanguage();
@@ -148,8 +149,10 @@ export default function Home() {
   });
 
   const isShort = (v: any) => v.contentType === 'shorts' || v.title?.toLowerCase().includes('#shorts') || v.description?.toLowerCase().includes('#shorts');
-  const regularVideos = filteredVideos.filter(v => !isShort(v));
+  const isPhoto = (v: any) => v.contentType === 'photo';
+  const regularVideos = filteredVideos.filter(v => !isShort(v) && !isPhoto(v));
   const shortsVideos = filteredVideos.filter(v => isShort(v));
+  const photosVideos = filteredVideos.filter(v => isPhoto(v));
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6 pt-2 sm:pt-0 pb-4 sm:pb-0">
@@ -243,7 +246,7 @@ export default function Home() {
                 </div>
               </div>
             )}
-            
+
             {shortsVideos.length > 0 && (
               <div className="mt-10">
                 <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2 px-4 sm:px-0">
@@ -253,6 +256,28 @@ export default function Home() {
                   {shortsVideos.map(video => (
                     <div key={video.id} className="w-[180px] sm:w-[200px] shrink-0 snap-start">
                       <VideoCard video={video} layout="clip" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {photosVideos.length > 0 && (
+              <div className="mt-10">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2 px-4 sm:px-0">
+                  <Image className="w-5 h-5 text-purple-400" />
+                  <span className="text-purple-400">{t('nav_photos')}</span>
+                </h3>
+                <div className="flex overflow-x-auto gap-4 custom-scrollbar pb-6 px-4 sm:px-0 hide-scrollbar snap-x">
+                  {photosVideos.map(photo => (
+                    <div key={photo.id} className="w-[180px] sm:w-[200px] shrink-0 snap-start">
+                      <Link to="/photos" className="block relative group aspect-square rounded-2xl overflow-hidden bg-slate-800 border border-white/5 hover:border-purple-400/30 transition-all">
+                        <img src={getOptimizedThumbnail(photo.thumbnailUrl) || photo.thumbnailUrl} alt={photo.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" loading="lazy" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                          <p className="absolute bottom-2 left-2 right-2 text-white text-xs font-bold truncate">{photo.title}</p>
+                        </div>
+                      </Link>
                     </div>
                   ))}
                 </div>

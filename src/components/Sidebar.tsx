@@ -1,4 +1,4 @@
-import { Home, Compass, Flame, PlaySquare, Clock, ThumbsUp, History, Settings, User, Video, Download, ChevronRight, ChevronDown, Scissors, Music, Film, Radio, Youtube, ListVideo, Send, Bookmark, Trophy } from "lucide-react";
+import { Home, Compass, Flame, PlaySquare, Clock, ThumbsUp, History, Settings, User, Video, Download, ChevronRight, ChevronDown, Scissors, Music, Film, Radio, Youtube, ListVideo, Send, Bookmark, Trophy, Image } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import clsx from "clsx";
 import { useLanguage } from "../lib/LanguageContext";
@@ -55,6 +55,7 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
   const navItems = [
     { icon: Home, label: t('nav_home'), path: "/" },
     { icon: Compass, label: t('nav_shorts'), path: "/shorts" },
+    { icon: Image, label: t('nav_photos'), path: "/photos" },
     { icon: Video, label: t('nav_videos'), path: "/videos" },
     { icon: PlaySquare, label: t('nav_subscriptions'), path: "/subscriptions" },
     { divider: true },

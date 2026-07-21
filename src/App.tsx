@@ -23,6 +23,7 @@ import Subscriptions from "./pages/Subscriptions";
 import ContinueWatching from "./pages/ContinueWatching";
 import Videos from "./pages/Videos";
 import Premium from "./pages/Premium";
+import Photos from "./pages/Photos";
 import Live from "./pages/Live";
 import MusicPage from "./pages/Music";
 
@@ -33,6 +34,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/videos" element={<Videos />} />
+          <Route path="/photos" element={<Photos />} />
           <Route path="/shorts/:id?" element={<Shorts />} />
           <Route path="/watch/:id" element={<Watch />} />
           <Route path="/channel/:id" element={<Channel />} />

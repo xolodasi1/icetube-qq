@@ -5,7 +5,7 @@ import {
   ShieldCheck, ShieldAlert, Users, Video, Activity, MoreHorizontal, 
   Ban, Trash2, Clock, Eye, AlertTriangle, 
   LayoutDashboard, PieChart, BarChart3, ArrowLeft, Loader2,
-  ChevronRight, Calendar, Bell, Search, Filter, Film, Scissors
+  ChevronRight, Calendar, Bell, Search, Filter, Film, Scissors, Image
 } from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
 import { useLanguage } from '../lib/LanguageContext';
@@ -133,8 +133,9 @@ export default function AdminPanel() {
   }, []);
 
   const stats = useMemo(() => {
-    const shorts = dbVideos.filter(v => v.isShort || v.isShorts).length;
-    const regularVideos = dbVideos.length - shorts;
+    const shorts = dbVideos.filter(v => v.contentType === 'shorts' || v.isShort || v.isShorts).length;
+    const photos = dbVideos.filter(v => v.contentType === 'photo').length;
+    const regularVideos = dbVideos.length - shorts - photos;
     
     // Calculate leaderboards
     const leaderboards = {
@@ -149,6 +150,7 @@ export default function AdminPanel() {
       totalUsers: dbUsers.length,
       totalVideos: regularVideos,
       totalShorts: shorts,
+      totalPhotos: photos,
       totalReports: reports.length,
       growth: '+12%',
       serverStatus: 'Online',
@@ -265,10 +267,11 @@ export default function AdminPanel() {
               <p className="text-slate-400 text-sm mt-1">Real-time infrastructure and community oversight</p>
             </header>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               <StatCard title={language === 'ru' ? 'Пользователи' : 'Total Users'} value={stats.totalUsers} icon={Users} color="text-blue-400" bgColor="bg-blue-400/10" />
               <StatCard title={language === 'ru' ? 'Видео' : 'Total Videos'} value={stats.totalVideos} icon={Video} color="text-purple-400" bgColor="bg-purple-400/10" />
               <StatCard title={language === 'ru' ? 'Шортсы' : 'Total Shorts'} value={stats.totalShorts} icon={Activity} color="text-teal-400" bgColor="bg-teal-400/10" />
+              <StatCard title={language === 'ru' ? 'Фото' : 'Total Photos'} value={stats.totalPhotos} icon={Image} color="text-purple-400" bgColor="bg-purple-400/10" />
               <StatCard title={language === 'ru' ? 'Жалобы' : 'Pending Reports'} value={stats.totalReports} icon={ShieldAlert} color="text-red-400" bgColor="bg-red-400/10" />
             </div>
 
@@ -350,26 +353,35 @@ export default function AdminPanel() {
                <div className="space-y-6">
                   <div className="bg-white/[0.02] border ice-border rounded-3xl p-6">
                      <h4 className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-4">Content Distribution</h4>
-                     <div className="space-y-4">
-                        <div className="space-y-1.5">
-                           <div className="flex justify-between text-xs">
-                              <span className="text-slate-300 font-bold">Videos</span>
-                              <span className="text-white">{stats.totalVideos}</span>
-                           </div>
-                           <div className="w-full bg-black/40 rounded-full h-2">
-                              <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${(stats.totalVideos / Math.max(1, stats.totalVideos + stats.totalShorts)) * 100}%` }}></div>
-                           </div>
-                        </div>
-                        <div className="space-y-1.5">
-                           <div className="flex justify-between text-xs">
-                              <span className="text-slate-300 font-bold">Shorts</span>
-                              <span className="text-white">{stats.totalShorts}</span>
-                           </div>
-                           <div className="w-full bg-black/40 rounded-full h-2">
-                              <div className="bg-teal-400 h-2 rounded-full" style={{ width: `${(stats.totalShorts / Math.max(1, stats.totalVideos + stats.totalShorts)) * 100}%` }}></div>
-                           </div>
-                        </div>
-                     </div>
+                      <div className="space-y-4">
+                         <div className="space-y-1.5">
+                            <div className="flex justify-between text-xs">
+                               <span className="text-slate-300 font-bold">Videos</span>
+                               <span className="text-white">{stats.totalVideos}</span>
+                            </div>
+                            <div className="w-full bg-black/40 rounded-full h-2">
+                               <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${(stats.totalVideos / Math.max(1, stats.totalVideos + stats.totalShorts + stats.totalPhotos)) * 100}%` }}></div>
+                            </div>
+                         </div>
+                         <div className="space-y-1.5">
+                            <div className="flex justify-between text-xs">
+                               <span className="text-slate-300 font-bold">Shorts</span>
+                               <span className="text-white">{stats.totalShorts}</span>
+                            </div>
+                            <div className="w-full bg-black/40 rounded-full h-2">
+                               <div className="bg-teal-400 h-2 rounded-full" style={{ width: `${(stats.totalShorts / Math.max(1, stats.totalVideos + stats.totalShorts + stats.totalPhotos)) * 100}%` }}></div>
+                            </div>
+                         </div>
+                         <div className="space-y-1.5">
+                            <div className="flex justify-between text-xs">
+                               <span className="text-slate-300 font-bold">Photos</span>
+                               <span className="text-white">{stats.totalPhotos}</span>
+                            </div>
+                            <div className="w-full bg-black/40 rounded-full h-2">
+                               <div className="bg-fuchsia-500 h-2 rounded-full" style={{ width: `${(stats.totalPhotos / Math.max(1, stats.totalVideos + stats.totalShorts + stats.totalPhotos)) * 100}%` }}></div>
+                            </div>
+                         </div>
+                      </div>
                   </div>
 
                   <div className="bg-[#70d6ff]/5 border border-[#70d6ff]/20 rounded-3xl p-6">
@@ -716,11 +728,12 @@ function ReportsSection({ reports, t, language, setReports }: any) {
 
 function ContentSection({ dbVideos, language, t, setDbVideos }: any) {
   const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
-  const [contentTab, setContentTab] = useState<'videos' | 'shorts'>('videos');
+  const [contentTab, setContentTab] = useState<'videos' | 'shorts' | 'photos'>('videos');
 
-  const videos = dbVideos.filter((v: any) => v.contentType !== 'shorts' && !v.isShort && !v.isShorts);
+  const videos = dbVideos.filter((v: any) => v.contentType !== 'shorts' && v.contentType !== 'photo' && !v.isShort && !v.isShorts);
   const shorts = dbVideos.filter((v: any) => v.contentType === 'shorts' || v.isShort || v.isShorts);
-  const currentList = contentTab === 'videos' ? videos : shorts;
+  const photos = dbVideos.filter((v: any) => v.contentType === 'photo');
+  const currentList = contentTab === 'videos' ? videos : contentTab === 'shorts' ? shorts : photos;
 
   const handleDeleteVideo = async (videoId: string) => {
     if (!window.confirm(language === 'ru' ? 'Удалить это видео навсегда?' : 'Delete this video permanently?')) return;
@@ -801,6 +814,15 @@ function ContentSection({ dbVideos, language, t, setDbVideos }: any) {
           <span className="text-[10px] opacity-60">({shorts.length})</span>
           {contentTab === 'shorts' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#70d6ff] rounded-full" />}
         </button>
+        <button
+          onClick={() => { setContentTab('photos'); setSelectedVideos(new Set()); }}
+          className={`flex items-center gap-2 pb-3 font-bold text-sm transition-all relative ${contentTab === 'photos' ? 'text-[#70d6ff]' : 'text-slate-400 hover:text-white'}`}
+        >
+          <Image className="w-4 h-4" />
+          {language === 'ru' ? 'Фото' : 'Photos'}
+          <span className="text-[10px] opacity-60">({photos.length})</span>
+          {contentTab === 'photos' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#70d6ff] rounded-full" />}
+        </button>
       </div>
 
       <div className="bg-white/5 border ice-border rounded-2xl overflow-hidden">
@@ -846,8 +868,8 @@ function ContentSection({ dbVideos, language, t, setDbVideos }: any) {
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-400">{v.uploaderName || v.uploaderId?.slice(0, 8) || '—'}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 text-[10px] font-black uppercase rounded ${v.contentType === 'shorts' || v.isShort ? 'text-teal-400 bg-teal-400/10' : 'text-purple-400 bg-purple-400/10'}`}>
-                      {v.contentType === 'shorts' || v.isShort ? 'Short' : 'Video'}
+                    <span className={`px-2 py-0.5 text-[10px] font-black uppercase rounded ${v.contentType === 'shorts' || v.isShort ? 'text-teal-400 bg-teal-400/10' : v.contentType === 'photo' ? 'text-purple-400 bg-purple-400/10' : 'text-purple-400 bg-purple-400/10'}`}>
+                      {v.contentType === 'shorts' || v.isShort ? 'Short' : v.contentType === 'photo' ? 'Photo' : 'Video'}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right text-xs font-mono text-slate-400">{v.views || 0}</td>

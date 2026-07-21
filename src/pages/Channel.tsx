@@ -214,7 +214,8 @@ export default function Channel() {
 
   const isShort = (v: any) => v.contentType === 'shorts' || v.title?.toLowerCase().includes('#shorts') || v.description?.toLowerCase().includes('#shorts');
 
-  const regularVideos = videos.filter(v => !isShort(v));
+  const isPhoto = (v: any) => v.contentType === 'photo';
+  const regularVideos = videos.filter(v => !isShort(v) && !isPhoto(v));
   const shortsVideos = videos.filter(v => isShort(v));
 
   const sortedRegularVideos = [...regularVideos].sort((a, b) => {
