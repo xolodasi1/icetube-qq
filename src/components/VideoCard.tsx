@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Video } from "../data";
 import clsx from "clsx";
 import { useLanguage } from "../lib/LanguageContext";
-import { Check, Zap } from "lucide-react";
+import { Check, Zap, MoreVertical } from "lucide-react";
 import { getOptimizedThumbnail } from "../lib/cloudinary";
 
 interface VideoCardProps {
@@ -61,12 +61,12 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
   }
 
   return (
-    <div className={clsx("group flex block", isList ? "flex-row gap-3 w-full" : "video-card flex-col hover:border-[#70d6ff]/30 hover:shadow-[0_0_15px_rgba(112,214,255,0.05)] hover:bg-white/[0.01] transition-all duration-300")}>
-      <Link to={targetUrl} className={clsx("shrink-0 video-thumb aspect-video block", isList ? "w-40 sm:w-48 rounded-xl overflow-hidden" : "w-full")}>
+    <div className={clsx("group", isList ? "flex flex-row gap-3 w-full" : "video-card flex-col")}>
+      <Link to={targetUrl} className={clsx("shrink-0 video-thumb aspect-video block relative", isList ? "w-40 sm:w-48 rounded-xl overflow-hidden" : "w-full")}>
         <img 
           src={getOptimizedThumbnail(video.thumbnailUrl)} 
           alt={video.title} 
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 relative z-10 opacity-95"
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           referrerPolicy="no-referrer"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
@@ -75,55 +75,72 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
             }
           }}
         />
-        <div className="absolute inset-0 bg-blue-900/10 z-20 pointer-events-none"></div>
         {isShortContentType ? (
-          <div className="absolute top-2 left-2 z-30 bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded inline-flex items-center gap-1">
+          <div className="absolute top-2 left-2 z-20 bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded inline-flex items-center gap-1">
             <Zap className="w-3 h-3 text-[#70d6ff] fill-[#70d6ff]" />
             <span className="text-[10px] font-bold text-white uppercase tracking-wider">{t('short_badge')}</span>
           </div>
-        ) : (
-          <div className="duration-badge z-30">
+        ) : video.duration ? (
+          <div className="absolute bottom-1.5 right-1.5 z-20 bg-black/90 px-1.5 py-0.5 rounded text-[11px] font-medium text-white leading-none">
             {video.duration}
           </div>
-        )}
+        ) : null}
       </Link>
-      
-      <div className={clsx("flex flex-col", isList ? "mt-0 pl-1 pr-4 sm:px-2 py-4 sm:py-1" : "p-3 sm:px-3 sm:py-3")}>
-        <Link to={targetUrl} className={clsx("text-slate-100 font-semibold line-clamp-2 group-hover:text-[#70d6ff] transition-colors leading-snug", isList ? "text-sm sm:text-base" : "text-sm mb-2")}>
-          {video.title}
-        </Link>
-        {!isList && (
-          <div className="flex items-center gap-2 mb-1.5">
-            <Link to={`/channel/${video.uploaderId}`} className="shrink-0">
-              <img 
-                src={video.channelAvatar} 
-                alt={video.channelName} 
-                className="w-5 h-5 rounded-full object-cover bg-slate-600 hover:ring-2 hover:ring-[#70d6ff] transition-all"
-                referrerPolicy="no-referrer"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(video.channelName || 'User')}&background=random`;
-                }}
-              />
-            </Link>
-            <div className="flex flex-col leading-tight min-w-0">
-              <Link to={`/channel/${video.uploaderId}`} className="text-slate-400 text-xs hover:text-slate-200 transition-colors truncate flex items-center gap-1">
-                <span className="truncate">{video.channelName}</span>
-                {video.verified && (
-                  <Check className="w-2.5 h-2.5 text-[#70d6ff] shrink-0" />
-                )}
+
+      {!hideDetails && (
+        <div className={clsx(isList ? "flex-1 flex flex-col justify-center py-1" : "p-2.5")}>
+          {isList ? (
+            <>
+              <Link to={targetUrl} className="text-slate-100 font-semibold text-sm line-clamp-2 group-hover:text-[#70d6ff] transition-colors leading-snug mb-1">
+                {video.title}
               </Link>
-              {video.channelHandle && (
-                <span className="text-[10px] text-slate-600 truncate">@{video.channelHandle}</span>
-              )}
+              <Link to={`/channel/${video.uploaderId}`} className="text-slate-400 text-xs hover:text-slate-200 transition-colors truncate mb-0.5">
+                {video.channelName}
+              </Link>
+              <Link to={targetUrl} className="text-slate-500 text-xs flex items-center gap-1">
+                <span>{formatViews(video.views)} {t('video_views')}</span>
+                <span className="text-slate-600">•</span>
+                <span>{video.uploadDate}</span>
+              </Link>
+            </>
+          ) : (
+            <div className="flex gap-2.5">
+              <Link to={`/channel/${video.uploaderId}`} className="shrink-0 mt-0.5">
+                <img 
+                  src={video.channelAvatar} 
+                  alt={video.channelName} 
+                  className="w-9 h-9 rounded-full object-cover bg-slate-600"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(video.channelName || 'User')}&background=random`;
+                  }}
+                />
+              </Link>
+              <div className="flex flex-col min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-1">
+                  <Link to={targetUrl} className="text-sm font-bold text-slate-100 line-clamp-2 group-hover:text-[#70d6ff] transition-colors leading-snug">
+                    {video.title}
+                  </Link>
+                  <button className="text-slate-500 hover:text-white shrink-0 p-0.5 -mr-0.5 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                </div>
+                <Link to={`/channel/${video.uploaderId}`} className="text-slate-400 text-xs hover:text-slate-200 transition-colors truncate mt-0.5">
+                  {video.channelName}
+                  {video.verified && (
+                    <Check className="w-2.5 h-2.5 text-[#70d6ff] inline ml-1 -mt-0.5" />
+                  )}
+                </Link>
+                <Link to={targetUrl} className="text-slate-500 text-xs flex items-center gap-1 mt-0.5">
+                  <span>{formatViews(video.views)} {t('video_views')}</span>
+                  <span className="text-slate-600">•</span>
+                  <span>{video.uploadDate}</span>
+                </Link>
+              </div>
             </div>
-          </div>
-        )}
-        <Link to={targetUrl} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-400">
-          <span>{formatViews(video.views)} {t('video_views')}</span>
-          <span className="text-slate-600">•</span>
-          <span>{video.uploadDate}</span>
-        </Link>
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
