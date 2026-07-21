@@ -109,7 +109,7 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
                 <img 
                   src={video.channelAvatar} 
                   alt={video.channelName} 
-                  className="w-9 h-9 rounded-full object-cover bg-slate-600"
+                  className="w-9 h-9 rounded-full object-cover bg-slate-600 ring-1 ring-white/10 hover:ring-[#70d6ff]/50 transition-all"
                   referrerPolicy="no-referrer"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(video.channelName || 'User')}&background=random`;
@@ -118,22 +118,25 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
               </Link>
               <div className="flex flex-col min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-1">
-                  <Link to={targetUrl} className="text-sm font-bold text-slate-100 line-clamp-2 group-hover:text-[#70d6ff] transition-colors leading-snug">
+                  <Link to={targetUrl} className="text-sm font-bold text-slate-100 line-clamp-2 group-hover:text-[#70d6ff] transition-colors leading-tight">
                     {video.title}
                   </Link>
-                  <button className="text-slate-500 hover:text-white shrink-0 p-0.5 -mr-0.5 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button className="text-slate-500 hover:text-white shrink-0 p-0.5 -mr-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <MoreVertical className="w-4 h-4" />
                   </button>
                 </div>
-                <Link to={`/channel/${video.uploaderId}`} className="text-slate-400 text-xs hover:text-slate-200 transition-colors truncate mt-0.5">
+                <Link to={`/channel/${video.uploaderId}`} className="text-slate-400 text-[13px] hover:text-slate-200 transition-colors truncate leading-tight mt-px">
                   {video.channelName}
                   {video.verified && (
-                    <Check className="w-2.5 h-2.5 text-[#70d6ff] inline ml-1 -mt-0.5" />
+                    <Check className="w-3 h-3 text-[#70d6ff] inline ml-0.5 -mt-px" />
                   )}
                 </Link>
-                <Link to={targetUrl} className="text-slate-500 text-xs flex items-center gap-1 mt-0.5">
+                {video.channelHandle && (
+                  <span className="text-slate-500 text-[11px] leading-tight">@{video.channelHandle}</span>
+                )}
+                <Link to={targetUrl} className="text-slate-500 text-[12px] flex items-center gap-1 leading-tight mt-px">
                   <span>{formatViews(video.views)} {t('video_views')}</span>
-                  <span className="text-slate-600">•</span>
+                  <span className="text-slate-700">•</span>
                   <span>{video.uploadDate}</span>
                 </Link>
               </div>
