@@ -256,7 +256,7 @@ export default function Channel() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Banner */}
       {bannerUrl && (
-        <div className="w-full h-48 md:h-64 lg:h-80 w-full mb-8 rounded-2xl overflow-hidden bg-slate-800 relative">
+        <div className="w-full h-40 sm:h-48 md:h-64 lg:h-80 mb-6 sm:mb-8 rounded-2xl overflow-hidden bg-slate-800 relative">
           <img 
             src={bannerUrl} 
             alt="Channel Banner" 
@@ -267,7 +267,7 @@ export default function Channel() {
       )}
 
       {/* Channel Header */}
-      <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-12 border-b border-white/10 pb-8">
+      <div className="flex flex-col md:flex-row items-center md:items-start gap-6 sm:gap-8 mb-12 border-b border-white/10 pb-8">
         <div className="w-32 h-32 md:w-40 md:h-40 shrink-0">
           <img 
             src={avatarSrc} 
@@ -277,14 +277,14 @@ export default function Channel() {
           />
         </div>
         
-        <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left">
-          <h1 className="text-4xl font-bold font-display text-white mb-2">{channelName}</h1>
-          <div className="flex items-center gap-2 text-slate-400 mb-4">
-            <span className="font-medium text-slate-300">{channelHandle}</span>
+        <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left w-full min-w-0">
+          <h1 className="text-2xl sm:text-4xl font-bold font-display text-white mb-2 truncate max-w-full">{channelName}</h1>
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-1.5 sm:gap-2 text-xs sm:text-base text-slate-400 mb-4">
+            <span className="font-medium text-slate-300 truncate max-w-[50vw] sm:max-w-[30vw]">{channelHandle}</span>
             <span>•</span>
-            <span>{new Intl.NumberFormat().format(subsCount)} {t('channel_subscribers')}</span>
+            <span className="whitespace-nowrap">{new Intl.NumberFormat().format(subsCount)} {t('channel_subscribers')}</span>
             <span>•</span>
-            <span>{videos.length} {t('channel_videos')}</span>
+            <span className="whitespace-nowrap">{videos.length} {t('channel_videos')}</span>
           </div>
 
           <p className="text-slate-300 max-w-2xl mb-6 line-clamp-3">
@@ -304,7 +304,7 @@ export default function Channel() {
           )}
 
           {user && user.$id === id && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap justify-center md:justify-start">
               <button 
                 disabled
                 className="bg-white/10 text-slate-300 px-6 py-2.5 rounded-full border border-white/10 cursor-default"

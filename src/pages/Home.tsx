@@ -236,7 +236,7 @@ export default function Home() {
                 <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2 px-4 sm:px-0">
                   <span className="text-[#70d6ff]">{t('nav_videos')}</span>
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-2 sm:gap-y-8 gap-x-4 px-0 sm:px-0">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-4 sm:gap-y-8 gap-x-4 px-4 sm:px-0">
                   {regularVideos.map(video => (
                     <VideoCard key={video.id} video={video} />
                   ))}

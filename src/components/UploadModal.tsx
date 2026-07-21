@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/AuthContext';
-import { uploadVideoToCloudinary } from '../lib/cloudinary';
+import { uploadVideoToCloudinary, getOptimizedThumbnail } from '../lib/cloudinary';
 import { databases } from '../lib/appwrite';
 import { ID, Query } from 'appwrite';
 import { UploadCloud, X, Loader2, AlertCircle, PlayCircle, ChevronDown } from 'lucide-react';
@@ -72,7 +72,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
 
     try {
       const videoUrl = await uploadVideoToCloudinary(file, (p) => setProgress(p));
-      const thumbnailUrl = videoUrl.replace(/\.[^/.]+$/, ".jpg").replace("/video/upload/", "/video/upload/so_auto/");
+      const thumbnailUrl = getOptimizedThumbnail(videoUrl) || videoUrl.replace(/\.[^/.]+$/, ".jpg");
 
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
       const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
@@ -108,23 +108,46 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
     );
   } catch (firstErr: any) {
     if (firstErr.code === 400 && firstErr.message?.toLowerCase().includes('unknown attribute')) {
-      console.log("Retrying without category, contentType, and game due to unknown attribute error");
-      createdVideoDoc = await databases.createDocument(
-        dbId, 
-        videosColId, 
-        ID.unique(), 
-        {
-          title: uploadData.title,
-          description: uploadData.description,
-          videoUrl: uploadData.videoUrl,
-          thumbnailUrl: uploadData.thumbnailUrl,
-          uploaderId: uploadData.uploaderId,
-          uploaderName: uploadData.uploaderName,
-          uploaderAvatar: uploadData.uploaderAvatar,
-          views: uploadData.views,
-          verified: false
+      try {
+        createdVideoDoc = await databases.createDocument(
+          dbId, 
+          videosColId, 
+          ID.unique(), 
+          {
+            title: uploadData.title,
+            description: uploadData.description,
+            videoUrl: uploadData.videoUrl,
+            thumbnailUrl: uploadData.thumbnailUrl,
+            uploaderId: uploadData.uploaderId,
+            uploaderName: uploadData.uploaderName,
+            uploaderAvatar: uploadData.uploaderAvatar,
+            views: uploadData.views,
+            contentType: uploadData.contentType,
+            verified: false
+          }
+        );
+      } catch (secondErr: any) {
+        if (secondErr.code === 400 && secondErr.message?.toLowerCase().includes('unknown attribute')) {
+          createdVideoDoc = await databases.createDocument(
+            dbId, 
+            videosColId, 
+            ID.unique(), 
+            {
+              title: uploadData.title,
+              description: uploadData.description,
+              videoUrl: uploadData.videoUrl,
+              thumbnailUrl: uploadData.thumbnailUrl,
+              uploaderId: uploadData.uploaderId,
+              uploaderName: uploadData.uploaderName,
+              uploaderAvatar: uploadData.uploaderAvatar,
+              views: uploadData.views,
+              verified: false
+            }
+          );
+        } else {
+          throw secondErr;
         }
-      );
+      }
     } else {
       throw firstErr;
     }
@@ -207,8 +230,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         msg = language === 'ru' ? "Коллекция не найдена. Проверьте VITE_APPWRITE_VIDEOS_COLLECTION_ID." : "Collection not found. Check your environment variables.";
       } else if (err.code === 401) {
         msg = language === 'ru' ? "Доступ запрещен. Проверьте права коллекции в Appwrite." : "Permission denied. Check collection settings in Appwrite.";
-      } else if (err.message?.includes('Network error')) {
-        msg = language === 'ru' ? "Ошибка сети. Видео может быть слишком тяжелым." : "Network error. Your video might be too large.";
+      } else if (err.message?.includes('Network error') || err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
+        msg = language === 'ru' ? "Ошибка сети. Проверьте подключение к серверу (возможно нужен VPN)." : "Network error. Check your server connection (VPN may be required).";
       }
 
       setError(msg);

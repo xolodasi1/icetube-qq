@@ -692,7 +692,23 @@ export default function Shorts() {
             </div>
 
             <div className="flex flex-col items-center gap-1 group">
-                <button className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white/20 transition-all">
+                <button 
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(window.location.href);
+                      alert(language === 'ru' ? 'Ссылка скопирована!' : 'Link copied!');
+                    } catch {
+                      const input = document.createElement('input');
+                      input.value = window.location.href;
+                      document.body.appendChild(input);
+                      input.select();
+                      document.execCommand('copy');
+                      document.body.removeChild(input);
+                      alert(language === 'ru' ? 'Ссылка скопирована!' : 'Link copied!');
+                    }
+                  }}
+                  className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white/20 transition-all"
+                >
                     <Share2 className="w-6 h-6" />
                 </button>
                 <span className="text-white text-xs font-bold drop-shadow-md">{language === 'ru' ? 'Поделиться' : 'Share'}</span>

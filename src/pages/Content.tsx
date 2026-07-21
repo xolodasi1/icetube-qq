@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { databases } from '../lib/appwrite';
 import { useLanguage } from '../lib/LanguageContext';
-import { Loader2, Film, Edit2, Trash2, AlertCircle, Search, Eye, Calendar, Clock, TrendingUp, Video, Scissors, CheckCircle2 } from 'lucide-react';
+import { Loader2, Film, Edit2, Trash2, AlertCircle, Search, Eye, Calendar, Clock, TrendingUp, Video, Scissors, CheckCircle2, X } from 'lucide-react';
 import { Query, ID } from 'appwrite';
 import { getOptimizedThumbnail } from '../lib/cloudinary';
 
@@ -14,6 +14,8 @@ export default function Content() {
   const [tab, setTab] = useState<'videos' | 'shorts'>('videos');
   const [searchQuery, setSearchQuery] = useState('');
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [editingVideo, setEditingVideo] = useState<any | null>(null);
+  const [sortBy, setSortBy] = useState<'new' | 'old' | 'views' | 'likes'>('new');
 
   const fetchVideos = async () => {
     if (!user) return;
@@ -30,9 +32,13 @@ export default function Content() {
       const userVids = response.documents.map(v => ({
         id: v.$id,
         title: v.title,
+        description: v.description || '',
         thumbnailUrl: v.thumbnailUrl,
         views: v.views || 0,
+        likes: v.likes || v.likesCount || 0,
         contentType: v.contentType || 'video',
+        category: v.category || '',
+        game: v.game || '',
         verified: v.verified || false,
         uploadDate: new Date(v.$createdAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'),
         createdAt: v.$createdAt,
@@ -56,9 +62,15 @@ export default function Content() {
 
   const filteredVideos = useMemo(() => {
     const source = tab === 'videos' ? regularVideos : shortsVideos;
-    if (!searchQuery) return source;
-    return source.filter(v => v.title?.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [tab, regularVideos, shortsVideos, searchQuery]);
+    let result = searchQuery
+      ? source.filter(v => v.title?.toLowerCase().includes(searchQuery.toLowerCase()))
+      : [...source];
+    if (sortBy === 'new') result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    else if (sortBy === 'old') result.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    else if (sortBy === 'views') result.sort((a, b) => b.views - a.views);
+    else if (sortBy === 'likes') result.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+    return result;
+  }, [tab, regularVideos, shortsVideos, searchQuery, sortBy]);
 
   const handleDelete = async (videoId: string) => {
     if (!window.confirm(language === 'ru' ? 'Удалить навсегда?' : 'Delete permanently?')) return;
@@ -75,6 +87,40 @@ export default function Content() {
       }
     }
     setIsDeleting(null);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingVideo) return;
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+    if (!dbId || !colId) return;
+    try {
+      let isShorts = editingVideo.contentType === 'shorts' || editingVideo.title?.toLowerCase().includes('#shorts') || (editingVideo.description || '').toLowerCase().includes('#shorts');
+      const desc = editingVideo.description || '';
+      let updateData = {
+        title: editingVideo.title,
+        description: isShorts ? (desc.toLowerCase().includes('#shorts') ? desc : `${desc}\n\n#shorts`).trim() : desc,
+        category: editingVideo.category,
+        contentType: isShorts ? 'shorts' : (editingVideo.contentType || 'video'),
+        game: editingVideo.game
+      };
+      try {
+        await databases.updateDocument(dbId, colId, editingVideo.id, updateData);
+      } catch (firstErr: any) {
+        if (firstErr.code === 400 && firstErr.message?.toLowerCase().includes('unknown attribute')) {
+          updateData = { title: editingVideo.title, description: editingVideo.description } as any;
+          await databases.updateDocument(dbId, colId, editingVideo.id, updateData);
+        } else {
+          throw firstErr;
+        }
+      }
+      setVideos(prev => prev.map(v => v.id === editingVideo.id ? { ...v, ...updateData } : v));
+      setEditingVideo(null);
+    } catch (err) {
+      console.error("Edit failed:", err);
+      alert(language === 'ru' ? 'Не удалось обновить видео.' : 'Failed to update video.');
+    }
   };
 
   const totalViews = useMemo(() => videos.reduce((s, v) => s + v.views, 0), [videos]);
@@ -189,6 +235,16 @@ export default function Content() {
         </div>
       )}
 
+      {/* Sort Buttons */}
+      <div className="flex items-center gap-1 mb-4 flex-wrap">
+        {(['new', 'old', 'views', 'likes'] as const).map(key => (
+          <button key={key} onClick={() => setSortBy(key)}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider ${sortBy === key ? 'bg-[#70d6ff]/20 text-[#70d6ff] border border-[#70d6ff]/30' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}>
+            {key === 'new' ? (language === 'ru' ? 'Новые' : 'New') : key === 'old' ? (language === 'ru' ? 'Старые' : 'Old') : key === 'views' ? (language === 'ru' ? 'По просмотрам' : 'By Views') : (language === 'ru' ? 'По лайкам' : 'By Likes')}
+          </button>
+        ))}
+      </div>
+
       {/* Content Grid/Table */}
       <div className="bg-gradient-to-br from-white/[0.02] to-transparent border border-white/10 rounded-3xl overflow-hidden">
         {filteredVideos.length === 0 ? (
@@ -228,6 +284,13 @@ export default function Content() {
                 </div>
                 <div className="flex items-center gap-1">
                   <button
+                    onClick={() => setEditingVideo({ ...vid })}
+                    className="p-2 hover:bg-[#70d6ff]/10 text-slate-400 hover:text-[#70d6ff] rounded-xl transition-all"
+                    title={language === 'ru' ? 'Редактировать' : 'Edit'}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => handleDelete(vid.id)}
                     disabled={isDeleting === vid.id}
                     className="p-2 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-xl transition-all disabled:opacity-30"
@@ -241,6 +304,67 @@ export default function Content() {
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editingVideo && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#0f1115] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h2 className="text-xl font-bold font-display text-white">{language === 'ru' ? 'Редактировать' : 'Edit'} {tab === 'shorts' ? 'Short' : 'Video'}</h2>
+              <button onClick={() => setEditingVideo(null)} className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit} className="p-4 sm:p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">{language === 'ru' ? 'Название' : 'Title'}</label>
+                <input type="text" value={editingVideo.title} onChange={(e) => setEditingVideo({ ...editingVideo, title: e.target.value })}
+                  className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-[#70d6ff]/50 transition-colors" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">{language === 'ru' ? 'Описание' : 'Description'}</label>
+                <textarea value={editingVideo.description || ''} onChange={(e) => setEditingVideo({ ...editingVideo, description: e.target.value })}
+                  className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-[#70d6ff]/50 transition-colors h-24 resize-none custom-scrollbar" />
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">{t('upload_type')}</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => setEditingVideo({ ...editingVideo, contentType: 'video' })}
+                      className={`px-4 py-2 text-sm rounded-lg border transition-colors ${editingVideo.contentType !== 'shorts' ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"}`}>
+                      {t('upload_video')}
+                    </button>
+                    <button type="button" onClick={() => setEditingVideo({ ...editingVideo, contentType: 'shorts' })}
+                      className={`px-4 py-2 text-sm rounded-lg border transition-colors ${editingVideo.contentType === 'shorts' ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"}`}>
+                      {t('upload_shorts')}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">{language === 'ru' ? 'Категория' : 'Category'}</label>
+                  <input type="text" value={editingVideo.category || ''} onChange={(e) => setEditingVideo({ ...editingVideo, category: e.target.value })}
+                    className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-[#70d6ff]/50 transition-colors" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">{language === 'ru' ? 'Игра' : 'Game'}</label>
+                <input type="text" value={editingVideo.game || ''} onChange={(e) => setEditingVideo({ ...editingVideo, game: e.target.value })}
+                  className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-[#70d6ff]/50 transition-colors" />
+              </div>
+              <div className="pt-4 flex justify-end gap-3">
+                <button type="button" onClick={() => setEditingVideo(null)}
+                  className="px-5 py-2.5 rounded-xl font-medium text-slate-300 hover:bg-white/5 transition-colors">
+                  {language === 'ru' ? 'Отмена' : 'Cancel'}
+                </button>
+                <button type="submit"
+                  className="px-5 py-2.5 rounded-xl font-medium bg-[#70d6ff] hover:bg-[#70d6ff]/90 text-black shadow-[0_0_15px_rgba(112,214,255,0.2)] transition-colors">
+                  {language === 'ru' ? 'Сохранить' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

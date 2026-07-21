@@ -203,7 +203,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
         </button>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex items-center gap-1 sm:gap-4 shrink-0">
         {user && (
           <button 
             onClick={() => setIsUploadOpen(true)}
@@ -222,7 +222,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
 
         <button 
           onClick={() => setMobileSearchOpen(true)}
-          className="md:hidden p-2 hover:bg-cold-hover rounded-full text-slate-300 transition-colors"
+          className="md:hidden p-1.5 sm:p-2 hover:bg-cold-hover rounded-full text-slate-300 transition-colors"
         >
           <Search className="w-5 h-5" />
         </button>
@@ -234,7 +234,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
               setShowNotification(!showNotification); 
               setShowUserMenu(false); 
             }}
-            className="p-2 hover:bg-[rgba(112,214,255,0.08)] rounded-full text-slate-300 transition-colors relative"
+            className="p-1.5 sm:p-2 hover:bg-[rgba(112,214,255,0.08)] rounded-full text-slate-300 transition-colors relative"
           >
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && (
@@ -291,12 +291,12 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
             </div>
           )}
         </div>
-        <div className="relative ml-2">
+        <div className="relative ml-1 sm:ml-2">
           {user ? (
             <>
               <button 
                 onClick={() => { setShowUserMenu(!showUserMenu); setShowNotification(false); }}
-                className={`w-9 h-9 rounded-full relative flex items-center justify-center transition-all text-white font-bold text-sm shrink-0 border ${levelInfo.borderClass} ${levelInfo.glowClass} hover:scale-105 duration-300 focus:outline-none focus:ring-2 focus:ring-[#70d6ff]`}
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full relative flex items-center justify-center transition-all text-white font-bold text-xs sm:text-sm shrink-0 border ${levelInfo.borderClass} ${levelInfo.glowClass} hover:scale-105 duration-300 focus:outline-none focus:ring-2 focus:ring-[#70d6ff]`}
                 title={`${levelInfo.title} (Lvl ${levelInfo.level})`}
               >
                 {profile?.avatar ? (
@@ -309,10 +309,10 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
                     }}
                   />
                 ) : (
-                  (profile?.name || user.name) ? (profile?.name || user.name).charAt(0).toUpperCase() : <User className="w-4 h-4" />
+                  (profile?.name || user.name) ? (profile?.name || user.name).charAt(0).toUpperCase() : <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 )}
                 {/* Level Badge Overlay */}
-                <span className="absolute -bottom-1 -right-1 bg-[#05070a]/90 border border-[#70d6ff]/40 rounded-full w-[15px] h-[15px] flex items-center justify-center text-[9px] select-none cursor-default shadow-md" title={`${levelInfo.title} (Уровень ${levelInfo.level})`}>
+                <span className="absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 bg-[#05070a]/90 border border-[#70d6ff]/40 rounded-full w-3 h-3 sm:w-[15px] sm:h-[15px] flex items-center justify-center text-[7px] sm:text-[9px] select-none cursor-default shadow-md" title={`${levelInfo.title} (Уровень ${levelInfo.level})`}>
                   {levelInfo.badge}
                 </span>
               </button>
@@ -321,8 +321,8 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
                 <div className="absolute top-12 right-0 w-[260px] sm:w-72 max-w-[calc(100vw-1.5rem)] bg-[#070b13] border border-[#70d6ff]/20 shadow-[0_4px_30px_rgba(112,214,255,0.15)] rounded-2xl z-50 overflow-hidden backdrop-blur-xl animate-in fade-in duration-200" onClick={() => setShowUserMenu(false)}>
                   <div className="p-4 border-b ice-border bg-white/[0.01]">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full relative flex items-center justify-center shrink-0 text-white font-bold border ${levelInfo.borderClass}`}>
-                         {profile?.avatar ? (
+                     <div className={`w-10 h-10 sm:w-10 sm:h-10 rounded-full relative flex items-center justify-center shrink-0 text-white font-bold border ${levelInfo.borderClass}`}>
+                        {profile?.avatar ? (
                            <img 
                               src={profile.avatar} 
                               className="w-full h-full object-cover rounded-full" 
@@ -331,13 +331,13 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
                                 (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.name || user?.name || 'User')}&background=random`;
                               }}
                             />
-                         ) : (
+                        ) : (
                            (profile?.name || user.name) ? (profile?.name || user.name).charAt(0).toUpperCase() : 'U'
-                         )}
-                         <span className="absolute -bottom-1 -right-1 bg-black border border-[#70d6ff]/35 rounded-full w-[14px] h-[14px] flex items-center justify-center text-[8px]">
-                           {levelInfo.badge}
-                         </span>
-                      </div>
+                        )}
+                        <span className="absolute -bottom-1 -right-1 bg-black border border-[#70d6ff]/35 rounded-full w-3 h-3 sm:w-[14px] sm:h-[14px] flex items-center justify-center text-[6px] sm:text-[8px]">
+                          {levelInfo.badge}
+                        </span>
+                     </div>
                       <div className="flex flex-col overflow-hidden min-w-0">
                         <span className="font-bold text-white text-sm truncate flex items-center gap-1.5">
                           {profile?.name || user.name || "User"}

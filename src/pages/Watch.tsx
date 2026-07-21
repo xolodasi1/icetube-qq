@@ -1398,7 +1398,7 @@ export default function Watch() {
             className="flex sm:hidden flex-wrap items-center text-xs text-slate-400 gap-1.5 cursor-pointer hover:bg-white/5 p-1 -ml-1 rounded-lg transition-colors w-fit"
             onClick={() => setIsDescExpanded(!isDescExpanded)}
           >
-            <span className="font-medium text-slate-300">
+            <span className="font-medium text-slate-300 truncate max-w-[50vw]">
               @{video.channelName?.replace(/\s+/g, '').toLowerCase() || 'user'}
             </span>
             <span>{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(video.views)} {language === 'ru' ? (
@@ -1425,9 +1425,9 @@ export default function Watch() {
                   />
                 </Link>
                 <div className="flex flex-col">
-                  <Link to={`/channel/${video.uploaderId}`} className="font-bold text-slate-100 hover:text-white transition-colors flex items-center gap-1">
-                    {video.channelName}
-                    {video.verified && (
+                <Link to={`/channel/${video.uploaderId}`} className="font-bold text-slate-100 hover:text-white transition-colors flex items-center gap-1 truncate max-w-[40vw] sm:max-w-none">
+                  {video.channelName}
+                  {video.verified && (
                       <div className="w-3.5 h-3.5 bg-[#70d6ff] text-black rounded-full flex items-center justify-center">
                         <Check className="w-2.5 h-2.5" />
                       </div>

@@ -4,7 +4,7 @@ import { uploadImageToCloudinary } from '../lib/cloudinary';
 import { useAuth } from '../lib/AuthContext';
 import { databases, account } from '../lib/appwrite';
 import { useLanguage } from '../lib/LanguageContext';
-import { Wand2, Save, X, Loader2, Image as ImageIcon, User, AlignLeft, AlertCircle, CheckCircle2, Upload } from 'lucide-react';
+import { Wand2, Save, X, Loader2, Image as ImageIcon, User, AlignLeft, AlertCircle, CheckCircle2, Upload, Tag } from 'lucide-react';
 import { Query, ID } from 'appwrite';
 
 export default function ChannelEditor() {
@@ -28,7 +28,8 @@ export default function ChannelEditor() {
       'youtube': 'YouTube',
       'tiktok': 'TikTok',
       'telegram': 'Telegram',
-      'vk': 'VK'
+      'vk': 'VK',
+      'category': language === 'ru' ? 'Категория' : 'Category'
     };
     return errorMap[field] || field;
   };
@@ -43,7 +44,8 @@ export default function ChannelEditor() {
     youtube: '',
     tiktok: '',
     telegram: '',
-    vk: ''
+    vk: '',
+    category: ''
   });
 
   const [dbDocId, setDbDocId] = useState<string | null>(null);
@@ -119,7 +121,8 @@ export default function ChannelEditor() {
             youtube: doc.youtube || '',
             tiktok: doc.tiktok || '',
             telegram: doc.telegram || '',
-            vk: doc.vk || ''
+            vk: doc.vk || '',
+            category: doc.category || ''
           });
         } else {
           // No doc yet, use account info
@@ -133,7 +136,8 @@ export default function ChannelEditor() {
             youtube: '',
             tiktok: '',
             telegram: '',
-            vk: ''
+            vk: '',
+            category: ''
           });
         }
       } catch (err: any) {
@@ -174,7 +178,8 @@ export default function ChannelEditor() {
         youtube: formData.youtube,
         tiktok: formData.tiktok,
         telegram: formData.telegram,
-        vk: formData.vk
+        vk: formData.vk,
+        category: formData.category
       };
 
       try {
@@ -472,6 +477,21 @@ export default function ChannelEditor() {
               onChange={(e) => setFormData({...formData, description: e.target.value})}
               className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-[#70d6ff]/50 focus:bg-black/60 transition-all resize-none"
               placeholder={language === 'ru' ? 'Расскажите о своём канале...' : 'Tell viewers about your channel...'}
+            />
+          </div>
+
+          {/* Category */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+              <Tag className="w-3.5 h-3.5 text-[#70d6ff]" />
+              {language === 'ru' ? 'Категория канала' : 'Channel Category'}
+            </label>
+            <input
+              type="text"
+              value={formData.category}
+              onChange={(e) => setFormData({...formData, category: e.target.value})}
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-[#70d6ff]/50 focus:bg-black/60 transition-all"
+              placeholder={language === 'ru' ? 'Например: Gaming, Education, Music' : 'e.g. Gaming, Education, Music'}
             />
           </div>
 
