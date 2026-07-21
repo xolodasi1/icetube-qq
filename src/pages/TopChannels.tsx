@@ -91,7 +91,7 @@ export default function TopChannels() {
   const Icon = currentCategory.icon;
 
   return (
-    <div className="flex-1 w-full max-w-[1200px] mx-auto px-4 sm:px-6 py-6 mb-20 sm:mb-6 mt-16 sm:mt-0">
+    <div className="flex-1 w-full max-w-[1200px] mx-auto px-4 sm:px-6 py-6 mb-20 sm:mb-6 mt-16 sm:mt-0 animate-in fade-in duration-300">
       <header className="flex flex-col gap-6 mb-10">
         <div className="flex items-center gap-4">
            <div className="p-3 bg-white/5 rounded-2xl border ice-border">
@@ -112,7 +112,7 @@ export default function TopChannels() {
             <button
               key={cat.id}
               onClick={() => setSortBy(cat.id as any)}
-              className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 border ${
+              className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95 cursor-pointer whitespace-nowrap flex items-center gap-2 border ${
                 sortBy === cat.id 
                   ? 'bg-[#70d6ff] text-[#0a192f] border-[#70d6ff] shadow-[0_0_20px_rgba(112,214,255,0.3)]' 
                   : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:border-white/10'

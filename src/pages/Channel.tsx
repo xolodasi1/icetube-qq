@@ -233,19 +233,19 @@ export default function Channel() {
     <div className="flex gap-2 mb-6">
       <button 
         onClick={() => setVideoSort('newest')}
-        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${videoSort === 'newest' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}`}
+        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all active:scale-95 cursor-pointer ${videoSort === 'newest' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}`}
       >
         {language === 'ru' ? 'Новые' : 'Newest'}
       </button>
       <button 
         onClick={() => setVideoSort('popular')}
-        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${videoSort === 'popular' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}`}
+        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all active:scale-95 cursor-pointer ${videoSort === 'popular' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}`}
       >
         {language === 'ru' ? 'Популярные' : 'Popular'}
       </button>
       <button 
         onClick={() => setVideoSort('oldest')}
-        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${videoSort === 'oldest' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}`}
+        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all active:scale-95 cursor-pointer ${videoSort === 'oldest' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}`}
       >
         {language === 'ru' ? 'Старые' : 'Oldest'}
       </button>
@@ -253,7 +253,7 @@ export default function Channel() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-8 animate-in fade-in duration-300">
       {/* Banner */}
       {bannerUrl && (
         <div className="w-full h-40 sm:h-48 md:h-64 lg:h-80 mb-6 sm:mb-8 rounded-2xl overflow-hidden bg-slate-800 relative">
@@ -323,25 +323,25 @@ export default function Channel() {
       <div className="flex border-b border-white/10 mb-8 overflow-x-auto hide-scrollbar">
         <button 
           onClick={() => setActiveTab('home')}
-          className={`px-6 py-4 font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'home' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+          className={`px-6 py-4 font-medium whitespace-nowrap transition-colors active:scale-95 cursor-pointer border-b-2 ${activeTab === 'home' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
         >
           {language === 'ru' ? 'Главная' : 'Home'}
         </button>
         <button 
           onClick={() => setActiveTab('videos')}
-          className={`px-6 py-4 font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'videos' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+          className={`px-6 py-4 font-medium whitespace-nowrap transition-colors active:scale-95 cursor-pointer border-b-2 ${activeTab === 'videos' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
         >
           {language === 'ru' ? 'Видео' : 'Videos'}
         </button>
         <button 
           onClick={() => setActiveTab('shorts')}
-          className={`px-6 py-4 font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'shorts' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+          className={`px-6 py-4 font-medium whitespace-nowrap transition-colors active:scale-95 cursor-pointer border-b-2 ${activeTab === 'shorts' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
         >
-          Shorts
+          {t('shorts_tab')}
         </button>
         <button 
           onClick={() => setActiveTab('about')}
-          className={`px-6 py-4 font-medium whitespace-nowrap transition-colors border-b-2 ${activeTab === 'about' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+          className={`px-6 py-4 font-medium whitespace-nowrap transition-colors active:scale-95 cursor-pointer border-b-2 ${activeTab === 'about' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
         >
           {language === 'ru' ? 'О канале' : 'About'}
         </button>
@@ -365,7 +365,7 @@ export default function Channel() {
             {shortsVideos.length > 0 && (
               <div>
                 <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                  <span className="text-[#FF0000]">Shorts</span>
+                  <span className="text-[#FF0000]">{t('shorts_tab')}</span>
                 </h3>
                 <div className="flex overflow-x-auto gap-4 custom-scrollbar pb-6 hide-scrollbar snap-x">
                   {shortsVideos.map(video => (

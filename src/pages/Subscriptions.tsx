@@ -95,7 +95,7 @@ export default function Subscriptions() {
   }
 
   return (
-    <div className="p-4 sm:p-6 w-full max-w-[2000px] mx-auto pb-24">
+    <div className="p-4 sm:p-6 w-full max-w-[2000px] mx-auto pb-24 animate-in fade-in duration-300">
       <h1 className="text-xl font-bold text-white mb-6">
         {language === 'ru' ? 'Новые видео' : 'Latest'}
       </h1>
@@ -128,7 +128,7 @@ export default function Subscriptions() {
       <div className="flex items-center gap-4 border-b border-white/5 mb-6">
         <button
           onClick={() => setTab('videos')}
-          className={`flex items-center gap-2 pb-3 font-bold text-sm transition-all relative ${tab === 'videos' ? 'text-[#70d6ff]' : 'text-slate-400 hover:text-white'}`}
+          className={`flex items-center gap-2 pb-3 font-bold text-sm transition-all active:scale-95 cursor-pointer relative ${tab === 'videos' ? 'text-[#70d6ff]' : 'text-slate-400 hover:text-white'}`}
         >
           <Film className="w-4 h-4" />
           {language === 'ru' ? 'Видео' : 'Videos'}
@@ -137,7 +137,7 @@ export default function Subscriptions() {
         </button>
         <button
           onClick={() => setTab('shorts')}
-          className={`flex items-center gap-2 pb-3 font-bold text-sm transition-all relative ${tab === 'shorts' ? 'text-[#70d6ff]' : 'text-slate-400 hover:text-white'}`}
+          className={`flex items-center gap-2 pb-3 font-bold text-sm transition-all active:scale-95 cursor-pointer relative ${tab === 'shorts' ? 'text-[#70d6ff]' : 'text-slate-400 hover:text-white'}`}
         >
           <Scissors className="w-4 h-4" />
           Shorts

@@ -14,7 +14,7 @@ interface Track {
 }
 
 export default function MusicPage() {
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   
   const [isPlaying, setIsPlaying] = useState(false);
@@ -213,7 +213,7 @@ export default function MusicPage() {
           <div className="p-4 rounded-2xl bg-black/50 border ice-border mb-6 flex flex-col justify-end h-40 relative">
             <div className="absolute top-4 left-4 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#00ff80] animate-pulse"></span>
-              <span className="text-[10px] uppercase font-bold text-slate-500 tracking-widest font-mono">Spectrum Telemetry</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500 tracking-widest font-mono">{t('music_spectrum')}</span>
             </div>
 
             {/* Glowing bar graph spectrum */}
@@ -276,14 +276,14 @@ export default function MusicPage() {
         <div className="flex flex-col p-6 rounded-3xl border ice-border bg-black/30 backdrop-blur-md shadow-xl">
           <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
             <Sliders className="w-4 h-4 text-[#70d6ff]" />
-            <span>Audio Parameters</span>
+            <span>{t('music_audio_params')}</span>
           </h3>
 
           <div className="space-y-5">
             {/* Volume Node scale */}
             <div>
               <div className="flex justify-between items-center text-xs text-slate-300 font-bold mb-2">
-                <span>VOL LIMITER</span>
+                <span>{t('music_vol_limiter')}</span>
                 <span className="font-mono text-[#70d6ff]">{Math.floor(synthVolume * 100)}%</span>
               </div>
               <input 
@@ -300,8 +300,8 @@ export default function MusicPage() {
             {/* Synthesizer Delay Toggle */}
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.05]">
               <div>
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider">Freeze Echo Pad</h4>
-                <p className="text-[10px] text-slate-500 mt-0.5">Adds floating spatial reflections</p>
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider">{t('music_freeze_pad')}</h4>
+                <p className="text-[10px] text-slate-500 mt-0.5">{t('music_freeze_desc')}</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input 
@@ -316,7 +316,7 @@ export default function MusicPage() {
 
             {/* Quick Play Info card */}
             <div className="p-3.5 rounded-xl bg-blue-500/5 border border-blue-500/10 text-xs text-slate-400 leading-relaxed">
-              <span className="font-bold text-[#70d6ff] uppercase block mb-1">PRO-TIP:</span>
+              <span className="font-bold text-[#70d6ff] uppercase block mb-1">{t('music_pro_tip')}</span>
               <span>{language === "ru" ? "Вы можете кликать по клавишам запускной сетки справа, чтобы синтезировать свои собственные замороженные аккорды в реальном времени!" : "Trigger modular freeze notes below to synthesize custom harmonic layers directly in your browser."}</span>
             </div>
           </div>

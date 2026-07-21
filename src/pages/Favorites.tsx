@@ -32,7 +32,7 @@ export default function Favorites() {
   };
 
   return (
-    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative mt-16 sm:mt-0">
+    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative mt-16 sm:mt-0 animate-in fade-in duration-300">
       <div className="flex items-center gap-4 mb-8">
         <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-[#70d6ff]">
           <Bookmark className="w-6 h-6 fill-current" />
@@ -58,7 +58,7 @@ export default function Favorites() {
               <button
                 onClick={(e) => handleRemove(video.id, e)}
                 className="absolute top-2 right-2 p-2 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/80 backdrop-blur-md border border-white/10"
-                title="Remove from favorites"
+                title={t('remove_from_favorites')}
               >
                 <BookmarkX className="w-4 h-4" />
               </button>

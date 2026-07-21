@@ -211,9 +211,13 @@ export default function Studio() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center p-20 animate-pulse">
-        <Loader2 className="w-10 h-10 animate-spin text-[#70d6ff] mb-4" />
-        <span className="text-slate-400">Loading Studio...</span>
+      <div className="animate-in fade-in duration-300 max-w-7xl mx-auto px-4 py-8">
+        <div className="skeleton-shimmer h-10 w-72 rounded-xl mb-8" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {[1,2,3,4].map(i => <div key={i} className="skeleton-shimmer h-28 rounded-2xl" />)}
+        </div>
+        <div className="skeleton-shimmer h-8 w-48 rounded-xl mb-6" />
+        <div className="skeleton-shimmer h-64 rounded-3xl" />
       </div>
     );
   }
@@ -321,7 +325,9 @@ export default function Studio() {
                       <p className="text-xs text-slate-500 text-center py-8">{language === 'ru' ? 'Нет видео' : 'No videos yet'}</p>
                     ) : videos.slice(0, 5).map(v => (
                       <div key={v.id} className="flex items-center gap-3">
-                        <img src={v.thumbnailUrl} className="w-12 h-8 rounded-lg object-cover bg-slate-800 shrink-0" alt="" referrerPolicy="no-referrer" />
+                        <div className="w-12 aspect-video rounded-lg overflow-hidden bg-slate-800 shrink-0">
+                          <img src={v.thumbnailUrl} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
+                        </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-white font-medium truncate">{v.title}</p>
                           <p className="text-[10px] text-slate-500"><Eye className="w-3 h-3 inline mr-1" />{v.views}</p>

@@ -140,9 +140,14 @@ export default function Content() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center p-20 animate-pulse">
-        <Loader2 className="w-10 h-10 animate-spin text-[#70d6ff] mb-4" />
-        <span className="text-slate-400">Loading Content...</span>
+      <div className="animate-in fade-in duration-300 max-w-7xl mx-auto px-4 py-8">
+        <div className="skeleton-shimmer h-10 w-64 rounded-xl mb-8" />
+        <div className="skeleton-shimmer h-8 w-96 rounded-xl mb-6" />
+        <div className="space-y-3">
+          {[1,2,3,4,5].map(i => (
+            <div key={i} className="skeleton-shimmer h-20 rounded-2xl" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -150,7 +155,7 @@ export default function Content() {
   const currentList = tab === 'videos' ? regularVideos : shortsVideos;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-8 animate-in fade-in duration-300">
       {/* Header */}
       <div className="relative mb-10">
         <div className="absolute -top-6 -left-6 w-40 h-40 bg-[#70d6ff]/5 rounded-full blur-3xl pointer-events-none" />
@@ -180,7 +185,7 @@ export default function Content() {
         <div className="flex items-center gap-1 bg-white/5 p-1 rounded-2xl border border-white/10">
           <button
             onClick={() => setTab('videos')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${tab === 'videos' ? 'bg-[#70d6ff] text-black shadow-lg shadow-[#70d6ff]/30' : 'text-slate-400 hover:text-white'}`}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 cursor-pointer ${tab === 'videos' ? 'bg-[#70d6ff] text-black shadow-lg shadow-[#70d6ff]/30' : 'text-slate-400 hover:text-white'}`}
           >
             <Video className="w-4 h-4" />
             <span>{language === 'ru' ? 'Видео' : 'Videos'}</span>
@@ -188,7 +193,7 @@ export default function Content() {
           </button>
           <button
             onClick={() => setTab('shorts')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${tab === 'shorts' ? 'bg-teal-500 text-black shadow-lg shadow-teal-500/30' : 'text-slate-400 hover:text-white'}`}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 cursor-pointer ${tab === 'shorts' ? 'bg-teal-500 text-black shadow-lg shadow-teal-500/30' : 'text-slate-400 hover:text-white'}`}
           >
             <Scissors className="w-4 h-4" />
             <span>Shorts</span>
@@ -239,7 +244,7 @@ export default function Content() {
       <div className="flex items-center gap-1 mb-4 flex-wrap">
         {(['new', 'old', 'views', 'likes'] as const).map(key => (
           <button key={key} onClick={() => setSortBy(key)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider ${sortBy === key ? 'bg-[#70d6ff]/20 text-[#70d6ff] border border-[#70d6ff]/30' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}>
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 cursor-pointer uppercase tracking-wider ${sortBy === key ? 'bg-[#70d6ff]/20 text-[#70d6ff] border border-[#70d6ff]/30' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}>
             {key === 'new' ? (language === 'ru' ? 'Новые' : 'New') : key === 'old' ? (language === 'ru' ? 'Старые' : 'Old') : key === 'views' ? (language === 'ru' ? 'По просмотрам' : 'By Views') : (language === 'ru' ? 'По лайкам' : 'By Likes')}
           </button>
         ))}
@@ -263,7 +268,7 @@ export default function Content() {
             {filteredVideos.map((vid, i) => (
               <div key={vid.id} className="flex items-center gap-4 p-4 sm:px-6 hover:bg-white/[0.02] transition-all group">
                 <span className="text-[10px] font-mono text-slate-600 w-6 shrink-0 text-right">{i + 1}</span>
-                <div className="w-16 h-10 sm:w-24 sm:h-14 rounded-xl overflow-hidden bg-slate-800 shrink-0 border border-white/5 relative">
+                <div className="w-16 sm:w-24 aspect-video rounded-xl overflow-hidden bg-slate-800 shrink-0 border border-white/5 relative">
                   <img
                     src={getOptimizedThumbnail(vid.thumbnailUrl)}
                     className="w-full h-full object-cover"

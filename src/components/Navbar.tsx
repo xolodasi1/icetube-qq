@@ -173,10 +173,9 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
              <img src="https://res.cloudinary.com/du6zw4m8g/image/upload/v1776451556/5395585251976877323_gkvgwj.jpg" alt="Icetube 2.0" className="w-full h-full object-cover" />
           </div>
           <div className="ice-logo hidden sm:flex items-center gap-1">
-            <Snowflake className="w-3.5 h-3.5 text-[#70d6ff] animate-pulse" />
-            <span>ICETUBE</span>
-            <div className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded border border-blue-500/30 tracking-normal font-medium leading-none">2.0</div>
-            <Snowflake className="w-3.5 h-3.5 text-[#70d6ff] animate-pulse" style={{ animationDelay: '1s' }} />
+            <Snowflake className="w-3.5 h-3.5 text-[#70d6ff] animate-float" style={{ animationDelay: '0s' }} />
+            <span className="animate-gradient bg-gradient-to-r from-[#70d6ff] via-white to-[#70d6ff] bg-clip-text text-transparent">ICETUBE</span>
+            <Snowflake className="w-3.5 h-3.5 text-[#70d6ff] animate-float" style={{ animationDelay: '2s' }} />
           </div>
         </Link>
       </div>
@@ -207,7 +206,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
         {user && (
           <button 
             onClick={() => setIsUploadOpen(true)}
-            className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#70d6ff]/20 to-blue-600/20 hover:from-[#70d6ff]/30 hover:to-blue-600/30 rounded-full text-slate-100 transition-all border border-[#70d6ff]/30 hover:border-[#70d6ff]/60 group shadow-[0_0_15px_rgba(112,214,255,0.1)] active:scale-95"
+            className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#70d6ff]/20 to-blue-600/20 hover:from-[#70d6ff]/30 hover:to-blue-600/30 rounded-full text-slate-100 transition-all border border-[#70d6ff]/30 hover:border-[#70d6ff]/60 group shadow-[0_0_15px_rgba(112,214,255,0.1)] active:scale-95 animate-glow"
             title={language === 'ru' ? 'Загрузить ролик' : 'Upload Video'}
           >
             <Video className="w-5 h-5 group-hover:text-[#70d6ff] transition-colors" />

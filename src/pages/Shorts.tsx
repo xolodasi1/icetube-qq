@@ -617,7 +617,7 @@ export default function Shorts() {
   const uploaderAvatar = current.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName)}`;
 
   return (
-    <div className="flex flex-col items-center justify-center w-full min-h-[calc(100vh-64px)] px-0 bg-black pt-0 sm:pt-4 overflow-hidden">
+    <div className="flex flex-col items-center justify-center w-full min-h-[calc(100vh-64px)] px-0 bg-black pt-0 sm:pt-4 overflow-hidden animate-in fade-in duration-300">
       
       {/* Immersive Video Container */}
       <div 

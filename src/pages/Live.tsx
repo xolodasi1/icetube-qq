@@ -24,7 +24,7 @@ interface ChatMessage {
 }
 
 export default function Live() {
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
   const { user, profile } = useAuth();
   
   const [selectedStream, setSelectedStream] = useState<LiveStream | null>(null);
@@ -268,7 +268,7 @@ export default function Live() {
                 <div className="flex items-center justify-between gap-4 mb-6 relative z-10">
                   <div className="px-3 py-1 bg-rose-500/20 text-rose-400 border border-rose-500/40 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
-                    <span>LIVE</span>
+                    <span>{t('live_badge')}</span>
                   </div>
                   
                   <div className="flex items-center gap-1.5 text-xs text-slate-400 font-bold bg-black/40 px-2.5 py-1 rounded-full border border-white/5">
@@ -368,7 +368,7 @@ export default function Live() {
                 <div className="relative z-10 max-w-sm">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500 text-white rounded-full text-[10px] font-black uppercase tracking-wider mb-4 shadow-[0_0_20px_rgba(239,68,68,0.4)]">
                     <Radio className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: "3s" }} />
-                    <span>BROADCAST ACTIVE</span>
+                    <span>{t('live_broadcast_active')}</span>
                   </div>
                   <h2 className="text-xl font-bold text-white mb-2 line-clamp-2">
                     {selectedStream.title}
@@ -381,7 +381,7 @@ export default function Live() {
                 {/* Top Statistics Bar inside Player */}
                 <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2 text-xs font-bold text-slate-300">
                   <Users className="w-3.5 h-3.5 text-rose-500" />
-                  <span>{selectedStream.viewers} watching now</span>
+                  <span>{selectedStream.viewers} {language === 'ru' ? 'смотрят сейчас' : 'watching now'}</span>
                 </div>
               </div>
 

@@ -63,7 +63,7 @@ export default function History() {
   );
 
   return (
-    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative mt-16 sm:mt-0">
+    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative mt-16 sm:mt-0 animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-[#70d6ff]">
@@ -87,7 +87,7 @@ export default function History() {
       <div className="flex gap-2 mb-8 bg-white/5 p-1 rounded-xl w-max border border-white/10">
         <button
           onClick={() => setActiveTab('videos')}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all active:scale-95 cursor-pointer ${
             activeTab === 'videos' 
               ? 'bg-[#70d6ff] text-black shadow-lg shadow-[#70d6ff]/20' 
               : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -98,7 +98,7 @@ export default function History() {
         </button>
         <button
           onClick={() => setActiveTab('shorts')}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all active:scale-95 cursor-pointer ${
             activeTab === 'shorts' 
               ? 'bg-[#70d6ff] text-black shadow-lg shadow-[#70d6ff]/20' 
               : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -143,7 +143,7 @@ export default function History() {
               <button
                 onClick={(e) => handleRemove(video.id, e)}
                 className="absolute top-2 right-2 p-2 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/80 backdrop-blur-md border border-white/10 z-10"
-                title="Remove from history"
+                title={t('remove_from_history')}
               >
                 <X className="w-4 h-4" />
               </button>

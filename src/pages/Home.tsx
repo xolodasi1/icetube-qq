@@ -247,7 +247,7 @@ export default function Home() {
             {shortsVideos.length > 0 && (
               <div className="mt-10">
                 <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2 px-4 sm:px-0">
-                  <span className="text-[#70d6ff]">Shorts</span>
+                  <span className="text-[#70d6ff]">{t('shorts_tab')}</span>
                 </h3>
                 <div className="flex overflow-x-auto gap-4 custom-scrollbar pb-6 px-4 sm:px-0 hide-scrollbar snap-x">
                   {shortsVideos.map(video => (

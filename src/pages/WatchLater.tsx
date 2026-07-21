@@ -41,7 +41,7 @@ export default function WatchLater() {
   };
 
   return (
-    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative mt-16 sm:mt-0">
+    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative mt-16 sm:mt-0 animate-in fade-in duration-300">
       <div className="flex flex-col md:flex-row gap-8">
         
         {/* Left Stats/Action Panel */}

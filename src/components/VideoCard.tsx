@@ -54,14 +54,14 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
         <div className="absolute inset-0 bg-[#70d6ff]/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
         <div className="absolute top-2 left-2 z-20 bg-black/50 backdrop-blur-sm px-2 py-1 rounded inline-flex items-center gap-1">
           <Zap className="w-3 h-3 text-[#70d6ff] fill-[#70d6ff]" />
-          <span className="text-[10px] font-bold text-white uppercase tracking-wider">Short</span>
+          <span className="text-[10px] font-bold text-white uppercase tracking-wider">{t('short_badge')}</span>
         </div>
       </Link>
     );
   }
 
   return (
-    <div className={clsx("group flex block", isList ? "flex-row gap-3 w-full" : "video-card flex-col")}>
+    <div className={clsx("group flex block", isList ? "flex-row gap-3 w-full" : "video-card flex-col hover:border-[#70d6ff]/30 hover:shadow-[0_0_15px_rgba(112,214,255,0.05)] hover:bg-white/[0.01] transition-all duration-300")}>
       <Link to={targetUrl} className={clsx("shrink-0 video-thumb", isList ? "w-40 sm:w-48 rounded-xl overflow-hidden" : "w-full")}>
         <img 
           src={getOptimizedThumbnail(video.thumbnailUrl)} 
@@ -79,7 +79,7 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
         {isShortContentType ? (
           <div className="absolute top-2 left-2 z-30 bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded inline-flex items-center gap-1">
             <Zap className="w-3 h-3 text-[#70d6ff] fill-[#70d6ff]" />
-            <span className="text-[10px] font-bold text-white uppercase tracking-wider">Short</span>
+            <span className="text-[10px] font-bold text-white uppercase tracking-wider">{t('short_badge')}</span>
           </div>
         ) : (
           <div className="duration-badge z-30">

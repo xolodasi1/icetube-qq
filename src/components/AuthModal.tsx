@@ -48,7 +48,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
       };
 
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Network request timed out. Please check your connection and try again.')), 12000)
+        setTimeout(() => reject(new Error(t('auth_network_error'))), 12000)
       );
 
       await Promise.race([authPromise(), timeoutPromise]);
@@ -57,13 +57,13 @@ export default function AuthModal({ onClose }: AuthModalProps) {
       console.error('Auth error:', err);
       // Give more precise error feedback in the UI
       if (err?.code === 409) {
-        setError('An account with this email already exists.');
+        setError(t('auth_email_exists'));
       } else if (err?.code === 401) {
-        setError('Invalid email or password.');
+        setError(t('auth_invalid_credentials'));
       } else if (err?.message?.includes('missing scopes') || err?.message?.includes('processing your request') || err?.code === 400 || err?.code === 403) {
-        setError('Login failed. Please ensure Email/Password auth is enabled in your Appwrite Console (Auth > Settings).');
+        setError(t('auth_login_failed'));
       } else {
-        setError(err?.message || (typeof err === 'string' ? err : 'Authentication failed. Please try again.'));
+        setError(err?.message || (typeof err === 'string' ? err : t('auth_auth_failed')));
       }
     } finally {
       if (typeof setLoading === 'function') {
@@ -89,13 +89,13 @@ export default function AuthModal({ onClose }: AuthModalProps) {
           </button>
 
           <h2 className="text-2xl font-bold text-white mb-6 text-center">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
+            {isLogin ? t('auth_welcome_back') : t('auth_create_account')}
           </h2>
 
           <form onSubmit={handleEmailAuth} className="space-y-4">
             {!isLogin && (
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Name</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">{t('auth_name')}</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <UserIcon size={18} className="text-gray-500" />
@@ -106,14 +106,14 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                     onChange={(e) => setName(e.target.value)}
                     required
                     className="w-full pl-10 pr-4 py-2 bg-[#2f2f2f] border border-[#3f3f3f] rounded-lg text-white focus:outline-none focus:border-[#00f5d4] transition-colors"
-                    placeholder="Your name"
+                    placeholder={t('auth_name_placeholder')}
                   />
                 </div>
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1">{t('auth_email')}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail size={18} className="text-gray-500" />
@@ -124,13 +124,13 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   className="w-full pl-10 pr-4 py-2 bg-[#2f2f2f] border border-[#3f3f3f] rounded-lg text-white focus:outline-none focus:border-[#00f5d4] transition-colors"
-                  placeholder="you@example.com"
+                  placeholder={t('auth_email_placeholder')}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1">{t('auth_password')}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock size={18} className="text-gray-500" />
@@ -142,7 +142,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                   required
                   minLength={8}
                   className="w-full pl-10 pr-4 py-2 bg-[#2f2f2f] border border-[#3f3f3f] rounded-lg text-white focus:outline-none focus:border-[#00f5d4] transition-colors"
-                  placeholder="••••••••"
+                  placeholder={t('auth_password_placeholder')}
                 />
               </div>
             </div>
@@ -156,13 +156,13 @@ export default function AuthModal({ onClose }: AuthModalProps) {
               disabled={loading}
               className="w-full py-2 bg-[#00f5d4] text-black font-semibold rounded-lg hover:bg-[#00f5d4]/90 transition-colors disabled:opacity-50"
             >
-              {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Sign Up')}
+              {loading ? t('auth_please_wait') : (isLogin ? t('auth_sign_in') : t('auth_sign_up'))}
             </button>
           </form>
 
           <div className="mt-6 flex items-center justify-between">
             <span className="w-1/5 border-b border-gray-600 lg:w-1/4"></span>
-            <span className="text-xs text-center text-gray-500 uppercase">or</span>
+            <span className="text-xs text-center text-gray-500 uppercase">{t('auth_or')}</span>
             <span className="w-1/5 border-b border-gray-600 lg:w-1/4"></span>
           </div>
 
@@ -178,11 +178,11 @@ export default function AuthModal({ onClose }: AuthModalProps) {
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
               <path d="M1 1h22v22H1z" fill="none" />
             </svg>
-            Continue with Google
+            {t('auth_continue_google')}
           </button>
 
           <p className="mt-6 text-sm text-center text-gray-400">
-            {isLogin ? "Don't have an account? " : "Already have an account? "}
+            {isLogin ? t('auth_no_account') : t('auth_has_account')}
             <button
               onClick={() => {
                 setIsLogin(!isLogin);
@@ -190,7 +190,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
               }}
               className="text-[#00f5d4] hover:underline"
             >
-              {isLogin ? 'Sign up' : 'Sign in'}
+              {isLogin ? t('auth_sign_up_link') : t('auth_sign_in_link')}
             </button>
           </p>
         </motion.div>

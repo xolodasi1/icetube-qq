@@ -1232,7 +1232,7 @@ export default function Watch() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 max-w-[1600px] mx-auto relative pb-16 lg:pb-0">
+    <div className="flex flex-col lg:flex-row gap-6 max-w-[1600px] mx-auto relative pb-16 lg:pb-0 animate-in fade-in duration-300">
       {/* Gamified XP Achievement alert toast */}
       {xpAlert && (
         <div className="fixed top-20 right-4 sm:right-6 md:right-10 z-[200] max-w-sm bg-[#061122]/95 border-2 border-[#70d6ff] rounded-2xl p-4 shadow-[0_4px_30px_rgba(112,214,255,0.4)] backdrop-blur-md animate-in slide-in-from-top-10 duration-300 flex items-center gap-3">
@@ -2013,21 +2013,21 @@ export default function Watch() {
           <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 px-4 sm:px-0 scroll-smooth">
             <button 
               onClick={() => setActiveSuggestionFilter('all')}
-              className={`px-4 py-1.5 rounded-lg whitespace-nowrap text-sm font-medium transition-colors ${activeSuggestionFilter === 'all' ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+              className={`px-4 py-1.5 rounded-lg whitespace-nowrap text-sm font-medium transition-colors active:scale-95 cursor-pointer ${activeSuggestionFilter === 'all' ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
             >
               {language === 'ru' ? 'Все видео' : 'All videos'}
             </button>
             {video.category && video.category !== 'All' && (
               <button 
                 onClick={() => setActiveSuggestionFilter('category')}
-                className={`px-4 py-1.5 rounded-lg whitespace-nowrap text-sm font-medium transition-colors ${activeSuggestionFilter === 'category' ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                className={`px-4 py-1.5 rounded-lg whitespace-nowrap text-sm font-medium transition-colors active:scale-95 cursor-pointer ${activeSuggestionFilter === 'category' ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
               >
                 {language === 'ru' ? 'Из той же серии' : 'From this series'}
               </button>
             )}
             <button 
               onClick={() => setActiveSuggestionFilter('author')}
-              className={`px-4 py-1.5 rounded-lg whitespace-nowrap text-sm font-medium transition-colors ${activeSuggestionFilter === 'author' ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+              className={`px-4 py-1.5 rounded-lg whitespace-nowrap text-sm font-medium transition-colors active:scale-95 cursor-pointer ${activeSuggestionFilter === 'author' ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
             >
               {language === 'ru' ? `Автор: ${video.channelName?.split(' ')[0]}` : `Author: ${video.channelName?.split(' ')[0]}`}
             </button>

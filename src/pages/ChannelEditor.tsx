@@ -307,7 +307,7 @@ export default function ChannelEditor() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto px-4 py-8 animate-in fade-in duration-300">
       {/* Header */}
       <div className="relative mb-10">
         <div className="absolute -top-6 -left-6 w-40 h-40 bg-[#70d6ff]/5 rounded-full blur-3xl pointer-events-none" />
