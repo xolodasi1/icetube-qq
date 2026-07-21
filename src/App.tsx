@@ -22,7 +22,6 @@ import Shorts from "./pages/Shorts";
 import Subscriptions from "./pages/Subscriptions";
 import ContinueWatching from "./pages/ContinueWatching";
 import Videos from "./pages/Videos";
-import Premium from "./pages/Premium";
 import Photos from "./pages/Photos";
 import PhotoAlbums from "./pages/PhotoAlbums";
 import Live from "./pages/Live";
@@ -63,7 +62,6 @@ export default function App() {
           <Route path="/music" element={<MusicPage />} />
           <Route path="/movies" element={<ComingSoon />} />
           <Route path="/live" element={<Live />} />
-          <Route path="/premium" element={<Premium />} />
           <Route path="/yt-music" element={<MusicPage />} />
           <Route path="/yt-kids" element={<ComingSoon />} />
           <Route path="/admin" element={<AdminPanel />} />

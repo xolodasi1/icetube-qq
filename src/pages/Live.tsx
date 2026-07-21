@@ -19,7 +19,7 @@ interface ChatMessage {
   user: string;
   text: string;
   avatar: string;
-  role?: 'moderator' | 'premium' | 'streamer' | 'user';
+  role?: 'moderator' | 'streamer' | 'user';
   timestamp: string;
 }
 
@@ -32,14 +32,14 @@ export default function Live() {
   const [currentMessage, setCurrentMessage] = useState("");
   const [floatingEmojis, setFloatingEmojis] = useState<{ id: number; symbol: string; left: number }[]>([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const [isPremiumUser, setIsPremiumUser] = useState(false);
+  const [isPremiumUser, _setIsPremiumUser] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
   const emojiIdCounter = useRef(0);
 
-  // Load premium status
+  // Load premium status (deprecated - preserved for compatibility)
   useEffect(() => {
-    setIsPremiumUser(localStorage.getItem("icetube_premium_enabled") === "true");
+    _setIsPremiumUser(localStorage.getItem("icetube_premium_enabled") === "true");
   }, []);
 
   const streams: LiveStream[] = [
@@ -130,7 +130,7 @@ export default function Live() {
           user: u,
           text: randomTexts[Math.floor(Math.random() * randomTexts.length)],
           avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(u)}&background=random`,
-          role: Math.random() > 0.85 ? 'moderator' : (Math.random() > 0.7 ? 'premium' : 'user'),
+          role: Math.random() > 0.85 ? 'moderator' : 'user',
           timestamp: new Date(Date.now() - (12 - i) * 10000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
       });
@@ -145,7 +145,7 @@ export default function Live() {
     const interval = setInterval(() => {
       const u = randomUserNames[Math.floor(Math.random() * randomUserNames.length)];
       const text = randomTexts[Math.floor(Math.random() * randomTexts.length)];
-      const r = Math.random() > 0.85 ? 'moderator' : (Math.random() > 0.70 ? 'premium' : 'user');
+      const r = Math.random() > 0.85 ? 'moderator' : 'user';
       
       const newMsg: ChatMessage = {
         id: `msg_${Date.now()}_${Math.random()}`,
@@ -182,7 +182,7 @@ export default function Live() {
       user: usrName,
       text: currentMessage,
       avatar: profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(usrName)}&background=3b82f6&color=fff`,
-      role: isPremiumUser ? 'premium' : 'user',
+      role: 'user',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -484,7 +484,7 @@ export default function Live() {
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={`font-black text-slate-200 hover:opacity-80 transition-opacity truncate max-w-[120px] ${
-                        msg.role === 'moderator' ? 'text-rose-400' : (msg.role === 'premium' ? 'text-yellow-400' : '')
+                        msg.role === 'moderator' ? 'text-rose-400' : ''
                       }`}>
                         {msg.user}
                       </span>
@@ -492,9 +492,6 @@ export default function Live() {
                       {/* Identity Role Badges */}
                       {msg.role === 'moderator' && (
                         <span className="bg-rose-500/10 text-rose-400 border border-rose-500/30 font-bold px-1 rounded text-[8px] transform uppercase scale-90">Mod</span>
-                      )}
-                      {msg.role === 'premium' && (
-                        <span className="bg-yellow-400/10 text-yellow-500 border border-yellow-400/20 font-bold px-1 rounded text-[8px] transform uppercase scale-90">VIP</span>
                       )}
 
                       <span className="text-[9px] text-slate-600 font-bold">{msg.timestamp}</span>

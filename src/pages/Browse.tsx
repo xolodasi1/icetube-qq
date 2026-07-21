@@ -91,7 +91,7 @@ export default function Browse() {
               <p className="text-slate-400">{t('hero_upload_prompt')}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 px-4 sm:px-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 px-4 sm:px-0">
               {categoryEntries.map(([cat, count]) => (
                 <button
                   key={cat}
@@ -119,7 +119,7 @@ export default function Browse() {
             <span className="text-lg font-bold text-white">{selectedCategory}</span>
           </div>
           {filteredVideos.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-2 sm:gap-y-8 gap-x-4 px-0 sm:px-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-y-2 sm:gap-y-8 gap-x-4 px-0 sm:px-0">
               {filteredVideos.map((video: any) => (
                 <VideoCard key={video.id} video={video} />
               ))}

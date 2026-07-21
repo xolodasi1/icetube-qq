@@ -63,7 +63,7 @@ export default function ContinueWatching() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
           {videos.map((video) => (
             <Link key={video.videoId} to={`/watch/${video.videoId}`} className="group flex flex-col gap-3">
               <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-800">

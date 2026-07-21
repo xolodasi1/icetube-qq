@@ -91,8 +91,8 @@ export default function Videos() {
          setOfflineFlag(true);
          setError(
            language === 'ru' 
-             ? "Не удалось загрузить видео из базы данных. Проверьте подключение VPN." 
-             : "Failed to load videos from server. Please check your VPN connection."
+             ? "Не удалось загрузить видео из базы данных." 
+             : "Failed to load videos from server."
          );
          setDbVideos([]); 
       } finally {
@@ -165,7 +165,7 @@ export default function Videos() {
               <span className="text-[#70d6ff]">{t('nav_videos')}</span>
             </h3>
             {regularVideos.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-2 sm:gap-y-8 gap-x-4 px-0 sm:px-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-y-2 sm:gap-y-8 gap-x-4 px-0 sm:px-0">
                 {regularVideos.map(video => (
                   <VideoCard key={video.id} video={video} />
                 ))}

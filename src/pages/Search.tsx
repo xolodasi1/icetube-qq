@@ -184,7 +184,7 @@ export default function SearchPage() {
           <p className="text-sm text-slate-500 mb-4">
             {language === 'ru' ? `Найдено: ${filtered.length}` : `${filtered.length} results`}
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5">
             {filtered.map(v => (
               <Link
                 key={v.$id}

@@ -14,6 +14,8 @@ export const translations: Translations = {
   en: {
     nav_home: 'Home',
     nav_explore: 'Explore',
+    nav_browse: 'Browse',
+    nav_search: 'Search',
     nav_shorts: 'Shorts',
     nav_videos: 'Videos',
     nav_subscriptions: 'Subscriptions',
@@ -243,7 +245,9 @@ export const translations: Translations = {
   },
   ru: {
     nav_home: 'Главная',
-    nav_explore: 'Навигатор',
+    nav_explore: 'Интересное',
+    nav_browse: 'Категории',
+    nav_search: 'Поиск',
     nav_shorts: 'Shorts',
     nav_videos: 'Видео',
     nav_subscriptions: 'Подписки',

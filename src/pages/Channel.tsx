@@ -2,11 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { databases } from "../lib/appwrite";
 import { Query } from "appwrite";
-import { Loader2, User, AlertCircle, Video } from "lucide-react";
+import { Loader2, User, AlertCircle, Video, TrendingUp } from "lucide-react";
 import { useLanguage } from "../lib/LanguageContext";
 import { useAuth } from "../lib/AuthContext";
 import { VideoCard } from "../components/VideoCard";
 import { createNotification } from "../lib/notifications";
+import { getRecommendations } from "../lib/recommendations";
 
 export default function Channel() {
   const { id: paramId } = useParams();
@@ -355,13 +356,30 @@ export default function Channel() {
             {regularVideos.length > 0 && (
               <div>
                 <h3 className="text-xl font-bold text-white mb-4">{language === 'ru' ? 'Недавние видео' : 'Recent Videos'}</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-8 gap-x-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-y-8 gap-x-4">
                   {regularVideos.slice(0, 8).map(video => (
                     <VideoCard key={video.id} video={video} />
                   ))}
                 </div>
               </div>
             )}
+
+            {regularVideos.length > 4 && (() => {
+              const recommended = getRecommendations(regularVideos, { limit: 4 });
+              return (
+                <div>
+                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-[#70d6ff]" />
+                    {language === 'ru' ? 'Популярное на канале' : 'Popular on this channel'}
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-y-8 gap-x-4">
+                    {recommended.map(video => (
+                      <VideoCard key={video.id} video={video} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
             
             {shortsVideos.length > 0 && (
               <div>
@@ -396,7 +414,7 @@ export default function Channel() {
                 <p className="text-lg">{language === 'ru' ? 'Нет видео.' : 'No videos.'}</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-8 gap-x-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-y-8 gap-x-4">
                 {sortedRegularVideos.map(video => (
                   <VideoCard key={video.id} video={video} />
                 ))}

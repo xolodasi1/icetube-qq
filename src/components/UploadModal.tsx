@@ -238,7 +238,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
       } else if (err.code === 401) {
         msg = language === 'ru' ? "Доступ запрещен. Проверьте права коллекции в Appwrite." : "Permission denied. Check collection settings in Appwrite.";
       } else if (err.message?.includes('Network error') || err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
-        msg = language === 'ru' ? "Ошибка сети. Проверьте подключение к серверу (возможно нужен VPN)." : "Network error. Check your server connection (VPN may be required).";
+        msg = language === 'ru' ? "Ошибка сети. Проверьте подключение к серверу." : "Network error. Check your server connection.";
       }
 
       setError(msg);

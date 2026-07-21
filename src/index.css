@@ -174,6 +174,42 @@ button:focus, a:focus, .video-card:focus {
   border-radius: 4px;
 }
 
+/* TV / Large Screen Optimizations */
+@media (min-width: 1920px) {
+  html { font-size: 18px; }
+  .grid { gap: 1.5rem; }
+  .max-w-\[2000px\] { max-width: 2400px; }
+  .video-card { border-radius: 16px; }
+  .duration-badge { font-size: 13px; padding: 4px 10px; }
+  button, a, [role="button"] { min-height: 44px; }
+}
+
+@media (min-width: 2560px) {
+  html { font-size: 20px; }
+}
+
+/* Android TV / TV Browser Focus (directional pad) */
+@media (hover: none) and (pointer: coarse) {
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+    outline: 4px solid #70d6ff !important;
+    outline-offset: 4px;
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(112, 214, 255, 0.3);
+  }
+  .video-card:focus-within {
+    border-color: #70d6ff !important;
+    box-shadow: 0 0 30px rgba(112, 214, 255, 0.3);
+  }
+}
+
+/* Mobile touch optimizations */
+@media (max-width: 639px) {
+  .video-card { border-radius: 8px; }
+  .duration-badge { font-size: 9px; padding: 1px 4px; }
+  input, button, a { min-height: 40px; }
+  input[type="text"] { font-size: 16px !important; }
+}
+
 /* Shimmer skeleton loading */
 @keyframes shimmer {
   0% { background-position: -200% 0; }

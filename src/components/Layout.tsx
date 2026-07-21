@@ -64,7 +64,7 @@ export function Layout({ children }: { children: ReactNode }) {
           )}
           {/* Adjusted padding: Main layout has padding bottom for mobile nav */}
           <main className={`flex-1 overflow-y-auto custom-scrollbar transition-all duration-300 ${!isAdminView && sidebarOpen ? 'sm:ml-64' : 'ml-0'} ${location.pathname.startsWith('/watch') || location.pathname.startsWith('/shorts') ? 'pb-0' : 'pb-20 sm:pb-0'}`}>
-            <div className="p-0 sm:p-6 lg:p-8 mx-auto max-w-[2000px]">
+            <div className="mx-auto max-w-[2000px] p-0 sm:p-4 lg:p-6 xl:p-8">
               {children}
             </div>
           </main>

@@ -8,6 +8,7 @@ import { useAuth } from "../lib/AuthContext";
 import { useLanguage } from "../lib/LanguageContext";
 import { createNotification } from "../lib/notifications";
 import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENTS_PER_VIDEO } from "../lib/storage";
+import { getRecommendations } from "../lib/recommendations";
 
 import { getOptimizedThumbnail, getOptimizedVideoUrl, getQualityVideoUrl } from '../lib/cloudinary';
 import type { VideoQuality } from '../lib/cloudinary';
@@ -604,7 +605,7 @@ export default function Watch() {
           try {
             const suggestedRes = await withTimeout(databases.listDocuments(dbId, colId, [
               Query.orderDesc('$createdAt'),
-              Query.limit(20)
+              Query.limit(50)
             ]), 2500);
             
             const suggested = suggestedRes.documents
@@ -619,10 +620,22 @@ export default function Watch() {
                 channelAvatar: v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
                 views: v.views || 0,
                 uploadDate: t('video_recently'),
+                createdAt: v.$createdAt,
                 category: v.category || 'All',
                 verified: v.verified || false,
               }));
-            setSuggestedVideos(suggested);
+
+            // Score and rank suggestions using recommendation engine
+            const ranked = getRecommendations(suggested, {
+              currentVideo: currentVideo ? {
+                category: currentVideo.category,
+                uploaderId: currentVideo.uploaderId,
+                id: currentVideo.id,
+                contentType: currentVideo.contentType
+              } : undefined,
+              limit: 20
+            });
+            setSuggestedVideos(ranked);
           } catch (sErr) {
             console.error("Failed to fetch suggested videos:", sErr);
             setSuggestedVideos([]);
