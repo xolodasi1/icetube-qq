@@ -62,7 +62,7 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
 
   return (
     <div className={clsx("group flex block", isList ? "flex-row gap-3 w-full" : "video-card flex-col hover:border-[#70d6ff]/30 hover:shadow-[0_0_15px_rgba(112,214,255,0.05)] hover:bg-white/[0.01] transition-all duration-300")}>
-      <Link to={targetUrl} className={clsx("shrink-0 video-thumb", isList ? "w-40 sm:w-48 rounded-xl overflow-hidden" : "w-full")}>
+      <Link to={targetUrl} className={clsx("shrink-0 video-thumb aspect-video block", isList ? "w-40 sm:w-48 rounded-xl overflow-hidden" : "w-full")}>
         <img 
           src={getOptimizedThumbnail(video.thumbnailUrl)} 
           alt={video.title} 
