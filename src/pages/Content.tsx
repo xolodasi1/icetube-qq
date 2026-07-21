@@ -342,8 +342,21 @@ export default function Content() {
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-300 mb-1">{language === 'ru' ? 'Категория' : 'Category'}</label>
-                  <input type="text" value={editingVideo.category || ''} onChange={(e) => setEditingVideo({ ...editingVideo, category: e.target.value })}
-                    className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-[#70d6ff]/50 transition-colors" />
+                  <input list="edit-category-suggestions" type="text" value={editingVideo.category || ''} onChange={(e) => setEditingVideo({ ...editingVideo, category: e.target.value })}
+                    className="w-full bg-black/40 border ice-border rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-[#70d6ff]/50 transition-colors"
+                    placeholder={language === 'ru' ? 'Введите или выберите...' : 'Enter or select...'} />
+                  <datalist id="edit-category-suggestions">
+                    {[
+                      { id: 'All', label: language === 'ru' ? 'Все' : 'All' },
+                      { id: 'Music', label: language === 'ru' ? 'Музыка' : 'Music' },
+                      { id: 'Gaming', label: language === 'ru' ? 'Игры' : 'Gaming' },
+                      { id: 'Live', label: language === 'ru' ? 'Стримы' : 'Live' },
+                      { id: 'Tech', label: language === 'ru' ? 'Технологии' : 'Tech' },
+                      { id: 'Nature', label: language === 'ru' ? 'Природа' : 'Nature' }
+                    ].map(cat => (
+                      <option key={cat.id} value={cat.label} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
               <div>

@@ -487,12 +487,25 @@ export default function ChannelEditor() {
               {language === 'ru' ? 'Категория канала' : 'Channel Category'}
             </label>
             <input
+              list="channel-category-suggestions"
               type="text"
               value={formData.category}
               onChange={(e) => setFormData({...formData, category: e.target.value})}
               className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-[#70d6ff]/50 focus:bg-black/60 transition-all"
-              placeholder={language === 'ru' ? 'Например: Gaming, Education, Music' : 'e.g. Gaming, Education, Music'}
+              placeholder={language === 'ru' ? 'Введите или выберите...' : 'Enter or select...'}
             />
+            <datalist id="channel-category-suggestions">
+              {[
+                { id: 'All', label: language === 'ru' ? 'Все' : 'All' },
+                { id: 'Music', label: language === 'ru' ? 'Музыка' : 'Music' },
+                { id: 'Gaming', label: language === 'ru' ? 'Игры' : 'Gaming' },
+                { id: 'Live', label: language === 'ru' ? 'Стримы' : 'Live' },
+                { id: 'Tech', label: language === 'ru' ? 'Технологии' : 'Tech' },
+                { id: 'Nature', label: language === 'ru' ? 'Природа' : 'Nature' }
+              ].map(cat => (
+                <option key={cat.id} value={cat.label} />
+              ))}
+            </datalist>
           </div>
 
           {/* Social Links */}
@@ -512,24 +525,24 @@ export default function ChannelEditor() {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-3 flex-wrap">
+        <div className="flex items-center justify-end gap-2 sm:gap-3 flex-wrap">
           <Link
             to="/channel/me"
-            className="px-6 py-3 rounded-xl font-bold text-sm bg-white/5 text-slate-300 hover:bg-white/10 border border-white/5 transition-all"
+            className="px-3 sm:px-6 py-2 sm:py-3 rounded-xl font-bold text-[11px] sm:text-sm bg-white/5 text-slate-300 hover:bg-white/10 border border-white/5 transition-all"
           >
             {language === 'ru' ? 'Канал' : 'Channel'}
           </Link>
           <button
             type="button"
             onClick={() => window.history.back()}
-            className="px-6 py-3 rounded-xl font-bold text-sm bg-white/5 text-slate-300 hover:bg-white/10 border border-white/5 transition-all"
+            className="px-3 sm:px-6 py-2 sm:py-3 rounded-xl font-bold text-[11px] sm:text-sm bg-white/5 text-slate-300 hover:bg-white/10 border border-white/5 transition-all"
           >
             {language === 'ru' ? 'Отмена' : 'Cancel'}
           </button>
           <button
             type="submit"
             disabled={isSaving}
-            className="flex items-center gap-2 bg-gradient-to-r from-[#70d6ff] to-[#5bc0e6] hover:from-[#5bc0e6] hover:to-[#70d6ff] text-[#05070a] px-8 py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-[#70d6ff]/20 hover:shadow-[#70d6ff]/40 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 bg-gradient-to-r from-[#70d6ff] to-[#5bc0e6] hover:from-[#5bc0e6] hover:to-[#70d6ff] text-[#05070a] px-4 sm:px-8 py-2 sm:py-3 rounded-xl font-bold text-[11px] sm:text-sm transition-all shadow-lg shadow-[#70d6ff]/20 hover:shadow-[#70d6ff]/40 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSaving ? (
               <Loader2 className="w-4 h-4 animate-spin" />

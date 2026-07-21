@@ -304,15 +304,15 @@ export default function Channel() {
           )}
 
           {user && user.$id === id && (
-            <div className="flex gap-2 flex-wrap justify-center md:justify-start">
+            <div className="flex gap-2 flex-wrap justify-center md:justify-start w-full max-w-full">
               <button 
                 disabled
-                className="bg-white/10 text-slate-300 px-6 py-2.5 rounded-full border border-white/10 cursor-default"
+                className="bg-white/10 text-slate-300 px-3 sm:px-6 py-2 sm:py-2.5 rounded-full border border-white/10 cursor-default text-xs sm:text-sm whitespace-nowrap"
               >
                 {t('channel_your_channel')}
               </button>
-              <Link to="/studio/editor" className="bg-[#70d6ff] text-black px-6 py-2.5 rounded-full font-bold hover:bg-[#5bc0e6] transition-colors">
-                {language === 'ru' ? 'Редактор канала' : 'Channel Editor'}
+              <Link to="/studio/editor" className="bg-[#70d6ff] text-black px-3 sm:px-6 py-2 sm:py-2.5 rounded-full font-bold hover:bg-[#5bc0e6] transition-colors text-xs sm:text-sm whitespace-nowrap">
+                {language === 'ru' ? 'Редактор' : 'Channel Editor'}
               </Link>
             </div>
           )}
