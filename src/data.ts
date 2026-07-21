@@ -5,6 +5,7 @@ export interface Video {
   thumbnailUrl: string;
   videoUrl: string;
   channelName: string;
+  channelHandle?: string;
   channelAvatar: string;
   views: number;
   uploadDate: string;

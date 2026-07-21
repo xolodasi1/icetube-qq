@@ -617,6 +617,7 @@ export default function Watch() {
                 thumbnailUrl: v.thumbnailUrl,
                 videoUrl: v.videoUrl,
                 channelName: v.uploaderName,
+                channelHandle: '',
                 channelAvatar: v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
                 views: v.views || 0,
                 uploadDate: t('video_recently'),

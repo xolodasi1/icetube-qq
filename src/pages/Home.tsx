@@ -60,6 +60,7 @@ export default function Home() {
                 thumbnailUrl: v.thumbnailUrl,
                 videoUrl: v.videoUrl,
                 channelName: profile?.name || v.uploaderName,
+                channelHandle: profile?.handle || '',
                 channelAvatar: profile?.avatar || v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
                 views: v.views || 0,
                 uploadDate: t('video_recently'),
