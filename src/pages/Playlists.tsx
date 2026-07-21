@@ -4,27 +4,61 @@ import { VideoCard } from '../components/VideoCard';
 import { Trash2, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SafeStorage } from '../lib/storage';
+import { databases, Query, ID, withTimeout } from '../lib/appwrite';
+import { useAuth } from '../lib/AuthContext';
 
 export default function Playlists() {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [activePlaylist, setActivePlaylist] = useState<any | null>(null);
 
+  const playlistsCol = import.meta.env.VITE_APPWRITE_PLAYLISTS_COLLECTION_ID;
+  const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
   useEffect(() => {
+    loadPlaylists();
+  }, [user]);
+
+  const loadPlaylists = async () => {
+    if (dbId && playlistsCol && user?.$id) {
+      try {
+        const res = await withTimeout(databases.listDocuments(dbId, playlistsCol, [
+          Query.equal('userId', user.$id)
+        ]), 3000);
+        const mapped = res.documents.map((doc: any) => ({
+          id: doc.$id,
+          name: doc.name,
+          videos: doc.videos || [],
+          createdAt: doc.createdAt || doc.$createdAt,
+          _appwrite: true
+        }));
+        setPlaylists(mapped);
+        return;
+      } catch (e) {
+        console.warn('Appwrite playlist load failed, falling back to localStorage', e);
+      }
+    }
     try {
       const saved = SafeStorage.get('user_playlists', []);
       setPlaylists(saved);
     } catch (e) {
       console.error(e);
     }
-  }, []);
+  };
 
-  const handleDeletePlaylist = (id: string, e: React.MouseEvent) => {
+  const handleDeletePlaylist = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!window.confirm(language === 'ru' ? 'Вы уверены, что хотите удалить этот плейлист?' : 'Are you sure you want to delete this playlist?')) return;
+    const playlist = playlists.find(pl => pl.id === id);
     try {
+      if (dbId && playlistsCol && user?.$id && playlist?._appwrite) {
+        await databases.deleteDocument(dbId, playlistsCol, id);
+      }
       const saved = playlists.filter(pl => pl.id !== id);
-      SafeStorage.set('user_playlists', saved);
+      if (!(dbId && playlistsCol && user?.$id)) {
+        SafeStorage.set('user_playlists', saved);
+      }
       setPlaylists(saved);
       if (activePlaylist?.id === id) setActivePlaylist(null);
     } catch (err) {
@@ -32,14 +66,20 @@ export default function Playlists() {
     }
   };
 
-  const handleRemoveFromPlaylist = (videoId: string, e: React.MouseEvent) => {
+  const handleRemoveFromPlaylist = async (videoId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!activePlaylist) return;
     try {
       const newVideos = activePlaylist.videos.filter((v: any) => v.id !== videoId);
       const updatedPlaylist = { ...activePlaylist, videos: newVideos };
       const updatedPlaylists = playlists.map(pl => pl.id === activePlaylist.id ? updatedPlaylist : pl);
-      SafeStorage.set('user_playlists', updatedPlaylists);
+      if (dbId && playlistsCol && user?.$id && activePlaylist._appwrite) {
+        await databases.updateDocument(dbId, playlistsCol, activePlaylist.id, {
+          videos: newVideos
+        });
+      } else {
+        SafeStorage.set('user_playlists', updatedPlaylists);
+      }
       setPlaylists(updatedPlaylists);
       setActivePlaylist(updatedPlaylist);
     } catch(err) {

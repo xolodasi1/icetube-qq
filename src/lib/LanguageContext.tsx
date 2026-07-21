@@ -230,7 +230,16 @@ export const translations: Translations = {
     photos_empty: 'No photos uploaded yet.',
     photos_upload_first: 'Upload your first photo!',
     upload_photo: 'Photo',
-    upload_publish_photo: 'Publish Photo'
+    upload_publish_photo: 'Publish Photo',
+    nav_photo_albums: 'Photo Albums',
+    photo_albums_title: 'Photo Albums',
+    photo_albums_new: 'New Album',
+    photo_albums_create: 'Create Album',
+    photo_albums_name: 'Album name',
+    photo_albums_add_to: 'Add to album',
+    photo_albums_empty: 'No albums yet. Create your first album!',
+    photo_albums_select: 'Select an album from the list on the left',
+    photo_albums_no_photos: 'This album is empty. Add photos from the Photos page.'
   },
   ru: {
     nav_home: 'Главная',
@@ -451,7 +460,16 @@ export const translations: Translations = {
     photos_empty: 'Фото пока нет.',
     photos_upload_first: 'Загрузите первое фото!',
     upload_photo: 'Фото',
-    upload_publish_photo: 'Опубликовать фото'
+    upload_publish_photo: 'Опубликовать фото',
+    nav_photo_albums: 'Альбомы',
+    photo_albums_title: 'Альбомы',
+    photo_albums_new: 'Новый альбом',
+    photo_albums_create: 'Создать альбом',
+    photo_albums_name: 'Название альбома',
+    photo_albums_add_to: 'Добавить в альбом',
+    photo_albums_empty: 'Альбомов пока нет. Создайте свой первый альбом!',
+    photo_albums_select: 'Выберите альбом из списка слева',
+    photo_albums_no_photos: 'Этот альбом пуст. Добавьте фото со страницы "Фото".'
   }
 };
 

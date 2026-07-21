@@ -24,8 +24,11 @@ import ContinueWatching from "./pages/ContinueWatching";
 import Videos from "./pages/Videos";
 import Premium from "./pages/Premium";
 import Photos from "./pages/Photos";
+import PhotoAlbums from "./pages/PhotoAlbums";
 import Live from "./pages/Live";
 import MusicPage from "./pages/Music";
+import SearchPage from "./pages/Search";
+import Browse from "./pages/Browse";
 
 export default function App() {
   return (
@@ -33,8 +36,11 @@ export default function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/browse" element={<Browse />} />
           <Route path="/videos" element={<Videos />} />
           <Route path="/photos" element={<Photos />} />
+          <Route path="/albums" element={<PhotoAlbums />} />
+          <Route path="/search" element={<SearchPage />} />
           <Route path="/shorts/:id?" element={<Shorts />} />
           <Route path="/watch/:id" element={<Watch />} />
           <Route path="/channel/:id" element={<Channel />} />

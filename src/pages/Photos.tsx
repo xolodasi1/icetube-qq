@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../lib/LanguageContext';
 import { useAuth } from '../lib/AuthContext';
 import { databases } from '../lib/appwrite';
+import { SafeStorage } from '../lib/storage';
 import { Query } from 'appwrite';
-import { Image, Loader2, X, ChevronLeft, ChevronRight, Heart, Eye, Calendar, User } from 'lucide-react';
+import { Image, Loader2, X, ChevronLeft, ChevronRight, Heart, Eye, Calendar, User, Plus, Download } from 'lucide-react';
+
+const ALBUMS_STORAGE_KEY = 'user_photo_albums';
 
 export default function Photos() {
   const { t, language } = useLanguage();
@@ -13,9 +16,29 @@ export default function Photos() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<any | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [albumDropdownPhotoId, setAlbumDropdownPhotoId] = useState<string | null>(null);
+  const [isDownloadingPhoto, setIsDownloadingPhoto] = useState(false);
+  const [albums, setAlbums] = useState<any[]>([]);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchPhotos();
+    try {
+      const saved = SafeStorage.get(ALBUMS_STORAGE_KEY, []);
+      setAlbums(saved);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setAlbumDropdownPhotoId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const fetchPhotos = async () => {
@@ -57,6 +80,49 @@ export default function Photos() {
   const closeLightbox = () => {
     setSelectedPhoto(null);
     setSelectedIndex(-1);
+  };
+
+  const addToAlbum = (albumId: string, photo: any) => {
+    try {
+      const saved = SafeStorage.get<any[]>(ALBUMS_STORAGE_KEY, []);
+      const updated = saved.map(a => {
+        if (a.id === albumId) {
+          const exists = a.photos.some((p: any) => p.id === photo.id);
+          if (exists) return a;
+          return { ...a, photos: [...a.photos, photo] };
+        }
+        return a;
+      });
+      SafeStorage.set(ALBUMS_STORAGE_KEY, updated);
+      setAlbums(updated);
+      setAlbumDropdownPhotoId(null);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDownloadPhoto = () => {
+    if (!selectedPhoto) return;
+    setIsDownloadingPhoto(true);
+    const url = selectedPhoto.imageUrl;
+    const ext = url.split('.').pop()?.split('?')[0] || 'jpg';
+    const filename = `${selectedPhoto.title}.${ext}`;
+
+    fetch(url)
+      .then(res => res.blob())
+      .then(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      })
+      .catch(err => {
+        console.error("Download failed:", err);
+      })
+      .finally(() => {
+        setIsDownloadingPhoto(false);
+      });
   };
 
   const navigatePhoto = (direction: 'prev' | 'next') => {
@@ -124,6 +190,31 @@ export default function Photos() {
                   </div>
                 </div>
               </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); setAlbumDropdownPhotoId(albumDropdownPhotoId === photo.id ? null : photo.id); }}
+                className="absolute top-2 right-2 p-2 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#70d6ff] hover:text-[#05070a] backdrop-blur-md border border-white/10 z-10"
+                title={t('photo_albums_add_to')}
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+              {albumDropdownPhotoId === photo.id && (
+                <div ref={dropdownRef} className="absolute top-12 right-2 z-20 bg-[#0a192f] border ice-border rounded-xl shadow-xl w-48 max-h-48 overflow-y-auto custom-scrollbar py-1" onClick={(e) => e.stopPropagation()}>
+                  {albums.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-slate-400">{language === 'ru' ? 'Нет альбомов' : 'No albums'}</div>
+                  ) : (
+                    albums.map(a => (
+                      <button
+                        key={a.id}
+                        onClick={() => addToAlbum(a.id, photo)}
+                        className="w-full text-left px-3 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors flex items-center justify-between"
+                      >
+                        <span className="truncate">{a.name}</span>
+                        <span className="text-xs text-slate-500 shrink-0 ml-2">{a.photos.length}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -132,6 +223,9 @@ export default function Photos() {
       {/* Lightbox */}
       {selectedPhoto && (
         <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex items-center justify-center" onClick={closeLightbox}>
+          <button onClick={(e) => { e.stopPropagation(); handleDownloadPhoto(); }} disabled={isDownloadingPhoto} className="absolute top-4 right-16 z-10 p-3 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all" title={language === 'ru' ? 'Скачать' : 'Download'}>
+            {isDownloadingPhoto ? <Loader2 className="w-6 h-6 animate-spin" /> : <Download className="w-6 h-6" />}
+          </button>
           <button onClick={closeLightbox} className="absolute top-4 right-4 z-10 p-3 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all">
             <X className="w-6 h-6" />
           </button>

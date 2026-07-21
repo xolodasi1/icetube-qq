@@ -63,7 +63,7 @@ export default function Channel() {
           channelAvatar: channelProfile ? (channelProfile.avatar || channelProfile.photoUrl) : (v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`),
           views: v.views || 0,
           uploadDate: t('video_recently'),
-          duration: "10:00",
+          duration: v.duration || '0:00',
           contentType: v.contentType || 'video',
           verified: v.verified || false,
           createdAt: v.$createdAt

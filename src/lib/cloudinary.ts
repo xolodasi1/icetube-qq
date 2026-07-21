@@ -147,3 +147,41 @@ export const getOptimizedVideoUrl = (url: string | undefined): string => {
   }
   return url;
 };
+
+export type VideoQuality = 'auto' | '1080p' | '720p' | '480p' | '360p';
+
+export const getQualityVideoUrl = (url: string | undefined, quality: VideoQuality): string => {
+  if (!url) return '';
+  if (!url.includes('res.cloudinary.com') || !url.includes('/video/upload/')) return url;
+
+  if (quality === 'auto') {
+    return getOptimizedVideoUrl(url);
+  }
+
+  const qualityMap: Record<string, string> = {
+    '1080p': 'w_1920,q_auto:best',
+    '720p': 'w_1280,q_auto:good',
+    '480p': 'w_854,q_auto:eco',
+    '360p': 'w_640,q_auto:low',
+  };
+
+  const transform = qualityMap[quality];
+  if (!transform) return getOptimizedVideoUrl(url);
+
+  const parts = url.split('/video/upload/');
+  if (parts.length !== 2) return url;
+
+  const [before, after] = parts;
+  const slashIdx = after.indexOf('/');
+
+  if (slashIdx === -1) {
+    // No existing transformations — just a filename
+    return `${before}/video/upload/${transform}/${after}`;
+  }
+
+  // Replace existing transformation block
+  const filename = after.substring(slashIdx + 1);
+  const result = `${before}/video/upload/${transform}/${filename}`;
+
+  return result.replace(/\.(mov|avi|wmv|mkv|flv)$/i, '.mp4');
+};

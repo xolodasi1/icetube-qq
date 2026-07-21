@@ -1,5 +1,5 @@
 import { Params, useParams, Link, useNavigate } from "react-router-dom";
-import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock, AlertTriangle, MessageCircle, Send, Moon, Crown } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock, AlertTriangle, MessageCircle, Send, Settings } from "lucide-react";
 import { VideoCard } from "../components/VideoCard";
 import React, { useState, useEffect, useRef } from "react";
 import { databases, Permission, Role, withTimeout, getOfflineFlag, setOfflineFlag } from "../lib/appwrite";
@@ -8,9 +8,9 @@ import { useAuth } from "../lib/AuthContext";
 import { useLanguage } from "../lib/LanguageContext";
 import { createNotification } from "../lib/notifications";
 import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENTS_PER_VIDEO } from "../lib/storage";
-import { getXP, getLevelInfo, addXP } from "../lib/achievements";
 
-import { getOptimizedThumbnail, getOptimizedVideoUrl } from '../lib/cloudinary';
+import { getOptimizedThumbnail, getOptimizedVideoUrl, getQualityVideoUrl } from '../lib/cloudinary';
+import type { VideoQuality } from '../lib/cloudinary';
 
 export default function Watch() {
   const { id } = useParams();
@@ -18,73 +18,13 @@ export default function Watch() {
   const { user, profile } = useAuth();
   const { t, language } = useLanguage();
 
-  // Premium and Sleep Timer States
-  const [premiumEnabled, setPremiumEnabled] = useState(false);
-  const [ambientEnabled, setAmbientEnabled] = useState(true);
-  const [sleepTimerTime, setSleepTimerTime] = useState<number>(0); // in seconds
-  const [sleepTimerActive, setSleepTimerActive] = useState<boolean>(false);
-  const [showSleepTimerModal, setShowSleepTimerModal] = useState<boolean>(false);
-  const timerIntervalRef = useRef<any>(null);
 
-  useEffect(() => {
-    setPremiumEnabled(localStorage.getItem("icetube_premium_enabled") === "true");
-    setAmbientEnabled(localStorage.getItem("icetube_premium_ambient") !== "false");
-    
-    const handlePremiumToggle = () => {
-      setPremiumEnabled(localStorage.getItem("icetube_premium_enabled") === "true");
-      setAmbientEnabled(localStorage.getItem("icetube_premium_ambient") !== "false");
-    };
-    window.addEventListener("icetube_premium_changed", handlePremiumToggle);
-    window.addEventListener("icetube_ambient_changed", handlePremiumToggle);
-    return () => {
-      window.removeEventListener("icetube_premium_changed", handlePremiumToggle);
-      window.removeEventListener("icetube_ambient_changed", handlePremiumToggle);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (sleepTimerActive && sleepTimerTime > 0) {
-      timerIntervalRef.current = setInterval(() => {
-        setSleepTimerTime(prev => {
-          if (prev <= 1) {
-            clearInterval(timerIntervalRef.current);
-            setSleepTimerActive(false);
-            const videoEl = document.getElementById("main-video-player") as HTMLVideoElement;
-            if (videoEl) {
-              videoEl.pause();
-            }
-            alert(language === "ru" ? "⏳ Таймер сна сработал! Воспроизведение приостановлено." : "⏳ Sleep timer triggered! Playback automatically paused.");
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-    }
-    return () => {
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-    };
-  }, [sleepTimerActive, sleepTimerTime]);
 
   const [isFloating, setIsFloating] = useState(false);
   const [isMiniClosed, setIsMiniClosed] = useState(false);
-  const [xpAlert, setXpAlert] = useState<{ show: boolean, msg: string } | null>(null);
 
-  const triggerXpEarned = (points: number, reason: string) => {
-    const res = addXP(points, user?.$id || "guest");
-    setXpAlert({
-      show: true,
-      msg: language === 'ru' 
-        ? `🧊 +${points} XP (${reason})! ${res.leveledUp ? `🧭 НОВЫЙ РАНГ: ${getLevelInfo(res.currentXP).title}!` : ''}`
-        : `🧊 +${points} XP (${reason})! ${res.leveledUp ? `🧭 NEW LEVEL: ${getLevelInfo(res.currentXP).title}!` : ''}`
-    });
-    // Sync points
-    window.dispatchEvent(new CustomEvent('icetube_xp_changed', { detail: { xp: res.currentXP, userId: user?.$id || "guest" } }));
-    setTimeout(() => {
-      setXpAlert(null);
-    }, 4500);
-  };
+
+
 
   const [video, setVideo] = useState<any | null>(null);
   const [suggestedVideos, setSuggestedVideos] = useState<any[]>([]);
@@ -111,11 +51,61 @@ export default function Watch() {
   const [isSaved, setIsSaved] = useState(false);
   const [isWatchLater, setIsWatchLater] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [quality, setQuality] = useState<VideoQuality>(() => {
+    try { return (SafeStorage.get('preferred_quality', 'auto') as VideoQuality); } catch { return 'auto'; }
+  });
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [commentSort, setCommentSort] = useState<'newest' | 'oldest' | 'top'>('newest');
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
+  const [currentPlayTime, setCurrentPlayTime] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(0);
+
+  const formatDuration = (seconds: number) => {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
+
+  const parseDuration = (str: string) => {
+    if (!str || str === '0:00') return 0;
+    const parts = str.split(':').map(Number);
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return 0;
+  };
+
+  const getRelativeTime = (dateStr: string) => {
+    try {
+      const now = Date.now();
+      const then = new Date(dateStr).getTime();
+      const diff = now - then;
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return language === 'ru' ? 'только что' : 'just now';
+      if (mins < 60) return language === 'ru' ? `${mins} мин. назад` : `${mins}m ago`;
+      const hours = Math.floor(mins / 60);
+      if (hours < 24) return language === 'ru' ? `${hours} ч. назад` : `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      if (days < 7) return language === 'ru' ? `${days} д. назад` : `${days}d ago`;
+      return new Date(dateStr).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short' });
+    } catch { return ''; }
+  };
+
+  const sortedComments = [...comments.filter(c => !c.parentId)].sort((a, b) => {
+    if (commentSort === 'newest') return new Date(b.$createdAt || 0).getTime() - new Date(a.$createdAt || 0).getTime();
+    if (commentSort === 'oldest') return new Date(a.$createdAt || 0).getTime() - new Date(b.$createdAt || 0).getTime();
+    if (commentSort === 'top') return (b.likes || 0) - (a.likes || 0);
+    return 0;
+  });
 
   const handleVideoError = (e: any) => {
     console.error("Video Playback Error");
@@ -205,14 +195,39 @@ export default function Watch() {
     }
   }, [video]);
 
+  const playlistsCol = import.meta.env.VITE_APPWRITE_PLAYLISTS_COLLECTION_ID;
+  const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
   useEffect(() => {
+    loadPlaylists();
+  }, [user]);
+
+  const loadPlaylists = async () => {
+    if (dbId && playlistsCol && user?.$id) {
+      try {
+        const res = await withTimeout(databases.listDocuments(dbId, playlistsCol, [
+          Query.equal('userId', user.$id)
+        ]), 3000);
+        const mapped = res.documents.map((doc: any) => ({
+          id: doc.$id,
+          name: doc.name,
+          videos: doc.videos || [],
+          createdAt: doc.createdAt || doc.$createdAt,
+          _appwrite: true
+        }));
+        setPlaylists(mapped);
+        return;
+      } catch (e) {
+        console.warn('Appwrite playlist load failed, falling back to localStorage', e);
+      }
+    }
     try {
       const savedPlaylists = SafeStorage.get('user_playlists', []);
       setPlaylists(savedPlaylists);
     } catch(e) {}
-  }, []);
+  };
 
-  const handleCreatePlaylist = () => {
+  const handleCreatePlaylist = async () => {
     if (!newPlaylistName.trim()) return;
     try {
       const newPlaylist = {
@@ -220,43 +235,65 @@ export default function Watch() {
         name: newPlaylistName.trim(),
         videos: []
       };
-      const updatedPlaylists = [...playlists, newPlaylist];
-      SafeStorage.set('user_playlists', updatedPlaylists);
-      setPlaylists(updatedPlaylists);
+      if (dbId && playlistsCol && user?.$id) {
+        const doc = await databases.createDocument(dbId, playlistsCol, ID.unique(), {
+          userId: user.$id,
+          name: newPlaylist.name,
+          videos: [],
+          createdAt: new Date().toISOString()
+        });
+        const updatedPlaylists = [...playlists, {
+          id: doc.$id,
+          name: newPlaylist.name,
+          videos: [],
+          createdAt: doc.$createdAt,
+          _appwrite: true
+        }];
+        setPlaylists(updatedPlaylists);
+      } else {
+        const updatedPlaylists = [...playlists, newPlaylist];
+        SafeStorage.set('user_playlists', updatedPlaylists);
+        setPlaylists(updatedPlaylists);
+      }
       setNewPlaylistName('');
     } catch(err) {
       console.error('Failed to create playlist', err);
     }
   };
 
-  const handleToggleVideoInPlaylist = (playlistId: string) => {
+  const handleToggleVideoInPlaylist = async (playlistId: string) => {
     if (!video) return;
     try {
-      const updatedPlaylists = playlists.map(pl => {
-        if (pl.id === playlistId) {
-          const hasVideo = pl.videos.some((v: any) => v.id === video.id);
-          let newVideos = [...pl.videos];
-          if (hasVideo) {
-            newVideos = newVideos.filter((v: any) => v.id !== video.id);
-          } else {
-            newVideos.unshift({
-                id: video.id,
-                title: video.title,
-                thumbnailUrl: video.thumbnailUrl,
-                channelName: video.channelName,
-                channelAvatar: video.channelAvatar,
-                uploaderId: video.uploaderId,
-                views: video.views,
-                uploadDate: video.uploadDate,
-                contentType: video.contentType || 'video',
-                timestamp: Date.now()
-            });
-          }
-          return { ...pl, videos: newVideos };
-        }
-        return pl;
-      });
-      SafeStorage.set('user_playlists', updatedPlaylists);
+      const playlist = playlists.find(pl => pl.id === playlistId);
+      if (!playlist) return;
+      const hasVideo = playlist.videos.some((v: any) => v.id === video.id);
+      let newVideos = [...playlist.videos];
+      if (hasVideo) {
+        newVideos = newVideos.filter((v: any) => v.id !== video.id);
+      } else {
+        newVideos.unshift({
+            id: video.id,
+            title: video.title,
+            thumbnailUrl: video.thumbnailUrl,
+            channelName: video.channelName,
+            channelAvatar: video.channelAvatar,
+            uploaderId: video.uploaderId,
+            views: video.views,
+            uploadDate: video.uploadDate,
+            contentType: video.contentType || 'video',
+            timestamp: Date.now()
+        });
+      }
+      const updatedPlaylists = playlists.map(pl =>
+        pl.id === playlistId ? { ...pl, videos: newVideos } : pl
+      );
+      if (dbId && playlistsCol && user?.$id && (playlist as any)._appwrite) {
+        await databases.updateDocument(dbId, playlistsCol, playlistId, {
+          videos: newVideos
+        });
+      } else {
+        SafeStorage.set('user_playlists', updatedPlaylists);
+      }
       setPlaylists(updatedPlaylists);
     } catch(err) {
       console.error('Failed to update playlist', err);
@@ -331,14 +368,36 @@ export default function Watch() {
 
   const handleDownload = () => {
     if (!video) return;
-    try {
-      let downloaded = SafeStorage.get('downloaded_videos', []);
-      if (isDownloaded) {
+    if (isDownloaded) {
+      try {
+        let downloaded = SafeStorage.get('downloaded_videos', []);
         if (!window.confirm(language === 'ru' ? 'Удалить из скачанных?' : 'Remove from downloads?')) return;
         downloaded = downloaded.filter((v: any) => v.id !== video.id);
         setIsDownloaded(false);
-      } else {
-        downloaded.unshift({
+        SafeStorage.set('downloaded_videos', downloaded);
+      } catch(err) {
+        console.error("Failed to update downloads:", err);
+      }
+      return;
+    }
+
+    setIsDownloading(true);
+    const url = video.videoUrl;
+    const ext = url.split('.').pop()?.split('?')[0] || 'mp4';
+    const filename = `${video.title}.${ext}`;
+
+    fetch(url)
+      .then(res => res.blob())
+      .then(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+
+        try {
+          let downloaded = SafeStorage.get('downloaded_videos', []);
+          downloaded.unshift({
             id: video.id,
             title: video.title,
             thumbnailUrl: video.thumbnailUrl,
@@ -349,13 +408,19 @@ export default function Watch() {
             uploadDate: video.uploadDate,
             contentType: video.contentType || 'video',
             timestamp: Date.now()
-        });
-        setIsDownloaded(true);
-      }
-      SafeStorage.set('downloaded_videos', downloaded);
-    } catch(err) {
-      console.error("Failed to update downloads:", err);
-    }
+          });
+          SafeStorage.set('downloaded_videos', downloaded);
+          setIsDownloaded(true);
+        } catch(err) {
+          console.error("Failed to update downloads:", err);
+        }
+      })
+      .catch(err => {
+        console.error("Download failed:", err);
+      })
+      .finally(() => {
+        setIsDownloading(false);
+      });
   };
 
   const handleSendReport = async (reasonId: string) => {
@@ -444,7 +509,8 @@ export default function Watch() {
           id: c.$id,
           authorId: c.authorId,
           author: c.authorName,
-          ts: new Date(c.$createdAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'),
+          $createdAt: c.$createdAt,
+          ts: getRelativeTime(c.$createdAt),
           text: c.text,
           likes: c.likes || 0,
           likedBy: c.likedBy || [],
@@ -597,16 +663,7 @@ export default function Watch() {
     fetchVideoData();
   }, [id, user, language]);
 
-  const lastAwardedVideoId = useRef<string | null>(null);
-  
-  useEffect(() => {
-    if (video?.id && lastAwardedVideoId.current !== video.id) {
-      lastAwardedVideoId.current = video.id;
-      setTimeout(() => {
-        triggerXpEarned(10, language === 'ru' ? 'Просмотр видео' : 'Started watching');
-      }, 1000);
-    }
-  }, [video?.id]);
+
 
   useEffect(() => {
     const mainContainer = document.querySelector('main');
@@ -712,7 +769,6 @@ export default function Watch() {
             videoTitle: video.title,
             contentType: video.contentType
           });
-          triggerXpEarned(15, language === 'ru' ? 'Оценка видео' : 'Rating a video');
         }
         else setDislikesCount(prev => prev + 1);
       }
@@ -818,7 +874,6 @@ export default function Watch() {
           videoTitle: video.title,
           contentType: video.contentType
         });
-        triggerXpEarned(50, language === 'ru' ? 'Ледяная снежинка' : 'Snowflake reaction');
       }
     } catch (err: any) {
       console.error("Snowflake failed:", err);
@@ -864,7 +919,6 @@ export default function Watch() {
           actorAvatar: profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}`,
           type: 'subscribe'
         });
-        triggerXpEarned(30, language === 'ru' ? 'Подписка на автора' : 'Channel subscription');
       }
     } catch (err) {
       console.error("Sub failed:", err);
@@ -932,14 +986,13 @@ export default function Watch() {
         permissions
       );
 
-      triggerXpEarned(25, language === 'ru' ? 'Добавлен комментарий' : 'Comment added');
-
       setComments([
         {
           id: res.$id,
           authorId: res.authorId,
           author: res.authorName,
-          ts: t('video_recently'),
+          $createdAt: res.$createdAt,
+          ts: getRelativeTime(res.$createdAt),
           text: res.text,
           likes: 0,
           likedBy: [],
@@ -1096,7 +1149,8 @@ export default function Watch() {
           id: res.$id,
           authorId: res.authorId,
           author: res.authorName,
-          ts: t('video_recently'),
+          $createdAt: res.$createdAt,
+          ts: getRelativeTime(res.$createdAt),
           text: res.text,
           likes: 0,
           likedBy: [],
@@ -1197,6 +1251,8 @@ export default function Watch() {
     if (!video) return;
     const target = e.target as HTMLVideoElement;
     const progress = target.currentTime / target.duration;
+    setCurrentPlayTime(target.currentTime);
+    if (target.duration && !isNaN(target.duration)) setVideoDuration(target.duration);
     
     // Only save if watched between 5% and 95%
     if (progress > 0.05 && progress < 0.95) {
@@ -1233,18 +1289,7 @@ export default function Watch() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 max-w-[1600px] mx-auto relative pb-16 lg:pb-0 animate-in fade-in duration-300">
-      {/* Gamified XP Achievement alert toast */}
-      {xpAlert && (
-        <div className="fixed top-20 right-4 sm:right-6 md:right-10 z-[200] max-w-sm bg-[#061122]/95 border-2 border-[#70d6ff] rounded-2xl p-4 shadow-[0_4px_30px_rgba(112,214,255,0.4)] backdrop-blur-md animate-in slide-in-from-top-10 duration-300 flex items-center gap-3">
-          <div className="text-2xl select-none animate-bounce">🧊</div>
-          <div className="flex flex-col">
-            <span className="text-[10px] text-[#70d6ff] font-extrabold uppercase tracking-wider leading-none">
-              {language === 'ru' ? 'АРКТИЧЕСКОЕ ДОСТИЖЕНИЕ!' : 'ARCTIC ACHIEVEMENT!'}
-            </span>
-            <span className="text-xs font-semibold text-slate-200 mt-1 leading-snug">{xpAlert.msg}</span>
-          </div>
-        </div>
-      )}
+
       {/* Floating Next Video Bar (Mobile Only) */}
       {showNextFloating && filteredSuggestedVideos.length > 0 && (
         <div className="fixed bottom-14 left-0 right-0 z-40 bg-[#1e2025]/95 backdrop-blur-md border-t border-white/10 p-3 lg:hidden flex items-center justify-between shadow-t-xl rounded-t-xl">
@@ -1265,10 +1310,6 @@ export default function Watch() {
 
       {/* Primary Video Section */}
       <div className="flex-1 lg:w-[70%] relative">
-        {/* Dynamic Ambilight Halo Glow (Premium feature) */}
-        {premiumEnabled && ambientEnabled && !isFloating && (
-          <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/20 via-[#70d6ff]/20 to-cyan-400/20 blur-3xl -z-10 rounded-3xl animate-pulse pointer-events-none" style={{ animationDuration: '4s' }}></div>
-        )}
         {/* Static Space-filler Card when Video is in PiP Floating Mode */}
         {isFloating && !isMiniClosed && (
           <div 
@@ -1375,19 +1416,58 @@ export default function Watch() {
             controls={!(isFloating && !isMiniClosed)}
             className="absolute top-0 left-0 w-full h-full object-contain bg-black"
             poster={getOptimizedThumbnail(video.thumbnailUrl)}
-            src={getOptimizedVideoUrl(video.videoUrl)} 
+            src={getQualityVideoUrl(video.videoUrl, quality)} 
             onTimeUpdate={handleTimeUpdate}
             onEnded={() => setIsVideoEnded(true)}
             onError={handleVideoError}
             onLoadedData={(e) => {
               try {
+                const target = e.target as HTMLVideoElement;
+                if (target.duration && !isNaN(target.duration)) setVideoDuration(target.duration);
                 const saved = SafeStorage.get('watching_progress', {});
                 if (saved[video.id] && saved[video.id].currentTime) {
-                  (e.target as HTMLVideoElement).currentTime = saved[video.id].currentTime;
+                  target.currentTime = saved[video.id].currentTime;
                 }
               } catch(err) {}
             }}
           />
+          {/* Duration Badge */}
+          <div className="absolute bottom-2 left-2 z-40 flex items-center gap-2">
+            <span className="px-1.5 py-0.5 text-[10px] font-black font-mono bg-black/70 backdrop-blur border border-white/10 rounded text-white">
+              {formatDuration(currentPlayTime)} / {formatDuration(videoDuration || parseDuration(video?.duration || '0:00'))}
+            </span>
+          </div>
+          {/* Quality Selector */}
+          <div className="absolute bottom-2 right-2 z-40">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowQualityMenu(!showQualityMenu); }}
+              className="px-2 py-1 text-[10px] font-black uppercase tracking-wider bg-black/60 backdrop-blur border border-white/10 rounded-lg text-slate-300 hover:text-white hover:bg-black/80 transition-all flex items-center gap-1"
+              title={language === 'ru' ? 'Качество' : 'Quality'}
+            >
+              <Settings className="w-3 h-3" />
+              {quality === 'auto' ? 'Auto' : quality}
+            </button>
+            {showQualityMenu && (
+              <div className="absolute bottom-8 right-0 bg-[#0a192f] border ice-border rounded-xl p-1 shadow-2xl z-50 min-w-[120px]" onClick={(e) => e.stopPropagation()}>
+                {(['auto', '1080p', '720p', '480p', '360p'] as VideoQuality[]).map(q => (
+                  <button
+                    key={q}
+                    onClick={() => {
+                      setQuality(q);
+                      try { SafeStorage.set('preferred_quality', q); } catch {}
+                      setShowQualityMenu(false);
+                    }}
+                    className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-bold transition-all text-left ${
+                      quality === q ? 'bg-[#70d6ff]/10 text-[#70d6ff]' : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {q === 'auto' ? (language === 'ru' ? 'Авто' : 'Auto') : q}
+                    {quality === q && <span className="ml-auto text-[#70d6ff]">✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="mt-4 flex flex-col gap-3 px-4 sm:px-0">
@@ -1503,25 +1583,16 @@ export default function Watch() {
 
               <button 
                 onClick={handleDownload}
+                disabled={isDownloading}
                 className={`flex items-center gap-1.5 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 py-2 rounded-full transition-colors text-sm shrink-0 ${isDownloaded ? 'text-[#70d6ff] border-[#70d6ff]/30' : 'text-slate-300 hover:text-[#70d6ff]'}`}
                 title={language === 'ru' ? 'Скачать' : 'Download'}
               >
-                <Download className={`w-4 h-4 ${isDownloaded ? 'fill-current' : ''}`} />
-                <span className="font-medium">{isDownloaded ? (language === 'ru' ? 'Скачано' : 'Downloaded') : (language === 'ru' ? 'Скачать' : 'Download')}</span>
-              </button>
-
-              <button 
-                onClick={() => setShowSleepTimerModal(true)}
-                className={`flex items-center gap-1.5 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] px-3 py-2 rounded-full transition-colors text-sm shrink-0 ${sleepTimerActive ? 'text-yellow-400 border-yellow-400/40 shadow-[0_0_10px_rgba(234,179,8,0.25)]' : 'text-slate-300 hover:text-[#70d6ff]'}`}
-                title={language === 'ru' ? 'Таймер Сна' : 'Sleep Timer'}
-              >
-                <Moon className={`w-4 h-4 ${sleepTimerActive ? 'text-yellow-400 fill-current animate-pulse' : ''}`} />
-                <span className="font-medium">
-                  {sleepTimerActive 
-                    ? `${Math.floor(sleepTimerTime / 60)}:${String(sleepTimerTime % 60).padStart(2, '0')}` 
-                    : (language === 'ru' ? 'Таймер Сна' : 'Sleep Timer')
-                  }
-                </span>
+                {isDownloading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className={`w-4 h-4 ${isDownloaded ? 'fill-current' : ''}`} />
+                )}
+                <span className="font-medium">{isDownloading ? (language === 'ru' ? 'Скачивание...' : 'Downloading...') : isDownloaded ? (language === 'ru' ? 'Скачано' : 'Downloaded') : (language === 'ru' ? 'Скачать' : 'Download')}</span>
               </button>
 
               <button 
@@ -1780,10 +1851,35 @@ export default function Watch() {
                 'комментариев'
               ) : (comments.length === 1 ? 'comment' : 'comments')}
             </h2>
-            <button className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors font-medium text-sm">
-              <ListFilter className="w-5 h-5" />
-              {t('comment_sort')}
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setShowSortDropdown(!showSortDropdown)}
+                className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors font-medium text-sm"
+              >
+                <ListFilter className="w-5 h-5" />
+                {t('comment_sort')}
+              </button>
+              {showSortDropdown && (
+                <div className="absolute top-8 left-0 bg-[#0a192f] border ice-border rounded-xl p-1 shadow-2xl z-50 min-w-[140px]" onClick={() => setShowSortDropdown(false)}>
+                  {([
+                    { key: 'newest', label: language === 'ru' ? 'Новые' : 'Newest' },
+                    { key: 'oldest', label: language === 'ru' ? 'Старые' : 'Oldest' },
+                    { key: 'top', label: language === 'ru' ? 'Лучшие' : 'Top' },
+                  ] as { key: 'newest' | 'oldest' | 'top'; label: string }[]).map(s => (
+                    <button
+                      key={s.key}
+                      onClick={() => setCommentSort(s.key)}
+                      className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-bold transition-all text-left ${
+                        commentSort === s.key ? 'bg-[#70d6ff]/10 text-[#70d6ff]' : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      {s.label}
+                      {commentSort === s.key && <span className="ml-auto text-[#70d6ff]">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
             <form onSubmit={handleAddComment} className="flex gap-4">
@@ -1811,7 +1907,11 @@ export default function Watch() {
             </form>
 
           <div className="mt-8 flex flex-col gap-6">
-            {comments.filter(c => !c.parentId).map((comment) => (
+            {sortedComments.map((comment) => {
+              const replies = comments.filter(reply => reply.parentId === comment.id);
+              const repliesToShow = replies.slice(0, expandedReplies.has(comment.id) ? replies.length : 3);
+              const hiddenCount = replies.length - 3;
+              return (
               <div key={comment.id} className="flex gap-4 group flex-col">
                 <div className="flex gap-4 group">
                   <Link to={`/channel/${comment.authorId}`} className="shrink-0 hover:opacity-80 transition-opacity">
@@ -1870,14 +1970,14 @@ export default function Watch() {
                     
                     <div className="flex items-center gap-4 text-slate-400">
                       <button 
-                        onClick={() => handleCommentLike(comment.id, true)} 
+                        onClick={() => { if (!user) { alert(language === 'ru' ? 'Войдите чтобы оценивать' : 'Login to rate'); return; } handleCommentLike(comment.id, true); }} 
                         className={`flex items-center gap-1.5 transition-colors ${comment.likedBy?.includes(user?.$id) ? 'text-[#70d6ff]' : 'hover:text-[#70d6ff]'}`}
                       >
                         <ThumbsUp className={`w-4 h-4 ${comment.likedBy?.includes(user?.$id) ? 'fill-current' : ''}`} /> 
-                        <span className="text-xs">{(comment.likedBy?.length || 0) > 0 && comment.likedBy.length}</span>
+                        <span className="text-xs">{(comment.likes || 0) > 0 && comment.likes}</span>
                       </button>
                       <button 
-                        onClick={() => handleCommentLike(comment.id, false)} 
+                        onClick={() => { if (!user) { alert(language === 'ru' ? 'Войдите чтобы оценивать' : 'Login to rate'); return; } handleCommentLike(comment.id, false); }} 
                         className={`flex items-center gap-1.5 transition-colors ${comment.dislikedBy?.includes(user?.$id) ? 'text-red-400' : 'hover:text-red-400'}`}
                       >
                         <ThumbsDown className={`w-4 h-4 ${comment.dislikedBy?.includes(user?.$id) ? 'fill-current' : ''}`} />
@@ -1885,6 +1985,7 @@ export default function Watch() {
                       </button>
                         <button 
                           onClick={() => {
+                            if (!user) { alert(language === 'ru' ? 'Войдите чтобы отвечать' : 'Login to reply'); return; }
                             setReplyingToId(replyingToId === comment.id ? null : comment.id);
                             setReplyText("");
                           }}
@@ -1930,8 +2031,9 @@ export default function Watch() {
                     </div>
                   </div>
                 {/* Replies */}
+                {replies.length > 0 && (
                 <div className="ml-14 flex flex-col gap-4 mt-2">
-                  {comments.filter(reply => reply.parentId === comment.id).reverse().map(reply => (
+                  {repliesToShow.reverse().map(reply => (
                     <div key={reply.id} className="flex gap-3 group">
                       <Link to={`/channel/${reply.authorId}`} className="shrink-0 hover:opacity-80 transition-opacity">
                         <img 
@@ -1984,14 +2086,14 @@ export default function Watch() {
                         
                         <div className="flex items-center gap-4 text-slate-400">
                           <button 
-                            onClick={() => handleCommentLike(reply.id, true)} 
+                            onClick={() => { if (!user) { alert(language === 'ru' ? 'Войдите чтобы оценивать' : 'Login to rate'); return; } handleCommentLike(reply.id, true); }} 
                             className={`flex items-center gap-1.5 transition-colors ${reply.likedBy?.includes(user?.$id) ? 'text-[#70d6ff]' : 'hover:text-[#70d6ff]'}`}
                           >
                             <ThumbsUp className={`w-3.5 h-3.5 ${reply.likedBy?.includes(user?.$id) ? 'fill-current' : ''}`} /> 
-                            <span className="text-xs">{(reply.likedBy?.length || 0) > 0 && reply.likedBy.length}</span>
+                            <span className="text-xs">{(reply.likes || 0) > 0 && reply.likes}</span>
                           </button>
                           <button 
-                            onClick={() => handleCommentLike(reply.id, false)} 
+                            onClick={() => { if (!user) { alert(language === 'ru' ? 'Войдите чтобы оценивать' : 'Login to rate'); return; } handleCommentLike(reply.id, false); }} 
                             className={`flex items-center gap-1.5 transition-colors ${reply.dislikedBy?.includes(user?.$id) ? 'text-red-400' : 'hover:text-red-400'}`}
                           >
                             <ThumbsDown className={`w-3.5 h-3.5 ${reply.dislikedBy?.includes(user?.$id) ? 'fill-current' : ''}`} />
@@ -2001,9 +2103,26 @@ export default function Watch() {
                       </div>
                     </div>
                   ))}
+                  {hiddenCount > 0 && (
+                    <button
+                      onClick={() => {
+                        const next = new Set(expandedReplies);
+                        if (next.has(comment.id)) next.delete(comment.id); else next.add(comment.id);
+                        setExpandedReplies(next);
+                      }}
+                      className="text-xs text-[#70d6ff] font-bold hover:text-white transition-colors ml-12"
+                    >
+                      {expandedReplies.has(comment.id)
+                        ? (language === 'ru' ? 'Скрыть ответы' : 'Hide replies')
+                        : (language === 'ru' ? `Показать ещё ${hiddenCount} ${hiddenCount % 10 === 1 && hiddenCount % 100 !== 11 ? 'ответ' : [2, 3, 4].includes(hiddenCount % 10) && ![12, 13, 14].includes(hiddenCount % 100) ? 'ответа' : 'ответов'}` : `View ${hiddenCount} more ${hiddenCount === 1 ? 'reply' : 'replies'}`)
+                      }
+                    </button>
+                  )}
                 </div>
+                )}
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       </div>
@@ -2121,75 +2240,7 @@ export default function Watch() {
         </div>
       </div>
 
-      {/* Sleep Timer Setup Selection Modal */}
-      {showSleepTimerModal && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowSleepTimerModal(false)}>
-          <div 
-            className="bg-[#070b13] border border-[#70d6ff]/30 p-6 rounded-3xl max-w-sm w-full relative shadow-[0_0_50px_rgba(112,214,255,0.2)] text-center animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="w-12 h-12 bg-yellow-400/10 border border-yellow-400/30 text-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce" style={{ animationDuration: '3s' }}>
-              <Moon className="w-6 h-6 fill-current" />
-            </div>
-            
-            <h3 className="text-lg font-bold text-white mb-2">
-              {language === "ru" ? "Управление Таймером Сна" : "Player Sleep Timer"}
-            </h3>
-            <p className="text-slate-400 text-xs mb-6 max-w-xs mx-auto">
-              {premiumEnabled 
-                ? (language === "ru" ? "Выберите через сколько минут приостановить трансляцию." : "Configure automated playback sleep routines to drift off smoothly.")
-                : (language === "ru" ? "Эта функция требует Icetube Premium! Активируйте в боковом меню бесплатно." : "Sleep timers are premium exclusive utilities. Activate your free VIP trial in the side panel.")
-              }
-            </p>
 
-            {premiumEnabled ? (
-              <div className="grid grid-cols-2 gap-2 mb-6">
-                {[5, 15, 30, 45, 60].map((mins) => (
-                  <button
-                    key={mins}
-                    onClick={() => {
-                      setSleepTimerTime(mins * 60);
-                      setSleepTimerActive(true);
-                      setShowSleepTimerModal(false);
-                    }}
-                    className="bg-white/5 border ice-border text-xs text-white hover:bg-[#70d6ff]/20 hover:text-[#70d6ff] py-2 px-3 rounded-xl font-bold font-mono transition-colors cursor-pointer"
-                  >
-                    {mins} {language === "ru" ? "мин" : "mins"}
-                  </button>
-                ))}
-                <button
-                  onClick={() => {
-                    setSleepTimerActive(false);
-                    setSleepTimerTime(0);
-                    setShowSleepTimerModal(false);
-                  }}
-                  className="col-span-2 bg-red-500/10 hover:bg-red-500/25 border border-red-500/30 text-xs text-red-400 py-2.5 px-3 rounded-xl font-bold transition-all cursor-pointer"
-                >
-                  {language === 'ru' ? 'Выключить таймер' : 'Cancel Sleep Timer'}
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => {
-                  setShowSleepTimerModal(false);
-                  navigate("/premium");
-                }}
-                className="w-full bg-gradient-to-r from-yellow-400 to-amber-500 text-black font-black py-3 rounded-xl text-xs uppercase tracking-wider text-center hover:scale-105 active:scale-95 transition-all shadow-lg shadow-amber-500/20 cursor-pointer"
-              >
-                {language === "ru" ? "Включить Премиум Бесплатно" : "Get Premium Free"}
-              </button>
-            )}
-
-            <button 
-              onClick={() => setShowSleepTimerModal(false)}
-              className="text-xs text-slate-500 hover:text-slate-200 mt-2 block mx-auto font-bold cursor-pointer"
-            >
-              {language === 'ru' ? 'Закрыть' : 'Nevermind'}
-            </button>
-
-          </div>
-        </div>
-      )}
     </div>
   );
 }

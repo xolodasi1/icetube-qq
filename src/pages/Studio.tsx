@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { databases } from '../lib/appwrite';
 import { useLanguage } from '../lib/LanguageContext';
-import { Loader2, LayoutDashboard, Film, TrendingUp, Edit2, Trash2, AlertCircle, Upload, Wand2, X, Users, Clock, Eye, Activity, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Loader2, LayoutDashboard, Film, TrendingUp, Edit2, Trash2, AlertCircle, Upload, Wand2, X, Users, Clock, Eye, Activity, ShieldCheck, CheckCircle2, BarChart3, PieChart, MessageCircle, Heart, UserPlus } from 'lucide-react';
 import { Query, ID } from 'appwrite';
 import { UploadModal } from '../components/UploadModal';
 import { Link, useLocation } from 'react-router-dom';
@@ -11,14 +11,17 @@ export default function Studio() {
   const { user, login } = useAuth();
   const { t, language } = useLanguage();
   const location = useLocation();
-  const isVerification = location.pathname === '/studio/verification';
+  const [studioTab, setStudioTab] = useState<'dashboard' | 'analytics' | 'verification'>('dashboard');
   const [videos, setVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editingVideo, setEditingVideo] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [stats, setStats] = useState({ totalViews: 0, totalVideos: 0, totalShorts: 0, subscriberCount: 0, snowflakesCount: 0 });
+  const [stats, setStats] = useState({ totalViews: 0, totalVideos: 0, totalShorts: 0, totalPhotos: 0, subscriberCount: 0, snowflakesCount: 0 });
   const [requestingVerify, setRequestingVerify] = useState(false);
+  const [analyticsComments, setAnalyticsComments] = useState<any[]>([]);
+  const [analyticsNotifications, setAnalyticsNotifications] = useState<any[]>([]);
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
 
   const handleDelete = async (videoId: string) => {
     if (!window.confirm(language === 'ru' ? 'Вы уверены, что хотите удалить это видео? Это действие нельзя отменить.' : 'Are you sure you want to delete this video? This action cannot be undone.')) return;
@@ -113,7 +116,6 @@ export default function Studio() {
 
       setVideos(userVids.reverse());
 
-      // Fetch subscriber count
       let subscriberCount = 0;
       const subsColId = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
       if (dbId && subsColId) {
@@ -146,6 +148,7 @@ export default function Studio() {
         totalVideos: response.total,
         totalViews: userVids.reduce((acc, curr) => acc + curr.views, 0),
         totalShorts: userVids.filter(v => v.contentType === 'shorts').length,
+        totalPhotos: userVids.filter(v => v.contentType === 'photo').length,
         subscriberCount,
         snowflakesCount
       });
@@ -153,6 +156,65 @@ export default function Studio() {
       console.error("Studio fetch failed:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchAnalytics = async () => {
+    if (!user || videos.length === 0) return;
+    setIsAnalyticsLoading(true);
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const commentsColId = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
+    const notificationsColId = import.meta.env.VITE_APPWRITE_NOTIFICATIONS_COLLECTION_ID;
+
+    try {
+      const videoIds = videos.map(v => v.id);
+      let comments: any[] = [];
+
+      if (dbId && commentsColId && videoIds.length > 0) {
+        for (const vid of videoIds.slice(0, 5)) {
+          try {
+            const res = await databases.listDocuments(dbId, commentsColId, [
+              Query.equal('videoId', vid),
+              Query.limit(5),
+              Query.orderDesc('$createdAt')
+            ]);
+            comments = [...comments, ...res.documents.map(c => ({
+              id: c.$id,
+              videoId: c.videoId,
+              videoTitle: videos.find(v => v.id === c.videoId)?.title || 'Unknown',
+              userName: c.userName || c.authorName || 'Anonymous',
+              text: c.text || c.content || '',
+              createdAt: c.$createdAt,
+              type: 'comment'
+            }))];
+          } catch (e) { /* skip */ }
+        }
+      }
+
+      let notifications: any[] = [];
+      if (dbId && notificationsColId) {
+        try {
+          const res = await databases.listDocuments(dbId, notificationsColId, [
+            Query.equal('actorId', user.$id),
+            Query.limit(20),
+            Query.orderDesc('$createdAt')
+          ]);
+          notifications = res.documents.map(n => ({
+            id: n.$id,
+            type: n.type || 'interaction',
+            text: n.message || n.text || '',
+            userName: n.userName || n.actorName || 'Someone',
+            createdAt: n.$createdAt
+          }));
+        } catch (e) { /* skip */ }
+      }
+
+      setAnalyticsComments(comments);
+      setAnalyticsNotifications(notifications);
+    } catch (err) {
+      console.error("Analytics fetch failed:", err);
+    } finally {
+      setIsAnalyticsLoading(false);
     }
   };
 
@@ -188,10 +250,27 @@ export default function Studio() {
   };
 
   useEffect(() => {
+    if (location.pathname === '/studio/verification') setStudioTab('verification');
+    else if (location.pathname === '/studio/analytics') setStudioTab('analytics');
+    else setStudioTab('dashboard');
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (studioTab === 'analytics' && videos.length > 0) {
+      fetchAnalytics();
+    }
+  }, [studioTab, videos]);
+
+  useEffect(() => {
     fetchStats();
     const interval = setInterval(fetchStats, 15000);
     return () => clearInterval(interval);
   }, [user, language]);
+
+  const combinedActivity = [
+    ...analyticsComments.map(c => ({ ...c, icon: 'comment' as const })),
+    ...analyticsNotifications.map(n => ({ icon: (n.type === 'like' ? 'like' : n.type === 'subscribe' ? 'subscribe' : 'other') as const, ...n }))
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10);
 
   if (!user) {
     return (
@@ -222,9 +301,39 @@ export default function Studio() {
     );
   }
 
+  const TabButton = ({ id, label, icon: Icon }: { id: typeof studioTab; label: string; icon: any }) => (
+    <button
+      onClick={() => setStudioTab(id)}
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all relative ${
+        studioTab === id
+          ? 'bg-[#70d6ff]/10 text-[#70d6ff] shadow-sm'
+          : 'text-slate-400 hover:text-white hover:bg-white/5'
+      }`}
+    >
+      <Icon className={`w-4 h-4 ${studioTab === id ? 'text-[#70d6ff]' : 'text-slate-500'}`} />
+      {label}
+      {studioTab === id && <div className="absolute -bottom-px left-4 right-4 h-0.5 bg-[#70d6ff] rounded-full" />}
+    </button>
+  );
+
+  const maxViews = Math.max(...videos.map(v => v.views), 1);
+  const contentTotal = stats.totalVideos + stats.totalShorts + stats.totalPhotos || 1;
+  const videoPct = (stats.totalVideos / contentTotal) * 100;
+  const shortsPct = (stats.totalShorts / contentTotal) * 100;
+  const photosPct = (stats.totalPhotos / contentTotal) * 100;
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'comment': return <MessageCircle className="w-3.5 h-3.5 text-[#70d6ff]" />;
+      case 'like': return <Heart className="w-3.5 h-3.5 text-red-400" />;
+      case 'subscribe': return <UserPlus className="w-3.5 h-3.5 text-green-400" />;
+      default: return <Activity className="w-3.5 h-3.5 text-slate-400" />;
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 pb-6 border-b ice-border">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6 pb-6 border-b ice-border">
         <div>
           <h1 className="text-3xl font-bold text-white font-display flex items-center gap-3">
             <LayoutDashboard className="w-8 h-8 text-[#70d6ff]" />
@@ -256,10 +365,16 @@ export default function Studio() {
         onUploadSuccess={fetchStats}
       />
 
+      {/* Tab Navigation */}
+      <div className="flex items-center gap-1 bg-white/[0.02] border ice-border rounded-2xl p-1">
+        <TabButton id="dashboard" label={language === 'ru' ? 'Дашборд' : 'Dashboard'} icon={LayoutDashboard} />
+        <TabButton id="analytics" label={language === 'ru' ? 'Аналитика' : 'Analytics'} icon={BarChart3} />
+        <TabButton id="verification" label={language === 'ru' ? 'Верификация' : 'Verification'} icon={ShieldCheck} />
+      </div>
+
       <div className="mt-8">
-        {/* Main Content */}
         <main className="min-w-0">
-          {!isVerification ? (
+          {studioTab === 'dashboard' && (
             <div className="space-y-8">
               {/* Stats Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -373,7 +488,181 @@ export default function Studio() {
                 </div>
               </div>
             </div>
-          ) : (
+          )}
+
+          {studioTab === 'analytics' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+              <header className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-[#70d6ff]" />
+                    {language === 'ru' ? 'Подробная аналитика' : 'Detailed Analytics'}
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">{language === 'ru' ? 'Просмотры, вовлеченность и состав контента' : 'Views, engagement, and content breakdown'}</p>
+                </div>
+                {isAnalyticsLoading && <Loader2 className="w-4 h-4 text-[#70d6ff] animate-spin" />}
+              </header>
+
+              {videos.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+                  <Film className="w-12 h-12 mb-3 opacity-30" />
+                  <p className="text-xs font-bold uppercase tracking-widest">{language === 'ru' ? 'Загрузите видео чтобы увидеть аналитику' : 'Upload videos to see analytics'}</p>
+                </div>
+              ) : isAnalyticsLoading && analyticsComments.length === 0 ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-6 h-6 text-[#70d6ff] animate-spin" />
+                </div>
+              ) : (
+                <>
+                  {/* Views per Video Bar Chart + Content Breakdown Pie */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Views per Video Bar Chart */}
+                    <div className="bg-white/[0.02] border ice-border rounded-2xl p-6">
+                      <h3 className="text-sm font-bold text-white mb-5 flex items-center gap-2">
+                        <Eye className="w-4 h-4 text-[#70d6ff]" />
+                        {language === 'ru' ? 'Просмотры по видео' : 'Views per Video'}
+                      </h3>
+                      <div className="space-y-2.5 max-h-[320px] overflow-y-auto custom-scrollbar pr-1">
+                        {videos.slice(0, 10).map(v => (
+                          <div key={v.id} className="flex items-center gap-3">
+                            <span className="text-xs text-slate-300 w-28 sm:w-36 truncate shrink-0 font-medium">{v.title}</span>
+                            <div className="flex-1 bg-black/40 rounded-full h-5 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-[#70d6ff] to-blue-500 transition-all duration-500"
+                                style={{ width: `${(v.views / maxViews) * 100}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-white font-bold w-14 text-right shrink-0">{v.views}</span>
+                          </div>
+                        ))}
+                        {videos.length > 10 && (
+                          <p className="text-[10px] text-slate-500 text-center pt-2">+{videos.length - 10} {language === 'ru' ? 'ещё' : 'more'}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Content Breakdown Pie Chart */}
+                    <div className="bg-white/[0.02] border ice-border rounded-2xl p-6">
+                      <h3 className="text-sm font-bold text-white mb-5 flex items-center gap-2">
+                        <PieChart className="w-4 h-4 text-[#70d6ff]" />
+                        {language === 'ru' ? 'Состав контента' : 'Content Breakdown'}
+                      </h3>
+                      <div className="flex items-center gap-8">
+                        <div
+                          className="w-32 h-32 rounded-full shrink-0"
+                          style={{
+                            background: `conic-gradient(
+                              #a855f7 0% ${videoPct}%,
+                              #2dd4bf ${videoPct}% ${videoPct + shortsPct}%,
+                              #d946ef ${videoPct + shortsPct}% 100%
+                            )`
+                          }}
+                        />
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-3 h-3 rounded-full bg-purple-500 shrink-0" />
+                            <span className="text-xs text-slate-300">{language === 'ru' ? 'Видео' : 'Videos'}</span>
+                            <span className="text-xs text-white font-bold ml-auto">{stats.totalVideos}</span>
+                          </div>
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-3 h-3 rounded-full bg-teal-400 shrink-0" />
+                            <span className="text-xs text-slate-300">Shorts</span>
+                            <span className="text-xs text-white font-bold ml-auto">{stats.totalShorts}</span>
+                          </div>
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-3 h-3 rounded-full bg-fuchsia-500 shrink-0" />
+                            <span className="text-xs text-slate-300">{language === 'ru' ? 'Фото' : 'Photos'}</span>
+                            <span className="text-xs text-white font-bold ml-auto">{stats.totalPhotos}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Subscriber Growth + Recent Activity */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Subscriber Growth */}
+                    <div className="bg-white/[0.02] border ice-border rounded-2xl p-6">
+                      <h3 className="text-sm font-bold text-white mb-5 flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-green-400" />
+                        {language === 'ru' ? 'Рост подписчиков' : 'Subscriber Growth'}
+                      </h3>
+                      <div className="space-y-4">
+                        <div className="flex items-end justify-between">
+                          <span className="text-3xl font-black text-white">{stats.subscriberCount}</span>
+                          <span className="text-xs text-slate-400 font-medium">{language === 'ru' ? 'текущих подписчиков' : 'current subscribers'}</span>
+                        </div>
+                        <div className="w-full bg-black/40 rounded-full h-3 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-teal-400 transition-all duration-500"
+                            style={{ width: `${Math.min(100, (stats.subscriberCount / 1000) * 100)}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                          <span>0</span>
+                          <span>{language === 'ru' ? 'Цель: 1000' : 'Goal: 1000'}</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[
+                            { label: language === 'ru' ? 'Видео' : 'Videos', value: stats.totalVideos, color: 'bg-purple-500/20 text-purple-400' },
+                            { label: language === 'ru' ? 'Просмотры' : 'Views', value: stats.totalViews, color: 'bg-[#70d6ff]/10 text-[#70d6ff]' },
+                            { label: language === 'ru' ? 'Подписчики' : 'Subs', value: stats.subscriberCount, color: 'bg-blue-500/10 text-blue-400' }
+                          ].map(item => (
+                            <div key={item.label} className={`p-3 rounded-xl ${item.color} text-center`}>
+                              <div className="text-lg font-black">{item.value}</div>
+                              <div className="text-[9px] font-bold uppercase tracking-widest opacity-70">{item.label}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Recent Activity */}
+                    <div className="bg-white/[0.02] border ice-border rounded-2xl p-6">
+                      <h3 className="text-sm font-bold text-white mb-5 flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-[#70d6ff]" />
+                        {language === 'ru' ? 'Последние действия' : 'Recent Activity'}
+                      </h3>
+                      {combinedActivity.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                          <Clock className="w-8 h-8 mb-2 opacity-30" />
+                          <p className="text-[10px] font-bold uppercase tracking-widest">{language === 'ru' ? 'Нет активности' : 'No activity yet'}</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 max-h-[320px] overflow-y-auto custom-scrollbar pr-1">
+                          {combinedActivity.map((item, i) => (
+                            <div key={`${item.type}-${item.id}-${i}`} className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/[0.03] transition-colors">
+                              <div className="p-1.5 bg-white/5 rounded-lg shrink-0 mt-0.5">
+                                {item.icon === 'comment' ? <MessageCircle className="w-3.5 h-3.5 text-[#70d6ff]" /> :
+                                 item.icon === 'like' ? <Heart className="w-3.5 h-3.5 text-red-400" /> :
+                                 item.icon === 'subscribe' ? <UserPlus className="w-3.5 h-3.5 text-green-400" /> :
+                                 <Activity className="w-3.5 h-3.5 text-slate-400" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-slate-300">
+                                  <span className="font-bold text-white">{(item as any).userName || 'Someone'}</span>
+                                  {item.icon === 'comment' ? ` ${language === 'ru' ? 'прокомментировал' : 'commented'}: ` :
+                                   item.icon === 'like' ? ` ${language === 'ru' ? 'поставил лайк' : 'liked'}` :
+                                   item.icon === 'subscribe' ? ` ${language === 'ru' ? 'подписался' : 'subscribed'}` :
+                                   ` ${language === 'ru' ? 'взаимодействовал' : 'interacted'}`}
+                                  {(item as any).type === 'comment' && <span className="text-slate-400 truncate block">"{(item as any).text?.slice(0, 60)}"</span>}
+                                </p>
+                                <p className="text-[10px] text-slate-500 mt-0.5">
+                                  {new Date((item as any).createdAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {studioTab === 'verification' && (
             <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 bg-[#70d6ff]/10 rounded-xl">

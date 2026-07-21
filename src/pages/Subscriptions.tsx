@@ -4,7 +4,7 @@ import { useAuth } from '../lib/AuthContext';
 import { databases } from '../lib/appwrite';
 import { Query } from 'appwrite';
 import { VideoCard } from '../components/VideoCard';
-import { Loader2, Users, Film, Scissors } from 'lucide-react';
+import { Loader2, Users, Film, Scissors, Image } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Subscriptions() {
@@ -13,7 +13,7 @@ export default function Subscriptions() {
   const [videos, setVideos] = useState<any[]>([]);
   const [channels, setChannels] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [tab, setTab] = useState<'videos' | 'shorts'>('videos');
+  const [tab, setTab] = useState<'videos' | 'shorts' | 'photos'>('videos');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -75,9 +75,10 @@ export default function Subscriptions() {
     fetchData();
   }, [user]);
 
-  const regularVideos = videos.filter(v => v.contentType !== 'shorts');
+  const videosVideos = videos.filter(v => v.contentType !== 'shorts' && v.contentType !== 'photo');
   const shortsVideos = videos.filter(v => v.contentType === 'shorts');
-  const currentList = tab === 'videos' ? regularVideos : shortsVideos;
+  const photosVideos = videos.filter(v => v.contentType === 'photo');
+  const currentList = tab === 'videos' ? videosVideos : tab === 'shorts' ? shortsVideos : photosVideos;
 
   if (!user) {
     return (
@@ -132,7 +133,7 @@ export default function Subscriptions() {
         >
           <Film className="w-4 h-4" />
           {language === 'ru' ? 'Видео' : 'Videos'}
-          <span className="text-[10px] opacity-60">({regularVideos.length})</span>
+          <span className="text-[10px] opacity-60">({videosVideos.length})</span>
           {tab === 'videos' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#70d6ff] rounded-full" />}
         </button>
         <button
@@ -143,6 +144,15 @@ export default function Subscriptions() {
           Shorts
           <span className="text-[10px] opacity-60">({shortsVideos.length})</span>
           {tab === 'shorts' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#70d6ff] rounded-full" />}
+        </button>
+        <button
+          onClick={() => setTab('photos')}
+          className={`flex items-center gap-2 pb-3 font-bold text-sm transition-all active:scale-95 cursor-pointer relative ${tab === 'photos' ? 'text-[#70d6ff]' : 'text-slate-400 hover:text-white'}`}
+        >
+          <Image className="w-4 h-4" />
+          {language === 'ru' ? 'Фото' : 'Photos'}
+          <span className="text-[10px] opacity-60">({photosVideos.length})</span>
+          {tab === 'photos' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#70d6ff] rounded-full" />}
         </button>
       </div>
 
@@ -161,7 +171,9 @@ export default function Subscriptions() {
           <p className="text-slate-400">
             {tab === 'videos'
               ? (language === 'ru' ? 'Нет видео от каналов, на которые вы подписаны.' : 'No videos from your subscribed channels.')
-              : (language === 'ru' ? 'Нет шортсов от каналов, на которые вы подписаны.' : 'No shorts from your subscribed channels.')
+              : tab === 'shorts'
+              ? (language === 'ru' ? 'Нет шортсов от каналов, на которые вы подписаны.' : 'No shorts from your subscribed channels.')
+              : (language === 'ru' ? 'Нет фото от каналов, на которые вы подписаны.' : 'No photos from your subscribed channels.')
             }
           </p>
         </div>
