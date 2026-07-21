@@ -144,6 +144,7 @@ export default function AdminPanel() {
       views: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, viewsCount: u.viewsCount || 0 })).sort((a, b) => (b.viewsCount || 0) - (a.viewsCount || 0)).slice(0, 5),
       videos: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, videosCount: u.videosCount || 0 })).sort((a, b) => (b.videosCount || 0) - (a.videosCount || 0)).slice(0, 5),
       snowflakes: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, snowflakesCount: u.snowflakesCount || 0 })).sort((a, b) => (b.snowflakesCount || 0) - (a.snowflakesCount || 0)).slice(0, 5),
+      photos: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, photosCount: dbVideos.filter(v => v.contentType === 'photo' && (v.uploaderId === u.$id)).length })).sort((a, b) => (b.photosCount || 0) - (a.photosCount || 0)).slice(0, 5),
     };
     
     return {
@@ -409,13 +410,14 @@ export default function AdminPanel() {
                   <div className="text-[10px] text-slate-500 font-bold uppercase">{language === 'ru' ? 'На основе текущего состояния БД' : 'Based on current database state'}</div>
                </div>
                
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                  <LeaderboardColumn title={language === 'ru' ? 'По подписчикам' : 'By Subscribers'} icon={Users} data={stats.leaderboards.subscribers} metric="subscribersCount" />
-                  <LeaderboardColumn title={language === 'ru' ? 'По лайкам' : 'By Likes'} icon={ShieldCheck} data={stats.leaderboards.likes} metric="likesCount" />
-                  <LeaderboardColumn title={language === 'ru' ? 'По просмотрам' : 'By Views'} icon={Eye} data={stats.leaderboards.views} metric="viewsCount" />
-                  <LeaderboardColumn title={language === 'ru' ? 'По контенту' : 'By Content'} icon={Video} data={stats.leaderboards.videos} metric="videosCount" />
-                  <LeaderboardColumn title={language === 'ru' ? 'По снежинкам' : 'By Snowflakes'} icon={Activity} data={stats.leaderboards.snowflakes} metric="snowflakesCount" />
-               </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                   <LeaderboardColumn title={language === 'ru' ? 'По подписчикам' : 'By Subscribers'} icon={Users} data={stats.leaderboards.subscribers} metric="subscribersCount" />
+                   <LeaderboardColumn title={language === 'ru' ? 'По лайкам' : 'By Likes'} icon={ShieldCheck} data={stats.leaderboards.likes} metric="likesCount" />
+                   <LeaderboardColumn title={language === 'ru' ? 'По просмотрам' : 'By Views'} icon={Eye} data={stats.leaderboards.views} metric="viewsCount" />
+                   <LeaderboardColumn title={language === 'ru' ? 'По контенту' : 'By Content'} icon={Video} data={stats.leaderboards.videos} metric="videosCount" />
+                   <LeaderboardColumn title={language === 'ru' ? 'По фото' : 'By Photos'} icon={Image} data={stats.leaderboards.photos} metric="photosCount" />
+                   <LeaderboardColumn title={language === 'ru' ? 'По снежинкам' : 'By Snowflakes'} icon={Activity} data={stats.leaderboards.snowflakes} metric="snowflakesCount" />
+                </div>
             </div>
           </div>
         )}
