@@ -4,7 +4,6 @@ import { Sidebar } from "./Sidebar";
 import { StudioSidebar } from "./StudioSidebar";
 import { BottomNav } from "./BottomNav";
 import { useLocation } from "react-router-dom";
-import { Box } from "lucide-react";
 
 export function Layout({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -30,21 +29,10 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-transparent ice-gradient flex flex-col relative z-0">
-      {/* Background Aurora */}
-      <div className="fixed top-0 left-0 right-0 h-[500px] pointer-events-none z-0 overflow-hidden mix-blend-screen opacity-60">
-        <div className="absolute top-[-100px] left-[-10%] w-[60%] h-[300px] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#00ff80]/15 via-[#00f0ff]/5 to-transparent blur-[100px]"></div>
-        <div className="absolute top-[-50px] right-[-10%] w-[50%] h-[400px] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#70d6ff]/15 via-[#6a00ff]/5 to-transparent blur-[120px]"></div>
-      </div>
-
-      {/* Background Floating Ice Cubes */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-20">
-        <Box className="absolute top-[15%] left-[5%] w-12 h-12 text-[#70d6ff] animate-float" style={{ animationDuration: '4s' }} />
-        <Box className="absolute top-[35%] right-[10%] w-8 h-8 text-[#00ff80] animate-float" style={{ animationDuration: '5s', animationDelay: '1s' }} />
-        <Box className="absolute top-[65%] left-[15%] w-16 h-16 text-[#70d6ff] animate-float blur-[1px]" style={{ animationDuration: '6s', animationDelay: '2s' }} />
-        <Box className="absolute top-[80%] right-[20%] w-10 h-10 text-[#70d6ff] animate-float" style={{ animationDuration: '4.5s', animationDelay: '0.5s' }} />
-        <Box className="absolute top-[45%] left-[45%] w-6 h-6 text-[#00ff80] animate-float blur-[2px]" style={{ animationDuration: '5.5s', animationDelay: '1.5s' }} />
-        <Box className="absolute top-[25%] left-[35%] w-10 h-10 text-[#70d6ff] animate-float" style={{ animationDuration: '7s', animationDelay: '0.2s' }} />
-        <Box className="absolute top-[75%] left-[85%] w-14 h-14 text-[#70d6ff] animate-float blur-[1px]" style={{ animationDuration: '6.5s', animationDelay: '2.5s' }} />
+      {/* Background atmosphere */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-[60%] h-[400px] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#00ff80]/[0.04] via-[#00f0ff]/[0.02] to-transparent blur-[120px]"></div>
+        <div className="absolute bottom-0 right-1/4 w-[50%] h-[300px] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#70d6ff]/[0.03] via-[#6a00ff]/[0.01] to-transparent blur-[100px]"></div>
       </div>
 
       <div className="relative z-10 w-full h-full flex flex-col flex-1">

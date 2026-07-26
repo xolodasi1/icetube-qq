@@ -165,11 +165,11 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
         {user && (
           <button 
             onClick={() => setIsUploadOpen(true)}
-            className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#70d6ff]/20 to-blue-600/20 hover:from-[#70d6ff]/30 hover:to-blue-600/30 rounded-full text-slate-100 transition-all border border-[#70d6ff]/30 hover:border-[#70d6ff]/60 group shadow-[0_0_15px_rgba(112,214,255,0.1)] active:scale-95 animate-glow"
+            className="hidden sm:flex items-center gap-2 px-4 py-2.5 btn-primary rounded-full text-sm shadow-[0_0_15px_rgba(112,214,255,0.1)] active:scale-95"
             title={language === 'ru' ? 'Загрузить ролик' : 'Upload Video'}
           >
-            <Video className="w-5 h-5 group-hover:text-[#70d6ff] transition-colors" />
-            <span className="text-sm font-black italic uppercase tracking-tighter hidden lg:inline">{language === 'ru' ? 'Загрузить' : 'Upload'}</span>
+            <Video className="w-5 h-5" />
+            <span className="font-bold uppercase tracking-tight hidden lg:inline">{language === 'ru' ? 'Загрузить' : 'Upload'}</span>
           </button>
         )}
 
