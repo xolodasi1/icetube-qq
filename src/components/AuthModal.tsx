@@ -26,50 +26,54 @@ export default function AuthModal({ onClose }: AuthModalProps) {
     setError('');
     setLoading(true);
 
-    try {
-      const authPromise = async () => {
         try {
-          if (isLogin) {
-            await account.createEmailPasswordSession(email, password);
+          const authPromise = async () => {
+            try {
+              if (isLogin) {
+                await account.createEmailPasswordSession(email, password);
+              } else {
+                await account.create(ID.unique(), email, password, name);
+                await account.createEmailPasswordSession(email, password);
+              }
+            } catch (authErr: any) {
+              // If a session is already active, we don't need to do anything, we can just proceed.
+              // Appwrite throws 401 with 'session is active' message
+              if (authErr && authErr.code === 401 && authErr.message && authErr.message.toLowerCase().includes('creation is allowed only when session is anonymous')) {
+                // we are already logged in!
+              } else {
+                throw authErr;
+              }
+            }
+            const currentUser = await checkUserStatus();
+            if (!currentUser) {
+              // Session was created on the server, but the browser did not keep
+              // the Appwrite cookie (blocked cookies / strict tracking protection).
+              // This is the typical reason login "does nothing" in Firefox.
+              throw new Error(t('auth_session_not_saved'));
+            }
+          };
+
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error(t('auth_network_error'))), 20000)
+          );
+
+          await Promise.race([authPromise(), timeoutPromise]);
+          onClose();
+        } catch (err: any) {
+          console.error('Auth error:', err);
+          // Give more precise error feedback in the UI
+          if (err?.code === 409) {
+            setError(t('auth_email_exists'));
+          } else if (err?.code === 401) {
+            setError(t('auth_invalid_credentials'));
+          } else if (err?.message?.includes('missing scopes') || err?.message?.includes('processing your request') || err?.code === 400 || err?.code === 403) {
+            setError(t('auth_login_failed'));
           } else {
-            await account.create(ID.unique(), email, password, name);
-            await account.createEmailPasswordSession(email, password);
+            setError(err?.message || (typeof err === 'string' ? err : t('auth_auth_failed')));
           }
-        } catch (authErr: any) {
-          // If a session is already active, we don't need to do anything, we can just proceed.
-          // Appwrite throws 401 with 'session is active' message
-          if (authErr && authErr.code === 401 && authErr.message && authErr.message.toLowerCase().includes('creation is allowed only when session is anonymous')) {
-            // we are already logged in!
-          } else {
-            throw authErr;
-          }
+        } finally {
+          setLoading(false);
         }
-        await checkUserStatus();
-      };
-
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error(t('auth_network_error'))), 12000)
-      );
-
-      await Promise.race([authPromise(), timeoutPromise]);
-      onClose();
-    } catch (err: any) {
-      console.error('Auth error:', err);
-      // Give more precise error feedback in the UI
-      if (err?.code === 409) {
-        setError(t('auth_email_exists'));
-      } else if (err?.code === 401) {
-        setError(t('auth_invalid_credentials'));
-      } else if (err?.message?.includes('missing scopes') || err?.message?.includes('processing your request') || err?.code === 400 || err?.code === 403) {
-        setError(t('auth_login_failed'));
-      } else {
-        setError(err?.message || (typeof err === 'string' ? err : t('auth_auth_failed')));
-      }
-    } finally {
-      if (typeof setLoading === 'function') {
-        setLoading(false);
-      }
-    }
   };
 
   return (

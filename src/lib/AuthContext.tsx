@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getCurrentUser, loginWithGoogle, logout, databases, withTimeout } from './appwrite';
+import { getCurrentUser, loginWithGoogle, logout, databases, withTimeout, initNetworkSelfHeal } from './appwrite';
 import { Models, Query } from 'appwrite';
 import AuthModal from '../components/AuthModal';
 
@@ -17,7 +17,7 @@ interface AuthContextType {
     login: () => void;
     logoutUser: () => Promise<void>;
     refreshProfile: () => Promise<void>;
-    checkUserStatus: () => Promise<void>;
+    checkUserStatus: () => Promise<Models.User<Models.Preferences> | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -27,7 +27,7 @@ const AuthContext = createContext<AuthContextType>({
     login: () => {},
     logoutUser: async () => {},
     refreshProfile: async () => {},
-    checkUserStatus: async () => {}
+    checkUserStatus: async () => null
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -37,7 +37,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
     useEffect(() => {
+        initNetworkSelfHeal();
         checkUserStatus();
+        // Re-check auth when the browser reconnects
+        const onOnline = () => checkUserStatus();
+        window.addEventListener('online', onOnline);
+        return () => window.removeEventListener('online', onOnline);
     }, []);
 
     const fetchUserProfile = async (userId: string) => {
@@ -47,7 +52,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (dbId && usersColId) {
                 const res = await withTimeout(databases.listDocuments(dbId, usersColId, [
                     Query.equal('userId', userId)
-                ]), 2500);
+                ]), 8000, { setOfflineFlagOnTimeout: false });
                 if (res.documents.length > 0) {
                     const doc = res.documents[0];
                     setProfile({
@@ -67,21 +72,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(true);
         console.log("Checking user status...");
         try {
-            const currentUser = await withTimeout(getCurrentUser(), 2500);
+            // Auth check must not set the offline flag: a slow-but-working
+            // connection (typical for Firefox / RU networks) must not be
+            // treated as offline, otherwise login never completes
+            const currentUser = await withTimeout(getCurrentUser(), 10000, { setOfflineFlagOnTimeout: false });
             // Log ID instead of the full user object to avoid serialization issues
             console.log("Current user ID:", currentUser?.$id || "No user found");
             setUser(currentUser);
             if (currentUser) {
                 try {
-                    await withTimeout(ensureUserProfile(currentUser), 2500);
+                    await withTimeout(ensureUserProfile(currentUser), 8000, { setOfflineFlagOnTimeout: false });
                 } catch (profileErr) {
                     console.warn("Could not load user profile in time:", profileErr);
                 }
             }
+            return currentUser;
         } catch (err) {
             console.warn("Auth check failed or timed out:", err);
             setUser(null);
             setProfile(null);
+            return null;
         } finally {
             setIsLoading(false);
         }
