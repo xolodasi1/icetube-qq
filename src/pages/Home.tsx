@@ -6,6 +6,7 @@ import { Loader2, Video, Image } from "lucide-react";
 import { useLanguage } from "../lib/LanguageContext";
 import { getOptimizedThumbnail } from "../lib/cloudinary";
 import { getRecommendations } from "../lib/recommendations";
+import { mockVideos } from "../data";
 
 export default function Home() {
   const { t, language } = useLanguage();
@@ -15,6 +16,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'video' | 'shorts' | 'photo'>('all');
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   const searchQuery = searchParams.get("search") || "";
 
@@ -28,62 +30,63 @@ export default function Home() {
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
       const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
       if (dbId && colId) {
-          const response = await withTimeout(databases.listDocuments(dbId, colId), 4000);
+        const response = await withTimeout(databases.listDocuments(dbId, colId), 4000);
 
-          const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
-          let profilesMap: Record<string, {name: string, avatar: string}> = {};
-          try {
-            if (profilesCol) {
-              const uploaderIds = Array.from(new Set(response.documents.map(v => v.uploaderId)));
-              if (uploaderIds.length > 0) {
-                const profilesResult = await withTimeout(databases.listDocuments(dbId, profilesCol), 2500);
-                profilesResult.documents.forEach(p => {
-                  if (p.userId) {
-                    profilesMap[p.userId] = {
-                      name: p.name || '',
-                      avatar: p.avatar || ''
-                    };
-                  }
-                });
-              }
+        const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+        let profilesMap: Record<string, {name: string, avatar: string}> = {};
+        try {
+          if (profilesCol) {
+            const uploaderIds = Array.from(new Set(response.documents.map(v => v.uploaderId)));
+            if (uploaderIds.length > 0) {
+              const profilesResult = await withTimeout(databases.listDocuments(dbId, profilesCol), 2500);
+              profilesResult.documents.forEach(p => {
+                if (p.userId) {
+                  profilesMap[p.userId] = {
+                    name: p.name || '',
+                    avatar: p.avatar || ''
+                  };
+                }
+              });
             }
-          } catch (pErr) {
-            console.log("Could not fetch profiles for latest avatars", pErr);
           }
+        } catch (pErr) {
+          console.log("Could not fetch profiles for latest avatars", pErr);
+        }
 
-          const formatted = response.documents.map(v => {
-              const profile = profilesMap[v.uploaderId];
-              return {
-                id: v.$id,
-                uploaderId: v.uploaderId,
-                title: v.title,
-                thumbnailUrl: v.thumbnailUrl,
-                videoUrl: v.videoUrl,
-                channelName: profile?.name || v.uploaderName,
-                channelHandle: profile?.handle || '',
-                channelAvatar: profile?.avatar || v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
-                views: v.views || 0,
-                uploadDate: t('video_recently'),
-                createdAt: v.$createdAt,
-                category: v.category || 'All',
-                contentType: v.contentType || 'video',
-                verified: v.verified || false,
-                description: v.description || ''
-              };
-          });
-          const ranked = getRecommendations(formatted, { limit: 200 });
-          setDbVideos(ranked);
+        const formatted = response.documents.map(v => {
+            const profile = profilesMap[v.uploaderId];
+            return {
+              id: v.$id,
+              uploaderId: v.uploaderId,
+              title: v.title,
+              thumbnailUrl: v.thumbnailUrl,
+              videoUrl: v.videoUrl,
+              channelName: profile?.name || v.uploaderName,
+              channelHandle: profile?.handle || '',
+              channelAvatar: profile?.avatar || v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
+              views: v.views || 0,
+              uploadDate: t('video_recently'),
+              createdAt: v.$createdAt,
+              category: v.category || 'All',
+              contentType: v.contentType || 'video',
+              verified: v.verified || false,
+              description: v.description || ''
+            };
+        });
+        const ranked = getRecommendations(formatted, { limit: 200 });
+        setDbVideos(ranked);
+        setIsDemoMode(false);
       } else {
-           setDbVideos([]);
+        // Appwrite not configured (e.g. missing env vars on the deployed site):
+        // fall back to built-in demo videos so the site is never empty
+        setDbVideos(mockVideos as any);
+        setIsDemoMode(true);
       }
     } catch (err) {
        console.warn("Appwrite network/timeout error:", err);
-       setError(
-         language === 'ru'
-           ? "Ошибка соединения с сервером"
-           : "Connection error"
-       );
-       setDbVideos([]);
+       // Show demo content instead of an empty error page
+       setDbVideos(mockVideos as any);
+       setIsDemoMode(true);
     } finally {
        setIsLoading(false);
     }
@@ -133,6 +136,18 @@ export default function Home() {
           </button>
         ))}
       </div>
+
+      {/* Demo mode notice */}
+      {isDemoMode && (
+        <div className="px-4 sm:px-0 -mt-2 pb-2">
+          <div className="flex items-center gap-2 text-xs text-slate-400 bg-[#0a192f]/60 border border-[#70d6ff]/15 rounded-lg px-3 py-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#70d6ff] animate-pulse shrink-0"></span>
+            {language === 'ru'
+              ? 'Демо-режим: сервер недоступен, показываем примеры роликов'
+              : 'Demo mode: server unavailable, showing sample videos'}
+          </div>
+        </div>
+      )}
 
       {/* Video Grid */}
       <div>

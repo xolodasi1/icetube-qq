@@ -9,6 +9,7 @@ import { useLanguage } from "../lib/LanguageContext";
 import { createNotification } from "../lib/notifications";
 import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENTS_PER_VIDEO } from "../lib/storage";
 import { getRecommendations } from "../lib/recommendations";
+import { mockVideos } from "../data";
 
 import { getOptimizedThumbnail, getOptimizedVideoUrl, getQualityVideoUrl } from '../lib/cloudinary';
 import type { VideoQuality } from '../lib/cloudinary';
@@ -536,7 +537,23 @@ export default function Watch() {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
         
-        if (!dbId || !colId || !id) return;
+        if (!dbId || !colId || !id) {
+          // Appwrite not configured: fall back to built-in demo videos
+          const demo = mockVideos.find(v => v.id === id);
+          if (demo) {
+            setVideo({
+              ...demo,
+              uploadDate: t('video_recently'),
+              description: demo.description || t('video_no_description')
+            });
+            setSuggestedVideos(mockVideos.filter(v => v.id !== id).slice(0, 20));
+          } else {
+            setVideo(null);
+            setSuggestedVideos([]);
+          }
+          setIsLoading(false);
+          return;
+        }
 
         // Fetch the specific video directly by ID
         let currentDoc: any;
@@ -663,8 +680,19 @@ export default function Watch() {
 
         } else {
           setOfflineFlag(true);
-          setVideo(null);
-          setSuggestedVideos([]);
+          // Fall back to demo videos when the document is not found
+          const demo = mockVideos.find(v => v.id === id);
+          if (demo) {
+            setVideo({
+              ...demo,
+              uploadDate: t('video_recently'),
+              description: demo.description || t('video_no_description')
+            });
+            setSuggestedVideos(mockVideos.filter(v => v.id !== id).slice(0, 20));
+          } else {
+            setVideo(null);
+            setSuggestedVideos([]);
+          }
         }
 
       } catch (err) {

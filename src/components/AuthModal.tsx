@@ -28,6 +28,27 @@ export default function AuthModal({ onClose }: AuthModalProps) {
 
         try {
           const authPromise = async () => {
+            // Demo mode: Appwrite is not configured (no env vars), so create
+            // a locally stored account to keep registration/login working
+            if (!import.meta.env.VITE_APPWRITE_PROJECT_ID) {
+              const now = new Date().toISOString();
+              const demoUser = {
+                $id: 'demo-' + Date.now(),
+                $createdAt: now,
+                $updatedAt: now,
+                name: name || email.split('@')[0] || 'User',
+                registration: now,
+                status: true,
+                passwordUpdate: now,
+                email: email,
+                phone: '',
+                emailVerification: false,
+                phoneVerification: false,
+                prefs: {}
+              };
+              localStorage.setItem('icetube_demo_user', JSON.stringify(demoUser));
+              return;
+            }
             try {
               if (isLogin) {
                 await account.createEmailPasswordSession(email, password);

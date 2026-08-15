@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { databases, withTimeout, getOfflineFlag, setOfflineFlag } from "../lib/appwrite";
 import { Loader2, ServerCrash, Video } from "lucide-react";
 import { useLanguage } from "../lib/LanguageContext";
+import { mockVideos } from "../data";
 
 export default function Videos() {
   const { t, language } = useLanguage();
@@ -84,17 +85,13 @@ export default function Videos() {
             });
             setDbVideos(formatted.reverse()); 
         } else {
-             setDbVideos([]);
+             setDbVideos(mockVideos as any);
         }
       } catch (err) {
          console.warn("Appwrite lookup failed/timed out:", err);
          setOfflineFlag(true);
-         setError(
-           language === 'ru' 
-             ? "Не удалось загрузить видео из базы данных." 
-             : "Failed to load videos from server."
-         );
-         setDbVideos([]); 
+         // Fall back to demo videos instead of an empty error page
+         setDbVideos(mockVideos as any);
       } finally {
          setIsLoading(false);
       }
