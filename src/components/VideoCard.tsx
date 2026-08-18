@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Video } from "../types";
 import clsx from "clsx";
-import { useLanguage } from "../lib/LanguageContext";
+import { useLanguage } from "../language/LanguageContext";
 import { Check, Zap, MoreVertical } from "lucide-react";
 import { getOptimizedThumbnail } from "../lib/cloudinary";
 
