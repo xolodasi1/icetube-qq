@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../auth/AuthContext';
-import { databases } from '../lib/appwrite';
-import { VideoCard } from '../components/VideoCard';
+import { useAuth } from '../../auth/AuthContext';
+import { databases } from '../../lib/appwrite';
+import { VideoCard } from '../../components/VideoCard';
 import { Loader2, Video, AlertCircle, Plus } from 'lucide-react';
-import { UploadModal } from '../studio/UploadModal';
-import { useLanguage } from '../language/LanguageContext';
+import { UploadModal } from '../../studio/UploadModal';
+import { useLanguage } from '../../language/LanguageContext';
 
 export default function YourVideos() {
   const { user, login, isLoading: isAuthLoading } = useAuth();

@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { databases } from "../lib/appwrite";
+import { databases } from "../../lib/appwrite";
 import { Loader2, ServerCrash, Compass } from "lucide-react";
-import { useLanguage } from "../language/LanguageContext";
-import { VideoCard } from "../components/VideoCard";
-import { getOptimizedThumbnail } from "../lib/cloudinary";
+import { useLanguage } from "../../language/LanguageContext";
+import { VideoCard } from "../../components/VideoCard";
+import { getOptimizedThumbnail } from "../../lib/cloudinary";
 
 export default function Browse() {
   const { t, language } = useLanguage();

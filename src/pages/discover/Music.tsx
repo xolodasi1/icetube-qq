@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useLanguage } from "../language/LanguageContext";
-import { useAuth } from "../auth/AuthContext";
+import { useLanguage } from "../../language/LanguageContext";
+import { useAuth } from "../../auth/AuthContext";
 import { Music, Play, Pause, SkipForward, SkipBack, Disc, Volume2, Maximize2, Sparkles, Zap, Radio, Sliders, PlayCircle } from "lucide-react";
 
 interface Track {

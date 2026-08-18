@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useLanguage } from '../language/LanguageContext';
-import { VideoCard } from '../components/VideoCard';
+import { useLanguage } from '../../language/LanguageContext';
+import { VideoCard } from '../../components/VideoCard';
 import { ThumbsUp, Loader2, LogIn } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { databases } from '../lib/appwrite';
+import { databases } from '../../lib/appwrite';
 import { Query } from 'appwrite';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../../auth/AuthContext';
 
 export default function Liked() {
   const { t, language } = useLanguage();

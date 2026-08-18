@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useLanguage } from '../language/LanguageContext';
-import { VideoCard } from '../components/VideoCard';
+import { useLanguage } from '../../language/LanguageContext';
+import { VideoCard } from '../../components/VideoCard';
 import { Video, Loader2 } from 'lucide-react';
-import { databases } from '../lib/appwrite';
+import { databases } from '../../lib/appwrite';
 import { Query } from 'appwrite';
 
 export default function Clips() {

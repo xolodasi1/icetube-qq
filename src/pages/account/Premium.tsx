@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useLanguage } from "../language/LanguageContext";
-import { useAuth } from "../auth/AuthContext";
+import { useLanguage } from "../../language/LanguageContext";
+import { useAuth } from "../../auth/AuthContext";
 import { Crown, Check, Zap, Download, Moon, Sparkles, Sliders, ShieldCheck, PlayCircle, Eye } from "lucide-react";
 
 export default function Premium() {

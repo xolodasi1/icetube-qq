@@ -1,6 +1,6 @@
 import { MonitorPlay } from "lucide-react";
 import { useLocation } from "react-router-dom";
-import { useLanguage } from "../language/LanguageContext";
+import { useLanguage } from "../../language/LanguageContext";
 
 export default function ComingSoon() {
   const location = useLocation();

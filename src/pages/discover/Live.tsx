@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useLanguage } from "../language/LanguageContext";
-import { useAuth } from "../auth/AuthContext";
+import { useLanguage } from "../../language/LanguageContext";
+import { useAuth } from "../../auth/AuthContext";
 import { Radio, Users, Send, Heart, Flame, Sparkles, MessageSquare, Play, X, Eye, ThumbsUp, Plus } from "lucide-react";
 
 interface LiveStream {

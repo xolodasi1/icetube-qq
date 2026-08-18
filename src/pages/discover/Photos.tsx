@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { useLanguage } from '../language/LanguageContext';
-import { useAuth } from '../auth/AuthContext';
-import { databases } from '../lib/appwrite';
-import { SafeStorage } from '../lib/storage';
+import { useLanguage } from '../../language/LanguageContext';
+import { useAuth } from '../../auth/AuthContext';
+import { databases } from '../../lib/appwrite';
+import { SafeStorage } from '../../lib/storage';
 import { Query } from 'appwrite';
 import { Image, Loader2, X, ChevronLeft, ChevronRight, Heart, Eye, Calendar, User, Plus, Download } from 'lucide-react';
 

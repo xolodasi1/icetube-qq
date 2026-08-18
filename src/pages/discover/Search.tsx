@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { databases } from '../lib/appwrite';
+import { databases } from '../../lib/appwrite';
 import { Search as SearchIcon, Loader2, SlidersHorizontal, X, Image, Film, Scissors, Eye, Clock, ArrowUpDown } from 'lucide-react';
-import { useLanguage } from '../language/LanguageContext';
-import { getOptimizedThumbnail } from '../lib/cloudinary';
+import { useLanguage } from '../../language/LanguageContext';
+import { getOptimizedThumbnail } from '../../lib/cloudinary';
 
 type ContentFilter = 'all' | 'video' | 'shorts' | 'photo';
 type SortMode = 'relevance' | 'date' | 'views';

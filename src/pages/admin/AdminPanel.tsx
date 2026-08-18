@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '../auth/AuthContext';
-import { databases } from '../lib/appwrite';
+import { useAuth } from '../../auth/AuthContext';
+import { databases } from '../../lib/appwrite';
 import { 
   ShieldCheck, ShieldAlert, Users, Video, Activity, MoreHorizontal, 
   Ban, Trash2, Clock, Eye, AlertTriangle, 
@@ -8,7 +8,7 @@ import {
   ChevronRight, Calendar, Bell, Search, Filter, Film, Scissors, Image
 } from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
-import { useLanguage } from '../language/LanguageContext';
+import { useLanguage } from '../../language/LanguageContext';
 import { Query, ID } from 'appwrite';
 
 type AdminTab = 'dashboard' | 'analytics' | 'users' | 'reports' | 'content';

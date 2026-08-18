@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import { databases } from "../lib/appwrite";
+import { databases } from "../../lib/appwrite";
 import { Query } from "appwrite";
 import { Loader2, User, AlertCircle, Video, TrendingUp } from "lucide-react";
-import { useLanguage } from "../language/LanguageContext";
-import { useAuth } from "../auth/AuthContext";
-import { VideoCard } from "../components/VideoCard";
-import { createNotification } from "../lib/notifications";
-import { getRecommendations } from "../lib/recommendations";
+import { useLanguage } from "../../language/LanguageContext";
+import { useAuth } from "../../auth/AuthContext";
+import { VideoCard } from "../../components/VideoCard";
+import { createNotification } from "../../lib/notifications";
+import { getRecommendations } from "../../lib/recommendations";
 
 export default function Channel() {
   const { id: paramId } = useParams();

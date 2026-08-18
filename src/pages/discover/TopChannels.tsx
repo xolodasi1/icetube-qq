@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useLanguage } from '../language/LanguageContext';
+import { useLanguage } from '../../language/LanguageContext';
 import { Users, Eye, ThumbsUp, Trophy, Loader2, Video, Snowflake, Image } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { databases, client } from '../lib/appwrite';
+import { databases, client } from '../../lib/appwrite';
 import { Query } from 'appwrite';
 
 export default function TopChannels() {

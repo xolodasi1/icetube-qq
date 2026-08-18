@@ -1,17 +1,17 @@
 import { Params, useParams, Link, useNavigate } from "react-router-dom";
 import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock, AlertTriangle, MessageCircle, Send, Settings } from "lucide-react";
-import { VideoCard } from "../components/VideoCard";
+import { VideoCard } from "../../components/VideoCard";
 import React, { useState, useEffect, useRef } from "react";
-import { databases, Permission, Role, withTimeout } from "../lib/appwrite";
+import { databases, Permission, Role, withTimeout } from "../../lib/appwrite";
 import { Query, ID } from "appwrite";
-import { useAuth } from "../auth/AuthContext";
-import { useLanguage } from "../language/LanguageContext";
-import { createNotification } from "../lib/notifications";
-import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENTS_PER_VIDEO } from "../lib/storage";
-import { getRecommendations } from "../lib/recommendations";
+import { useAuth } from "../../auth/AuthContext";
+import { useLanguage } from "../../language/LanguageContext";
+import { createNotification } from "../../lib/notifications";
+import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENTS_PER_VIDEO } from "../../lib/storage";
+import { getRecommendations } from "../../lib/recommendations";
 
-import { getOptimizedThumbnail, getOptimizedVideoUrl, getQualityVideoUrl } from '../lib/cloudinary';
-import type { VideoQuality } from '../lib/cloudinary';
+import { getOptimizedThumbnail, getOptimizedVideoUrl, getQualityVideoUrl } from '../../lib/cloudinary';
+import type { VideoQuality } from '../../lib/cloudinary';
 
 export default function Watch() {
   const { id } = useParams();

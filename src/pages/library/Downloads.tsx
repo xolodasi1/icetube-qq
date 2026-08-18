@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useLanguage } from '../language/LanguageContext';
-import { VideoCard } from '../components/VideoCard';
+import { useLanguage } from '../../language/LanguageContext';
+import { VideoCard } from '../../components/VideoCard';
 import { Download, Trash2, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { SafeStorage } from '../lib/storage';
+import { SafeStorage } from '../../lib/storage';
 
 export default function Downloads() {
   const { t, language } = useLanguage();

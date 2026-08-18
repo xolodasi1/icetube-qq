@@ -1,9 +1,9 @@
 import { Clock, UserPlus } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useLanguage } from "../language/LanguageContext";
+import { useLanguage } from "../../language/LanguageContext";
 import { useEffect, useState } from "react";
-import { useAuth } from "../auth/AuthContext";
-import { SafeStorage } from "../lib/storage";
+import { useAuth } from "../../auth/AuthContext";
+import { SafeStorage } from "../../lib/storage";
 
 export default function ContinueWatching() {
   const { t, language } = useLanguage();

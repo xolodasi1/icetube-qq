@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ThumbsUp, ThumbsDown, MessageSquare, Share2, X, Loader2, Send, AlertTriangle, Reply } from 'lucide-react';
-import { databases } from '../lib/appwrite';
+import { databases } from '../../lib/appwrite';
 import { Query, ID } from 'appwrite';
 import { Link, useParams } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
-import { useLanguage } from '../language/LanguageContext';
-import { createNotification } from '../lib/notifications';
-import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENTS_PER_VIDEO } from '../lib/storage';
-import { getOptimizedThumbnail, getOptimizedVideoUrl } from '../lib/cloudinary';
+import { useAuth } from '../../auth/AuthContext';
+import { useLanguage } from '../../language/LanguageContext';
+import { createNotification } from '../../lib/notifications';
+import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENTS_PER_VIDEO } from '../../lib/storage';
+import { getOptimizedThumbnail, getOptimizedVideoUrl } from '../../lib/cloudinary';
 
 
 export default function Shorts() {

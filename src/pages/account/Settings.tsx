@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Moon, Sun, Globe, Check, Settings as SettingsIcon } from 'lucide-react';
-import { useLanguage } from '../language/LanguageContext';
-import { useTheme } from '../theme/ThemeContext';
+import { useLanguage } from '../../language/LanguageContext';
+import { useTheme } from '../../theme/ThemeContext';
 
 export default function Settings() {
   const { language, setLanguage, t } = useLanguage();

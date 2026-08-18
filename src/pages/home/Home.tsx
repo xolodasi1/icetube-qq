@@ -1,11 +1,11 @@
-import { VideoCard } from "../components/VideoCard";
+import { VideoCard } from "../../components/VideoCard";
 import { useSearchParams, Link } from "react-router-dom";
 import React, { useState, useEffect } from "react";
-import { databases, withTimeout } from "../lib/appwrite";
+import { databases, withTimeout } from "../../lib/appwrite";
 import { Loader2, Video, Image } from "lucide-react";
-import { useLanguage } from "../language/LanguageContext";
-import { getOptimizedThumbnail } from "../lib/cloudinary";
-import { getRecommendations } from "../lib/recommendations";
+import { useLanguage } from "../../language/LanguageContext";
+import { getOptimizedThumbnail } from "../../lib/cloudinary";
+import { getRecommendations } from "../../lib/recommendations";
 
 export default function Home() {
   const { t, language } = useLanguage();

@@ -1,9 +1,9 @@
-import { VideoCard } from "../components/VideoCard";
+import { VideoCard } from "../../components/VideoCard";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import React, { useState, useEffect } from "react";
-import { databases, withTimeout } from "../lib/appwrite";
+import { databases, withTimeout } from "../../lib/appwrite";
 import { Loader2, ServerCrash, Video } from "lucide-react";
-import { useLanguage } from "../language/LanguageContext";
+import { useLanguage } from "../../language/LanguageContext";
 
 export default function Videos() {
   const { t, language } = useLanguage();

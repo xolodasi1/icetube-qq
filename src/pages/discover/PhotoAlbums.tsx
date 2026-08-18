@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useLanguage } from '../language/LanguageContext';
-import { SafeStorage } from '../lib/storage';
+import { useLanguage } from '../../language/LanguageContext';
+import { SafeStorage } from '../../lib/storage';
 import { Trash2, Image, Plus, Eye } from 'lucide-react';
 
 const STORAGE_KEY = 'user_photo_albums';
