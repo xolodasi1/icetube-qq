@@ -1,10 +1,9 @@
 import { VideoCard } from "../components/VideoCard";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import React, { useState, useEffect } from "react";
-import { databases, withTimeout, getOfflineFlag, setOfflineFlag } from "../lib/appwrite";
+import { databases, withTimeout } from "../lib/appwrite";
 import { Loader2, ServerCrash, Video } from "lucide-react";
 import { useLanguage } from "../lib/LanguageContext";
-import { mockVideos } from "../data";
 
 export default function Videos() {
   const { t, language } = useLanguage();
@@ -85,13 +84,11 @@ export default function Videos() {
             });
             setDbVideos(formatted.reverse()); 
         } else {
-             setDbVideos(mockVideos as any);
+             setError(language === 'ru' ? 'Сервер не настроен' : 'Server is not configured');
         }
       } catch (err) {
          console.warn("Appwrite lookup failed/timed out:", err);
-         setOfflineFlag(true);
-         // Fall back to demo videos instead of an empty error page
-         setDbVideos(mockVideos as any);
+         setError(language === 'ru' ? 'Не удалось загрузить видео. Проверьте соединение.' : 'Failed to load videos. Check your connection.');
       } finally {
          setIsLoading(false);
       }

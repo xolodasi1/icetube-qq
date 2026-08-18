@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getCurrentUser, loginWithGoogle, logout, databases, withTimeout, initNetworkSelfHeal } from './appwrite';
+import { getCurrentUser, logout, databases, withTimeout } from './appwrite';
 import { Models, Query } from 'appwrite';
 import AuthModal from '../components/AuthModal';
 
@@ -36,33 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-    // When Appwrite is not configured (no env vars on the deployed site),
-    // the app runs in demo mode with a locally stored fake account,
-    // so registration/login still work visually.
-    const isAppwriteConfigured = (): boolean => {
-        return !!import.meta.env.VITE_APPWRITE_PROJECT_ID;
-    };
-
-    const DEMO_USER_KEY = 'icetube_demo_user';
-
-    const loadDemoUser = (): Models.User<Models.Preferences> | null => {
-        try {
-            const raw = localStorage.getItem(DEMO_USER_KEY);
-            if (!raw) return null;
-            return JSON.parse(raw) as Models.User<Models.Preferences>;
-        } catch (e) {
-            return null;
-        }
-    };
-
-    const clearDemoUser = (): void => {
-        try {
-            localStorage.removeItem(DEMO_USER_KEY);
-        } catch (e) {}
-    };
-
     useEffect(() => {
-        initNetworkSelfHeal();
         checkUserStatus();
         // Re-check auth when the browser reconnects
         const onOnline = () => checkUserStatus();
@@ -77,7 +51,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (dbId && usersColId) {
                 const res = await withTimeout(databases.listDocuments(dbId, usersColId, [
                     Query.equal('userId', userId)
-                ]), 8000, { setOfflineFlagOnTimeout: false });
+                ]), 8000);
                 if (res.documents.length > 0) {
                     const doc = res.documents[0];
                     setProfile({
@@ -97,30 +71,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(true);
         console.log("Checking user status...");
         try {
-            // Demo mode: Appwrite not configured -> use the local demo account
-            if (!isAppwriteConfigured()) {
-                const demoUser = loadDemoUser();
-                if (demoUser) {
-                    setUser(demoUser);
-                    setProfile({ name: demoUser.name, avatar: '', description: '', role: 'user' });
-                    setIsLoading(false);
-                    return demoUser;
-                }
-                setUser(null);
-                setProfile(null);
-                setIsLoading(false);
-                return null;
-            }
-            // Auth check must not set the offline flag: a slow-but-working
-            // connection (typical for Firefox / RU networks) must not be
-            // treated as offline, otherwise login never completes
-            const currentUser = await withTimeout(getCurrentUser(), 10000, { setOfflineFlagOnTimeout: false });
+            // Auth check must not fail fast: a slow-but-working connection
+            // (typical for Firefox / RU networks) must be allowed to finish
+            const currentUser = await withTimeout(getCurrentUser(), 10000);
             // Log ID instead of the full user object to avoid serialization issues
             console.log("Current user ID:", currentUser?.$id || "No user found");
             setUser(currentUser);
             if (currentUser) {
                 try {
-                    await withTimeout(ensureUserProfile(currentUser), 8000, { setOfflineFlagOnTimeout: false });
+                    await withTimeout(ensureUserProfile(currentUser), 8000);
                 } catch (profileErr) {
                     console.warn("Could not load user profile in time:", profileErr);
                 }
@@ -236,10 +195,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     const logoutUser = async () => {
-        if (isAppwriteConfigured()) {
-            await logout();
-        }
-        clearDemoUser();
+        await logout();
         setUser(null);
         setProfile(null);
     };

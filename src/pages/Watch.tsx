@@ -2,14 +2,13 @@ import { Params, useParams, Link, useNavigate } from "react-router-dom";
 import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock, AlertTriangle, MessageCircle, Send, Settings } from "lucide-react";
 import { VideoCard } from "../components/VideoCard";
 import React, { useState, useEffect, useRef } from "react";
-import { databases, Permission, Role, withTimeout, getOfflineFlag, setOfflineFlag } from "../lib/appwrite";
+import { databases, Permission, Role, withTimeout } from "../lib/appwrite";
 import { Query, ID } from "appwrite";
 import { useAuth } from "../lib/AuthContext";
 import { useLanguage } from "../lib/LanguageContext";
 import { createNotification } from "../lib/notifications";
 import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENTS_PER_VIDEO } from "../lib/storage";
 import { getRecommendations } from "../lib/recommendations";
-import { mockVideos } from "../data";
 
 import { getOptimizedThumbnail, getOptimizedVideoUrl, getQualityVideoUrl } from '../lib/cloudinary';
 import type { VideoQuality } from '../lib/cloudinary';
@@ -538,19 +537,8 @@ export default function Watch() {
         const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
         
         if (!dbId || !colId || !id) {
-          // Appwrite not configured: fall back to built-in demo videos
-          const demo = mockVideos.find(v => v.id === id);
-          if (demo) {
-            setVideo({
-              ...demo,
-              uploadDate: t('video_recently'),
-              description: demo.description || t('video_no_description')
-            });
-            setSuggestedVideos(mockVideos.filter(v => v.id !== id).slice(0, 20));
-          } else {
-            setVideo(null);
-            setSuggestedVideos([]);
-          }
+          setVideo(null);
+          setSuggestedVideos([]);
           setIsLoading(false);
           return;
         }
@@ -567,7 +555,6 @@ export default function Watch() {
             currentDoc = response.documents.find(v => v.$id === id);
           } catch (listErr) {
             console.warn("Listing documents also failed.");
-            setOfflineFlag(true);
           }
         }
         
@@ -615,7 +602,7 @@ export default function Watch() {
           try {
             await withTimeout(fetchInteractions(currentVideo.id, currentVideo.uploaderId), 2500);
           } catch (e) {
-            console.warn("Skipping standard interaction updates due to timeout/offline mode");
+            console.warn("Skipping standard interaction updates due to timeout");
           }
 
           // Fetch suggested videos separately
@@ -679,20 +666,8 @@ export default function Watch() {
           runUpdate();
 
         } else {
-          setOfflineFlag(true);
-          // Fall back to demo videos when the document is not found
-          const demo = mockVideos.find(v => v.id === id);
-          if (demo) {
-            setVideo({
-              ...demo,
-              uploadDate: t('video_recently'),
-              description: demo.description || t('video_no_description')
-            });
-            setSuggestedVideos(mockVideos.filter(v => v.id !== id).slice(0, 20));
-          } else {
-            setVideo(null);
-            setSuggestedVideos([]);
-          }
+          setVideo(null);
+          setSuggestedVideos([]);
         }
 
       } catch (err) {

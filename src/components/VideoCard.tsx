@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Video } from "../data";
+import { Video } from "../types";
 import clsx from "clsx";
 import { useLanguage } from "../lib/LanguageContext";
 import { Check, Zap, MoreVertical } from "lucide-react";
