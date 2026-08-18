@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '../auth/AuthContext';
 import { uploadVideoToCloudinary, uploadImageToCloudinaryWithProgress, getOptimizedThumbnail } from '../lib/cloudinary';
 import { databases } from '../lib/appwrite';
+import { SafeStorage } from '../lib/storage';
 import { ID, Query } from 'appwrite';
 import { UploadCloud, X, Loader2, AlertCircle, PlayCircle, ChevronDown } from 'lucide-react';
 import { useLanguage } from '../language/LanguageContext';
@@ -24,6 +25,11 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [game, setGame] = useState('');
+  const [hashtags, setHashtags] = useState('');
+  const [videoLanguage, setVideoLanguage] = useState('');
+  const [playlistId, setPlaylistId] = useState('');
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [playlists, setPlaylists] = useState<any[]>([]);
   const [contentType, setContentType] = useState<'video' | 'shorts' | 'photo'>('video');
   const [isImage, setIsImage] = useState(false);
   
@@ -32,6 +38,33 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const [error, setError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const playlistsCol = import.meta.env.VITE_APPWRITE_PLAYLISTS_COLLECTION_ID;
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    (async () => {
+      try {
+        if (dbId && playlistsCol) {
+          const res = await databases.listDocuments(dbId, playlistsCol, [
+            Query.equal('userId', user.$id)
+          ]);
+          setPlaylists(res.documents.map((doc: any) => ({
+            id: doc.$id,
+            name: doc.name,
+            videos: doc.videos || [],
+            _appwrite: true
+          })));
+          return;
+        }
+      } catch (e) {
+        console.warn('Appwrite playlist load failed, falling back to localStorage', e);
+      }
+      try {
+        setPlaylists(SafeStorage.get('user_playlists', []));
+      } catch (e) {}
+    })();
+  }, [user]);
 
   if (!isOpen) return null;
 
@@ -47,6 +80,11 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const commonGames = [
     'Minecraft', 'Roblox', 'Fortnite', 'GTA V', 'CS:GO', 'Valorant', 'League of Legends'
   ];
+
+  const parseHashtags = (raw: string): string[] => {
+    const tags = raw.split(/[\s,]+/).map(t => t.trim().replace(/^#/, '')).filter(t => t.length > 0);
+    return Array.from(new Set(tags)).slice(0, 10);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -92,13 +130,20 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
 
       let createdVideoDoc: any = null;
       const isPhoto = contentType === 'photo';
-      const isShorts = !isPhoto && (contentType === 'shorts' || title.toLowerCase().includes('#shorts') || description.toLowerCase().includes('#shorts'));
+      
+      const tags = parseHashtags(hashtags);
+      let finalDescription = description || t('video_no_description');
+      if (tags.length > 0 && !finalDescription.includes('#')) {
+        finalDescription = `${finalDescription}\n\n${tags.map(tag => '#' + tag).join(' ')}`;
+      }
+      
+      const isShorts = !isPhoto && (contentType === 'shorts' || title.toLowerCase().includes('#shorts') || finalDescription.toLowerCase().includes('#shorts'));
       
       const finalContentType = isPhoto ? 'photo' : (isShorts ? 'shorts' : 'video');
       
       const uploadData: any = {
         title: title,
-        description: isPhoto ? (description || '') : (isShorts ? (description.toLowerCase().includes('#shorts') ? description : `${description}\n\n#shorts`).trim() : (description || t('video_no_description'))),
+        description: isPhoto ? finalDescription : (isShorts ? (finalDescription.toLowerCase().includes('#shorts') ? finalDescription : `${finalDescription}\n\n#shorts`.trim()) : finalDescription),
         videoUrl: fileUrl,
         thumbnailUrl: thumbnailUrl,
         uploaderId: user.$id,
@@ -108,6 +153,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         category: category.trim() || 'All',
         contentType: finalContentType,
         game: isPhoto ? undefined : (game.trim() || undefined),
+        hashtags: tags.length > 0 ? tags : undefined,
+        language: videoLanguage || undefined,
+        playlistId: (playlistId && playlistId !== '__new__') ? playlistId : undefined,
         verified: false
       };
 
@@ -134,6 +182,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
       };
       if (uploadData.category) fallbackData.category = uploadData.category;
       if (uploadData.game) fallbackData.game = uploadData.game;
+      if (uploadData.hashtags) fallbackData.hashtags = uploadData.hashtags;
+      if (uploadData.language) fallbackData.language = uploadData.language;
       try {
         createdVideoDoc = await databases.createDocument(dbId, videosColId, ID.unique(), fallbackData);
       } catch (secondErr: any) {
@@ -160,11 +210,76 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
     }
   }
 
+      const attachToPlaylist = async () => {
+        if (!createdVideoDoc?.$id || !playlistId) return;
+        let targetPlaylistId = playlistId;
+        if (playlistId === '__new__') {
+          const name = newPlaylistName.trim();
+          if (!name) return;
+          const playlistsCol = import.meta.env.VITE_APPWRITE_PLAYLISTS_COLLECTION_ID;
+          const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+          try {
+            if (dbId && playlistsCol && user) {
+              const doc = await databases.createDocument(dbId, playlistsCol, ID.unique(), {
+                userId: user.$id,
+                name,
+                videos: [],
+                createdAt: new Date().toISOString()
+              });
+              targetPlaylistId = doc.$id;
+              setPlaylists(prev => [...prev, { id: doc.$id, name, videos: [], _appwrite: true }]);
+            } else {
+              const localPlaylists = SafeStorage.get('user_playlists', []);
+              const newPl = { id: 'pl_' + Date.now().toString(), name, videos: [] };
+              SafeStorage.set('user_playlists', [...localPlaylists, newPl]);
+              setPlaylists(prev => [...prev, newPl]);
+              targetPlaylistId = newPl.id;
+            }
+          } catch (e) {
+            console.warn('Failed to create playlist', e);
+            return;
+          }
+        }
+        const videoRef: any = {
+          id: createdVideoDoc.$id,
+          title: uploadData.title,
+          thumbnailUrl: uploadData.thumbnailUrl,
+          channelName: uploadData.uploaderName,
+          channelAvatar: uploadData.uploaderAvatar,
+          uploaderId: user?.$id || '',
+          views: 0,
+          uploadDate: new Date().toISOString(),
+          contentType: finalContentType,
+          timestamp: Date.now()
+        };
+        try {
+          const playlistsCol = import.meta.env.VITE_APPWRITE_PLAYLISTS_COLLECTION_ID;
+          const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+          const target = playlists.find(pl => pl.id === targetPlaylistId);
+          const newVideos = [videoRef, ...(target?.videos || []).filter((v: any) => v.id !== videoRef.id)];
+          if (dbId && playlistsCol && user && target?._appwrite) {
+            await databases.updateDocument(dbId, playlistsCol, targetPlaylistId, { videos: newVideos });
+          } else {
+            const localPlaylists = SafeStorage.get('user_playlists', []);
+            SafeStorage.set('user_playlists', localPlaylists.map((pl: any) => pl.id === targetPlaylistId ? { ...pl, videos: newVideos } : pl));
+          }
+        } catch (e) {
+          console.warn('Failed to add video to playlist', e);
+        }
+      };
+
+      // Fire and forget
+      if (playlistId) attachToPlaylist();
+
       setFile(null);
       setTitle('');
       setDescription('');
       setCategory('');
       setGame('');
+      setHashtags('');
+      setVideoLanguage('');
+      setPlaylistId('');
+      setNewPlaylistName('');
       onUploadSuccess?.();
       onClose();
 
@@ -412,6 +527,66 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
               className="bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#70d6ff]/50 resize-none"
             />
           </div>
+
+          {!isImage && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium text-slate-200">{language === 'ru' ? 'Хештеги' : 'Hashtags'}</label>
+                  <input
+                    type="text"
+                    value={hashtags}
+                    onChange={(e) => setHashtags(e.target.value)}
+                    disabled={isUploading}
+                    placeholder={language === 'ru' ? 'через пробел, например: ice music' : 'space separated, e.g. ice music'}
+                    className="bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#70d6ff]/50 w-full"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium text-slate-200">{language === 'ru' ? 'Язык видео' : 'Video language'}</label>
+                  <select
+                    value={videoLanguage}
+                    onChange={(e) => setVideoLanguage(e.target.value)}
+                    disabled={isUploading}
+                    className="bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#70d6ff]/50 w-full [&>option]:bg-[#0f1115]"
+                  >
+                    <option value="">{language === 'ru' ? 'Не выбран' : 'Not selected'}</option>
+                    <option value="ru">Русский</option>
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-slate-200">{language === 'ru' ? 'Плейлист' : 'Playlist'}</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <select
+                    value={playlistId}
+                    onChange={(e) => setPlaylistId(e.target.value)}
+                    disabled={isUploading}
+                    className="bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#70d6ff]/50 w-full [&>option]:bg-[#0f1115]"
+                  >
+                    <option value="">{language === 'ru' ? 'Не добавлять в плейлист' : "Don't add to playlist"}</option>
+                    {playlists.map(pl => (
+                      <option key={pl.id} value={pl.id}>{pl.name}</option>
+                    ))}
+                    <option value="__new__">{language === 'ru' ? '+ Создать новый плейлист' : '+ Create new playlist'}</option>
+                  </select>
+                  {playlistId === '__new__' && (
+                    <input
+                      type="text"
+                      value={newPlaylistName}
+                      onChange={(e) => setNewPlaylistName(e.target.value)}
+                      placeholder={language === 'ru' ? 'Имя нового плейлиста...' : 'New playlist name...'}
+                      disabled={isUploading}
+                      className="bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#70d6ff]/50 w-full"
+                    />
+                  )}
+                </div>
+              </div>
+            </>
+          )}
 
           {error && (
             <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-500 text-sm">

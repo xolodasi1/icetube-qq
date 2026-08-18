@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { databases } from '../../lib/appwrite';
 import { 
@@ -24,113 +24,129 @@ export default function AdminPanel() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [errorDetails, setErrorDetails] = useState<{message: string, collection: string} | null>(null);
+  const isFetchingRef = useRef(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchData = useCallback(async (silent = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
+    if (!silent) {
       setIsLoading(true);
       setErrorDetails(null);
-      
-      const refreshIcon = document.getElementById('admin-refresh-icon');
-      if (refreshIcon) refreshIcon.classList.add('animate-spin');
+    }
 
-      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-      const usersColId = import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
-      const reportsColId = import.meta.env.VITE_APPWRITE_REPORTS_COLLECTION_ID;
-      const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+    const refreshIcon = document.getElementById('admin-refresh-icon');
+    if (refreshIcon && !silent) refreshIcon.classList.add('animate-spin');
 
-      if (!dbId) {
-        setErrorDetails({ message: "Database ID missing in .env", collection: "Global Config" });
-        setIsLoading(false);
-        return;
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const usersColId = import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+    const reportsColId = import.meta.env.VITE_APPWRITE_REPORTS_COLLECTION_ID;
+    const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+
+    if (!dbId) {
+      setErrorDetails({ message: "Database ID missing in .env", collection: "Global Config" });
+      setIsLoading(false);
+      isFetchingRef.current = false;
+      return;
+    }
+
+    try {
+      // Fetch Users (Profiles)
+      if (usersColId) {
+        try {
+          const response = await databases.listDocuments(dbId, usersColId, [Query.limit(100)]);
+          
+          // Deduplicate users by userId
+          const seenUsers = new Set();
+          const dedupedUsers = response.documents.filter((doc: any) => {
+            if (seenUsers.has(doc.userId)) return false;
+            seenUsers.add(doc.userId);
+            return true;
+          });
+
+          setDbUsers(dedupedUsers.map((doc: any) => ({
+            $id: doc.$id,
+            userId: doc.userId,
+            name: doc.name || doc.displayName || 'Anonymous',
+            avatar: doc.avatar || doc.photoUrl,
+            email: doc.email,
+            role: doc.role || 'user',
+            verified: doc.verified || false,
+            verificationRequested: doc.verificationRequested || false,
+            subscribersCount: doc.subscribersCount,
+            likesCount: doc.likesCount,
+            viewsCount: doc.viewsCount,
+            videosCount: doc.videosCount,
+            snowflakesCount: doc.snowflakesCount
+          })));
+        } catch (err: any) {
+          console.error("Users Fetch Error:", err);
+          if (!silent) setErrorDetails({ message: err.message, collection: "Users/Profiles" });
+        }
       }
 
-      try {
-        // Fetch Users (Profiles)
-        if (usersColId) {
-          try {
-            const response = await databases.listDocuments(dbId, usersColId, [Query.limit(100)]);
-            
-            // Deduplicate users by userId
-            const seenUsers = new Set();
-            const dedupedUsers = response.documents.filter((doc: any) => {
-              if (seenUsers.has(doc.userId)) return false;
-              seenUsers.add(doc.userId);
-              return true;
-            });
-
-            setDbUsers(dedupedUsers.map((doc: any) => ({
-              $id: doc.$id,
-              userId: doc.userId,
-              name: doc.name || doc.displayName || 'Anonymous',
-              avatar: doc.avatar || doc.photoUrl,
-              email: doc.email,
-              role: doc.role || 'user',
-              verified: doc.verified || false,
-              verificationRequested: doc.verificationRequested || false,
-              subscribersCount: doc.subscribersCount,
-              likesCount: doc.likesCount,
-              viewsCount: doc.viewsCount,
-              videosCount: doc.videosCount,
-              snowflakesCount: doc.snowflakesCount
-            })));
-          } catch (err: any) {
-            console.error("Users Fetch Error:", err);
-            setErrorDetails({ message: err.message, collection: "Users/Profiles" });
-          }
+      // Fetch Reports
+      if (reportsColId) {
+        try {
+          const response = await databases.listDocuments(dbId, reportsColId, [Query.limit(100)]);
+          setReports(response.documents.map((doc: any) => ({
+            $id: doc.$id,
+            videoId: doc.videoId,
+            videoTitle: doc.videoTitle || 'Unknown',
+            reason: doc.reason,
+            userId: doc.userId,
+            reporterName: doc.reporterName || doc.reporterName?.[0] || 'Anonymous',
+            timestamp: doc.$createdAt
+          })));
+        } catch (err: any) {
+          console.warn("Reports Fetch Error:", err);
         }
-
-        // Fetch Reports
-        if (reportsColId) {
-          try {
-            const response = await databases.listDocuments(dbId, reportsColId, [Query.limit(100)]);
-            setReports(response.documents.map((doc: any) => ({
-              $id: doc.$id,
-              videoId: doc.videoId,
-              videoTitle: doc.videoTitle || 'Unknown',
-              reason: doc.reason,
-              userId: doc.userId,
-              reporterName: doc.reporterName || doc.reporterName?.[0] || 'Anonymous',
-              timestamp: doc.$createdAt
-            })));
-          } catch (err: any) {
-            console.warn("Reports Fetch Error:", err);
-          }
-        }
-
-        // Fetch Videos
-        if (videosColId) {
-          try {
-            const response = await databases.listDocuments(dbId, videosColId, [Query.limit(100)]);
-            setDbVideos(response.documents.map((doc: any) => ({
-              $id: doc.$id,
-              title: doc.title,
-              uploaderId: doc.uploaderId,
-              uploaderName: doc.uploaderName,
-              views: doc.views || 0,
-              contentType: doc.contentType,
-              isShort: doc.isShort,
-              isShorts: doc.isShorts,
-              verified: doc.verified || false,
-            })));
-          } catch (err: any) {
-            console.error("Videos Fetch Error:", err);
-            if (!errorDetails) setErrorDetails({ message: err.message, collection: "Videos" });
-          }
-        }
-      } catch (err: any) {
-        console.error("General Admin Panel Error:", err);
-        setErrorDetails({ message: err.message, collection: "Database Connection" });
-      } finally {
-        setIsLoading(false);
-        if (refreshIcon) refreshIcon.classList.remove('animate-spin');
       }
-    };
 
+      // Fetch Videos
+      if (videosColId) {
+        try {
+          const response = await databases.listDocuments(dbId, videosColId, [Query.limit(100)]);
+          setDbVideos(response.documents.map((doc: any) => ({
+            $id: doc.$id,
+            title: doc.title,
+            uploaderId: doc.uploaderId,
+            uploaderName: doc.uploaderName,
+            views: doc.views || 0,
+            contentType: doc.contentType,
+            isShort: doc.isShort,
+            isShorts: doc.isShorts,
+            verified: doc.verified || false,
+          })));
+        } catch (err: any) {
+          console.error("Videos Fetch Error:", err);
+          if (!errorDetails && !silent) setErrorDetails({ message: err.message, collection: "Videos" });
+        }
+      }
+    } catch (err: any) {
+      console.error("General Admin Panel Error:", err);
+      if (!silent) setErrorDetails({ message: err.message, collection: "Database Connection" });
+    } finally {
+      setIsLoading(false);
+      if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+      isFetchingRef.current = false;
+    }
+  }, [errorDetails]);
+
+  useEffect(() => {
     fetchData();
 
-    window.addEventListener('refreshAdminData', fetchData);
-    return () => window.removeEventListener('refreshAdminData', fetchData);
-  }, []);
+    const onRefresh = () => fetchData();
+    window.addEventListener('refreshAdminData', onRefresh);
+
+    // Auto-refresh leaderboards every 3 seconds
+    const interval = setInterval(() => fetchData(true), 3000);
+
+    return () => {
+      window.removeEventListener('refreshAdminData', onRefresh);
+      clearInterval(interval);
+    };
+  }, [fetchData]);
 
   const stats = useMemo(() => {
     const shorts = dbVideos.filter(v => v.contentType === 'shorts' || v.isShort || v.isShorts).length;
