@@ -2,7 +2,7 @@ import { VideoCard } from "../../components/VideoCard";
 import { useSearchParams, Link } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { databases, withTimeout } from "../../lib/appwrite";
-import { Loader2, Video, Image } from "lucide-react";
+import { Loader2, Video, Image, RefreshCw } from "lucide-react";
 import { useLanguage } from "../../language/LanguageContext";
 import { getOptimizedThumbnail } from "../../lib/cloudinary";
 import { getRecommendations } from "../../lib/recommendations";
@@ -79,7 +79,7 @@ export default function Home() {
       setDbVideos(ranked);
     } catch (err) {
        console.warn("Appwrite network/timeout error:", err);
-       setError(t('video_connecting'));
+       setError(t('video_load_error'));
     } finally {
        setIsLoading(false);
     }
@@ -139,6 +139,13 @@ export default function Home() {
         ) : error && dbVideos.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-center text-slate-400">
             <p>{error}</p>
+            <button
+              onClick={() => fetchVideos()}
+              className="mt-6 flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm bg-[#70d6ff] text-black hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(112,214,255,0.2)]"
+            >
+              <RefreshCw className="w-4 h-4" />
+              {t('video_retry')}
+            </button>
           </div>
         ) : dbVideos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">

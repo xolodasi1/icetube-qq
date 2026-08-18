@@ -1,8 +1,8 @@
 import { VideoCard } from "../../components/VideoCard";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { databases, withTimeout } from "../../lib/appwrite";
-import { Loader2, ServerCrash, Video } from "lucide-react";
+import { Loader2, ServerCrash, Video, RefreshCw } from "lucide-react";
 import { useLanguage } from "../../language/LanguageContext";
 
 export default function Videos() {
@@ -14,6 +14,72 @@ export default function Videos() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchVideos = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+      if (dbId && colId) {
+          const response = await withTimeout(databases.listDocuments(dbId, colId), 4000);
+          
+          // Fetch users/profiles to get freshest avatars
+          const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+          let profilesMap: Record<string, {name: string, avatar: string}> = {};
+          try {
+            if (profilesCol) {
+              const uploaderIds = Array.from(new Set(response.documents.map(v => v.uploaderId)));
+              if (uploaderIds.length > 0) {
+                const profilesResult = await withTimeout(databases.listDocuments(dbId, profilesCol), 2500);
+                profilesResult.documents.forEach(p => {
+                  if (p.userId) {
+                    profilesMap[p.userId] = {
+                      name: p.name || '',
+                      avatar: p.avatar || ''
+                    };
+                  }
+                });
+              }
+            }
+          } catch (pErr) {
+            console.log("Could not fetch profiles for latest avatars", pErr);
+          }
+
+          const formatted = response.documents.map(v => {
+              const profile = profilesMap[v.uploaderId];
+              return {
+                id: v.$id,
+                uploaderId: v.uploaderId,
+                title: v.title,
+                thumbnailUrl: v.thumbnailUrl,
+                videoUrl: v.videoUrl,
+                channelName: profile?.name || v.uploaderName,
+                channelAvatar: profile?.avatar || v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
+                views: v.views || 0,
+                uploadDate: t('video_recently'),
+                category: v.category || 'All',
+                contentType: v.contentType || 'video',
+                verified: v.verified || false,
+                description: v.description || ''
+              };
+          });
+          setDbVideos(formatted.reverse()); 
+      } else {
+           setError(language === 'ru' ? 'Сервер не настроен' : 'Server is not configured');
+      }
+    } catch (err) {
+       console.warn("Appwrite lookup failed/timed out:", err);
+       setError(t('video_load_error'));
+    } finally {
+       setIsLoading(false);
+    }
+  }, [language, t]);
+
+  useEffect(() => {
+    fetchVideos();
+  }, [fetchVideos]);
+
   const dynamicCategories: string[] = Array.from(new Set(
     dbVideos
       .map(v => v.category ? String(v.category) : '')
@@ -23,78 +89,13 @@ export default function Videos() {
     language === 'ru' ? 'Все' : 'All',
     ...dynamicCategories
   ];
-  
+
   const searchQuery = searchParams.get("search") || "";
   const activeCategoryParam = searchParams.get("category") || 'All';
   
   const activeCategoryLabel = activeCategoryParam === 'All' 
     ? (language === 'ru' ? 'Все' : 'All') 
     : activeCategoryParam;
-
-  useEffect(() => {
-    const fetchVideos = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
-        if (dbId && colId) {
-            const response = await withTimeout(databases.listDocuments(dbId, colId), 4000);
-            
-            // Fetch users/profiles to get freshest avatars
-            const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
-            let profilesMap: Record<string, {name: string, avatar: string}> = {};
-            try {
-              if (profilesCol) {
-                const uploaderIds = Array.from(new Set(response.documents.map(v => v.uploaderId)));
-                if (uploaderIds.length > 0) {
-                  const profilesResult = await withTimeout(databases.listDocuments(dbId, profilesCol), 2500);
-                  profilesResult.documents.forEach(p => {
-                    if (p.userId) {
-                      profilesMap[p.userId] = {
-                        name: p.name || '',
-                        avatar: p.avatar || ''
-                      };
-                    }
-                  });
-                }
-              }
-            } catch (pErr) {
-              console.log("Could not fetch profiles for latest avatars", pErr);
-            }
-
-            const formatted = response.documents.map(v => {
-                const profile = profilesMap[v.uploaderId];
-                return {
-                  id: v.$id,
-                  uploaderId: v.uploaderId,
-                  title: v.title,
-                  thumbnailUrl: v.thumbnailUrl,
-                  videoUrl: v.videoUrl,
-                  channelName: profile?.name || v.uploaderName,
-                  channelAvatar: profile?.avatar || v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
-                  views: v.views || 0,
-                  uploadDate: t('video_recently'),
-                  category: v.category || 'All',
-                  contentType: v.contentType || 'video',
-                  verified: v.verified || false,
-                  description: v.description || ''
-                };
-            });
-            setDbVideos(formatted.reverse()); 
-        } else {
-             setError(language === 'ru' ? 'Сервер не настроен' : 'Server is not configured');
-        }
-      } catch (err) {
-         console.warn("Appwrite lookup failed/timed out:", err);
-         setError(language === 'ru' ? 'Не удалось загрузить видео. Проверьте соединение.' : 'Failed to load videos. Check your connection.');
-      } finally {
-         setIsLoading(false);
-      }
-    };
-    fetchVideos();
-  }, [language]);
 
   const handleTagClick = (tagLabel: string) => {
     if (tagLabel === 'Все' || tagLabel === 'All') {
@@ -145,6 +146,13 @@ export default function Videos() {
              <div className="flex flex-col items-center justify-center p-12 text-center text-slate-400">
                 <ServerCrash className="w-12 h-12 text-red-400 mb-4" />
                 <p>{error}</p>
+                <button
+                  onClick={fetchVideos}
+                  className="mt-6 flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm bg-[#70d6ff] text-black hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(112,214,255,0.2)]"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  {t('video_retry')}
+                </button>
              </div>
         ) : dbVideos.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
