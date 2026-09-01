@@ -38,8 +38,16 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
         ]);
         setNotifications(res.documents);
         setUnreadCount(res.documents.filter(n => !n.isRead).length);
-      } catch (err) {
-        // Collection might not exist yet
+      } catch (err: any) {
+        const msg = err.message || '';
+        if (msg.toLowerCase().includes('index') || err.code === 400) {
+          try {
+            const res2 = await databases.listDocuments(dbId, notifCol, [Query.limit(100), Query.orderDesc('$createdAt')]);
+            const filtered = res2.documents.filter((n: any) => n.userId === user.$id).slice(0, 50);
+            setNotifications(filtered);
+            setUnreadCount(filtered.filter((n: any) => !n.isRead).length);
+          } catch {}
+        }
       }
     };
     fetchNotifications();
