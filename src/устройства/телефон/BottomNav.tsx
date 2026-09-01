@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { useState } from "react";
 import { useLanguage } from "../../language/LanguageContext";
-import { motion, AnimatePresence } from "motion";
 
 export function BottomNav() {
   const location = useLocation();
@@ -35,10 +34,10 @@ export function BottomNav() {
               const Icon = it.icon;
               if (it.center) {
                 return (
-                  <button key={it.id} onClick={it.action} className="relative flex flex-col items-center justify-center -mt-1">
-                    <motion.div whileTap={{ scale: 0.92 }} className="w-[56px] h-[56px] rounded-full bg-gradient-to-br from-[#70d6ff] via-[#3b82f6] to-[#6a00ff] flex items-center justify-center text-white shadow-[0_8px_20px_rgba(112,214,255,0.45),0_0_0_1px_rgba(255,255,255,0.3)_inset]">
+                  <button key={it.id} onClick={it.action} className="relative flex flex-col items-center justify-center -mt-1 active:scale-95 transition-transform">
+                    <div className="w-[56px] h-[56px] rounded-full bg-gradient-to-br from-[#70d6ff] via-[#3b82f6] to-[#6a00ff] flex items-center justify-center text-white shadow-[0_8px_20px_rgba(112,214,255,0.45),0_0_0_1px_rgba(255,255,255,0.3)_inset]">
                       <Plus className="w-7 h-7 stroke-[2.8]" />
-                    </motion.div>
+                    </div>
                   </button>
                 );
               }
@@ -65,10 +64,9 @@ export function BottomNav() {
         </div>
       </nav>
 
-      <AnimatePresence>
-        {showCreate && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm p-3 sm:hidden" onClick={() => setShowCreate(false)}>
-            <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} transition={{ type: "spring", damping: 24, stiffness: 300 }} onClick={e=>e.stopPropagation()} className="w-full max-w-[480px] rounded-[24px] bg-[#0f172a] border border-white/10 overflow-hidden shadow-2xl">
+      {showCreate && (
+          <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm p-3 sm:hidden animate-in fade-in duration-200" onClick={() => setShowCreate(false)}>
+            <div onClick={e=>e.stopPropagation()} className="w-full max-w-[480px] rounded-[24px] bg-[#0f172a] border border-white/10 overflow-hidden shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
               <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-white/20" />
               <div className="p-5 pb-3 flex items-center justify-between">
                 <span className="text-white font-bold flex items-center gap-2"><Sparkles className="w-4 h-4 text-[#70d6ff]" /> {t('nav_create')}</span>
@@ -86,15 +84,13 @@ export function BottomNav() {
                   <span className="text-xs text-white/60">Собрать плейлист</span>
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
 
-      <AnimatePresence>
-        {showYou && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm p-3 sm:hidden" onClick={() => setShowYou(false)}>
-            <motion.div initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} transition={{ type: "spring", damping: 26, stiffness: 320 }} onClick={e=>e.stopPropagation()} className="w-full max-w-[480px] rounded-[24px] bg-[#0f172a] border border-white/10 overflow-hidden shadow-2xl">
+      {showYou && (
+          <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm p-3 sm:hidden animate-in fade-in duration-200" onClick={() => setShowYou(false)}>
+            <div onClick={e=>e.stopPropagation()} className="w-full max-w-[480px] rounded-[24px] bg-[#0f172a] border border-white/10 overflow-hidden shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
               <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-white/20" />
               <div className="p-5 pb-2 flex items-center justify-between">
                 <span className="text-white font-bold">{t('nav_you')}</span>
@@ -105,10 +101,9 @@ export function BottomNav() {
                 <Link to="/studio" onClick={()=>setShowYou(false)} className="flex items-center gap-3 p-4 rounded-2xl bg-white/[0.06] border border-white/10 text-white active:scale-[0.99] transition-transform"><Video className="w-5 h-5 text-[#70d6ff]" /> {t('nav_go_to_studio')}</Link>
                 <Link to="/library" onClick={()=>setShowYou(false)} className="flex items-center gap-3 p-4 rounded-2xl bg-white/[0.06] border border-white/10 text-white"><Library className="w-5 h-5" /> {t('nav_library')}</Link>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
     </>
   );
 }
