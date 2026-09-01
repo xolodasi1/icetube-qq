@@ -2,6 +2,7 @@ import { VideoCard } from "../../components/VideoCard";
 import { useSearchParams, Link } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { databases, withTimeout } from "../../lib/appwrite";
+import { Query } from "appwrite";
 import { Loader2, Video, Image, RefreshCw } from "lucide-react";
 import { useLanguage } from "../../language/LanguageContext";
 import { getOptimizedThumbnail } from "../../lib/cloudinary";
@@ -32,16 +33,21 @@ export default function Home() {
         setDbVideos([]);
         return;
       }
-      const response = await withTimeout(databases.listDocuments(dbId, colId), 4000);
+      const response = await withTimeout(databases.listDocuments(dbId, colId, [
+        Query.orderDesc('$createdAt'),
+        Query.limit(50)
+      ]), 4000);
 
       const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
       let profilesMap: Record<string, {name: string, avatar: string}> = {};
       try {
         if (profilesCol) {
-          const uploaderIds = Array.from(new Set(response.documents.map(v => v.uploaderId)));
+          const uploaderIds = Array.from(new Set(response.documents.map((v: any) => v.uploaderId).filter(Boolean))) as string[];
           if (uploaderIds.length > 0) {
-            const profilesResult = await withTimeout(databases.listDocuments(dbId, profilesCol), 2500);
-            profilesResult.documents.forEach(p => {
+            const chunks: string[][] = [];
+            for (let i = 0; i < uploaderIds.length; i += 50) chunks.push(uploaderIds.slice(i, i + 50));
+            const results = await Promise.all(chunks.map(ids => withTimeout(databases.listDocuments(dbId, profilesCol, [Query.equal('userId', ids)]), 2500)));
+            results.flatMap(r => r.documents).forEach((p: any) => {
               if (p.userId) {
                 profilesMap[p.userId] = {
                   name: p.name || '',
@@ -52,7 +58,7 @@ export default function Home() {
           }
         }
       } catch (pErr) {
-        console.log("Could not fetch profiles for latest avatars", pErr);
+        console.warn("Could not fetch profiles for latest avatars", pErr);
       }
 
       const formatted = response.documents.map(v => {
@@ -67,7 +73,7 @@ export default function Home() {
             channelHandle: profile?.handle || '',
             channelAvatar: profile?.avatar || v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
             views: v.views || 0,
-            uploadDate: t('video_recently'),
+            uploadDate: v.$createdAt,
             createdAt: v.$createdAt,
             category: v.category || 'All',
             contentType: v.contentType || 'video',
@@ -87,7 +93,7 @@ export default function Home() {
 
   useEffect(() => {
     fetchVideos();
-  }, [language]);
+  }, []);
 
   const isShort = (v: any) => v.contentType === 'shorts' || v.title?.toLowerCase().includes('#shorts') || v.description?.toLowerCase().includes('#shorts');
   const isPhoto = (v: any) => v.contentType === 'photo';

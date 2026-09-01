@@ -13,6 +13,23 @@ import { Query, ID } from 'appwrite';
 
 type AdminTab = 'dashboard' | 'analytics' | 'users' | 'reports' | 'content';
 
+const SidebarItem = ({ id, label, icon: Icon, activeTab, onSelect }: { id: AdminTab, label: string, icon: any, activeTab: AdminTab, onSelect: (id: AdminTab) => void }) => (
+  <button
+    onClick={() => onSelect(id)}
+    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all relative group ${
+      activeTab === id 
+        ? 'bg-[#70d6ff]/10 text-[#70d6ff] border border-[#70d6ff]/20' 
+        : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+    }`}
+  >
+    <Icon className={`w-5 h-5 ${activeTab === id ? 'text-[#70d6ff]' : 'text-slate-500 group-hover:text-slate-300'}`} />
+    <span className="truncate">{label}</span>
+    {activeTab === id && (
+       <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#70d6ff] rounded-r-full shadow-[0_0_10px_rgba(112,214,255,0.5)]" />
+    )}
+  </button>
+);
+
 export default function AdminPanel() {
   const { user, profile, isLoading: isAuthLoading } = useAuth();
   const { t, language } = useLanguage();
@@ -120,7 +137,7 @@ export default function AdminPanel() {
           })));
         } catch (err: any) {
           console.error("Videos Fetch Error:", err);
-          if (!errorDetails && !silent) setErrorDetails({ message: err.message, collection: "Videos" });
+          if (!silent) setErrorDetails(prev => prev ? prev : { message: err.message, collection: "Videos" });
         }
       }
     } catch (err: any) {
@@ -131,7 +148,7 @@ export default function AdminPanel() {
       if (refreshIcon) refreshIcon.classList.remove('animate-spin');
       isFetchingRef.current = false;
     }
-  }, [errorDetails]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -139,8 +156,10 @@ export default function AdminPanel() {
     const onRefresh = () => fetchData();
     window.addEventListener('refreshAdminData', onRefresh);
 
-    // Auto-refresh leaderboards every 3 seconds
-    const interval = setInterval(() => fetchData(true), 3000);
+    // Auto-refresh leaderboards every 3 seconds (paused when tab hidden)
+    const interval = setInterval(() => {
+      if (!document.hidden) fetchData(true);
+    }, 3000);
 
     return () => {
       window.removeEventListener('refreshAdminData', onRefresh);
@@ -204,23 +223,6 @@ export default function AdminPanel() {
     );
   }
 
-  const SidebarItem = ({ id, label, icon: Icon }: { id: AdminTab, label: string, icon: any }) => (
-    <button
-      onClick={() => setActiveTab(id)}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all relative group ${
-        activeTab === id 
-          ? 'bg-[#70d6ff]/10 text-[#70d6ff] border border-[#70d6ff]/20' 
-          : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-      }`}
-    >
-      <Icon className={`w-5 h-5 ${activeTab === id ? 'text-[#70d6ff]' : 'text-slate-500 group-hover:text-slate-300'}`} />
-      <span className="truncate">{label}</span>
-      {activeTab === id && (
-         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#70d6ff] rounded-r-full shadow-[0_0_10px_rgba(112,214,255,0.5)]" />
-      )}
-    </button>
-  );
-
   return (
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-120px)] bg-[#0a0f1e]/50 rounded-3xl overflow-hidden border ice-border mb-10 mx-4 sm:mx-0">
       <aside className="w-full md:w-64 bg-black/20 border-r ice-border flex flex-col p-4 gap-2 shrink-0">
@@ -235,11 +237,11 @@ export default function AdminPanel() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <SidebarItem id="dashboard" label={language === 'ru' ? 'Дашборд' : 'Dashboard'} icon={LayoutDashboard} />
-          <SidebarItem id="analytics" label={language === 'ru' ? 'Аналитика' : 'Analytics'} icon={BarChart3} />
-          <SidebarItem id="users" label={language === 'ru' ? 'Пользователи' : 'Users'} icon={Users} />
-          <SidebarItem id="reports" label={language === 'ru' ? 'Жалобы' : 'Reports'} icon={ShieldAlert} />
-          <SidebarItem id="content" label={language === 'ru' ? 'Контент' : 'Content'} icon={Video} />
+          <SidebarItem id="dashboard" label={language === 'ru' ? 'Дашборд' : 'Dashboard'} icon={LayoutDashboard} activeTab={activeTab} onSelect={setActiveTab} />
+          <SidebarItem id="analytics" label={language === 'ru' ? 'Аналитика' : 'Analytics'} icon={BarChart3} activeTab={activeTab} onSelect={setActiveTab} />
+          <SidebarItem id="users" label={language === 'ru' ? 'Пользователи' : 'Users'} icon={Users} activeTab={activeTab} onSelect={setActiveTab} />
+          <SidebarItem id="reports" label={language === 'ru' ? 'Жалобы' : 'Reports'} icon={ShieldAlert} activeTab={activeTab} onSelect={setActiveTab} />
+          <SidebarItem id="content" label={language === 'ru' ? 'Контент' : 'Content'} icon={Video} activeTab={activeTab} onSelect={setActiveTab} />
         </div>
 
         <div className="mt-6 px-4">

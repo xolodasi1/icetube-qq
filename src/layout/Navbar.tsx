@@ -1,4 +1,4 @@
-import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert, Settings, LayoutDashboard, Mic, Box, Snowflake } from "lucide-react";
+import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert, Settings, LayoutDashboard, Box, Snowflake } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../auth/AuthContext";
@@ -77,14 +77,18 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
     }
   };
 
+  const searchDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-    if (query.trim()) {
-      navigate(`/search?q=${encodeURIComponent(query.trim())}`);
-    } else {
-      navigate(`/search`);
-    }
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      if (query.trim()) {
+        navigate(`/search?q=${encodeURIComponent(query.trim())}`);
+      } else {
+        navigate(`/search`);
+      }
+    }, 350);
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -152,13 +156,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
             className="w-full bg-white/5 border ice-border rounded-full py-2 px-6 pl-10 text-sm focus:outline-none focus:border-blue-400/50 transition-colors placeholder:text-slate-500 text-slate-200"
           />
         </form>
-        <button 
-          type="button"
-          className="w-10 h-10 shrink-0 rounded-full bg-white/5 hover:bg-[rgba(112,214,255,0.08)] border ice-border flex items-center justify-center transition-colors text-slate-300 hover:text-[#70d6ff]"
-          title={language === 'ru' ? 'Голосовой поиск' : 'Voice Search'}
-        >
-          <Mic className="w-5 h-5" />
-        </button>
+
       </div>
 
       <div className="flex items-center gap-1 sm:gap-4 shrink-0">
@@ -216,7 +214,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
                     {notifications.map((notif: any) => (
                       <Link 
                         key={notif.$id} 
-                        to={notif.videoId ? `/watch/${notif.videoId}` : `/channel/${notif.actorId}`}
+                        to={notif.videoId ? (notif.contentType === 'shorts' ? `/shorts/${notif.videoId}` : `/watch/${notif.videoId}`) : `/channel/${notif.actorId}`}
                         onClick={() => setShowNotification(false)}
                         className={`block p-4 hover:bg-white/5 transition-colors ${!notif.isRead ? 'bg-blue-500/5' : ''}`}
                       >

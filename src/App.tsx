@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Layout } from "./layout/Layout";
 import Home from "./pages/home/Home";
 import Watch from "./pages/watch/Watch";
-import ComingSoon from "./pages/misc/ComingSoon";
+import Library from "./pages/library/Library";
 import Channel from "./pages/channel/Channel";
 import AdminPanel from "./pages/admin/AdminPanel";
 import YourVideos from "./pages/library/YourVideos";
@@ -47,7 +47,7 @@ export default function App() {
           <Route path="/continue-watching" element={<ContinueWatching />} />
           <Route path="/playlists" element={<Playlists />} />
           <Route path="/downloads" element={<Downloads />} />
-          <Route path="/library" element={<ComingSoon />} />
+          <Route path="/library" element={<Library />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/history" element={<History />} />
           <Route path="/your-videos" element={<YourVideos />} />
@@ -60,10 +60,8 @@ export default function App() {
           <Route path="/top-channels" element={<TopChannels />} />
           <Route path="/clips" element={<Clips />} />
           <Route path="/music" element={<MusicPage />} />
-          <Route path="/movies" element={<ComingSoon />} />
           <Route path="/live" element={<Live />} />
           <Route path="/yt-music" element={<MusicPage />} />
-          <Route path="/yt-kids" element={<ComingSoon />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/settings" element={<Settings />} />
           {/* Catch-all route to redirect back to home for unhandled tabs */}

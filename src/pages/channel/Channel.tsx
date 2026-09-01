@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { databases } from "../../lib/appwrite";
-import { Query } from "appwrite";
+import { Query, ID } from "appwrite";
 import { Loader2, User, AlertCircle, Video, TrendingUp } from "lucide-react";
 import { useLanguage } from "../../language/LanguageContext";
 import { useAuth } from "../../auth/AuthContext";
@@ -51,7 +51,8 @@ export default function Channel() {
         // Fetch Videos
         const videosRes = await databases.listDocuments(dbId, videosColId, [
           Query.equal("uploaderId", id),
-          Query.orderDesc("$createdAt")
+          Query.orderDesc("$createdAt"),
+          Query.limit(5000)
         ]);
 
         const formattedVideos = videosRes.documents.map(v => ({
@@ -63,7 +64,7 @@ export default function Channel() {
           channelName: channelProfile ? (channelProfile.name || channelProfile.displayName) : v.uploaderName,
           channelAvatar: channelProfile ? (channelProfile.avatar || channelProfile.photoUrl) : (v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`),
           views: v.views || 0,
-          uploadDate: t('video_recently'),
+          uploadDate: v.$createdAt,
           duration: v.duration || '0:00',
           contentType: v.contentType || 'video',
           verified: v.verified || false,
@@ -109,7 +110,7 @@ export default function Channel() {
     };
 
     fetchChannelData();
-  }, [id, user, language, t]);
+  }, [id, user]);
 
   const handleSubscribe = async () => {
     if (!user || isSubbing || !id) return;
@@ -131,7 +132,7 @@ export default function Channel() {
           updateProfileStat(id, 'subscribersCount', -1);
         }
       } else {
-        await databases.createDocument(dbId, subsCol, "unique()", {
+        await databases.createDocument(dbId, subsCol, ID.unique(), {
           channelId: id,
           subscriberId: user.$id
         });

@@ -42,11 +42,22 @@ export default function Subscriptions() {
         const subscribedChannelIds = subsResponse.documents.map(sub => sub.channelId);
 
         // 2. Fetch channel profiles
+        const chunkIds = (ids: string[], size: number) => {
+          const out: string[][] = [];
+          for (let i = 0; i < ids.length; i += size) out.push(ids.slice(i, i + size));
+          return out;
+        };
+
         if (subscribedChannelIds.length > 0 && usersColId) {
-          const chanRes = await databases.listDocuments(dbId, usersColId, [
-            Query.equal('$id', subscribedChannelIds)
-          ]);
-          setChannels(chanRes.documents.map((doc: any) => ({
+          const chanResults = await Promise.all(
+            chunkIds(subscribedChannelIds, 50).map(ids =>
+              databases.listDocuments(dbId, usersColId, [
+                Query.equal('$id', ids)
+              ])
+            )
+          );
+          const chanDocs = chanResults.flatMap(r => r.documents);
+          setChannels(chanDocs.map((doc: any) => ({
             id: doc.$id,
             name: doc.name,
             avatar: doc.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.name)}`
@@ -55,12 +66,30 @@ export default function Subscriptions() {
 
         // 3. Fetch videos from these channels
         if (subscribedChannelIds.length > 0) {
-          const videosResponse = await databases.listDocuments(dbId, videosColId, [
-            Query.equal('uploaderId', subscribedChannelIds),
-            Query.orderDesc('$createdAt'),
-            Query.limit(50)
-          ]);
-          setVideos(videosResponse.documents);
+          const videoResults = await Promise.all(
+            chunkIds(subscribedChannelIds, 50).map(ids =>
+              databases.listDocuments(dbId, videosColId, [
+                Query.equal('uploaderId', ids),
+                Query.orderDesc('$createdAt'),
+                Query.limit(50)
+              ])
+            )
+          );
+          const videoDocs = videoResults.flatMap(r => r.documents);
+          setVideos(videoDocs.map((v: any) => ({
+            id: v.$id,
+            uploaderId: v.uploaderId,
+            title: v.title,
+            thumbnailUrl: v.thumbnailUrl,
+            videoUrl: v.videoUrl,
+            channelName: v.uploaderName || 'Unknown',
+            channelAvatar: v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName || 'User')}`,
+            views: v.views || 0,
+            uploadDate: v.$createdAt,
+            duration: v.duration || '0:00',
+            contentType: v.contentType || 'video',
+            verified: v.verified || false
+          })));
         } else {
           setVideos([]);
         }
@@ -163,7 +192,7 @@ export default function Subscriptions() {
       ) : currentList.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
           {currentList.map((video) => (
-            <VideoCard key={video.$id} video={video} />
+            <VideoCard key={video.id} video={video} />
           ))}
         </div>
       ) : (

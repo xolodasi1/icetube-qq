@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { databases } from '../../lib/appwrite';
+import { Query } from 'appwrite';
 import { Search as SearchIcon, Loader2, SlidersHorizontal, X, Image, Film, Scissors, Eye, Clock, ArrowUpDown } from 'lucide-react';
 import { useLanguage } from '../../language/LanguageContext';
 import { getOptimizedThumbnail } from '../../lib/cloudinary';
@@ -34,7 +35,7 @@ export default function SearchPage() {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
         if (dbId && colId) {
-          const res = await databases.listDocuments(dbId, colId);
+          const res = await databases.listDocuments(dbId, colId, [Query.orderDesc('$createdAt'), Query.limit(100)]);
           setDbVideos(res.documents);
         }
       } catch (err) {

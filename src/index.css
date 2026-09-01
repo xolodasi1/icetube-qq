@@ -84,7 +84,7 @@ body.light-mode .bg-\[\#05070a\]\/95 {
   backdrop-filter: blur(10px);
 }
 
-..sidebar-item {
+.sidebar-item {
   transition: all 0.2s ease;
 }
 

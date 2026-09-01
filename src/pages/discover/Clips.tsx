@@ -26,7 +26,7 @@ export default function Clips() {
         ]);
         
         const formatted = response.documents
-          .filter(v => v.contentType === 'clip' || v.contentType === 'short')
+          .filter(v => v.contentType === 'shorts')
           .map(v => ({
             id: v.$id,
             uploaderId: v.uploaderId,
@@ -36,8 +36,9 @@ export default function Clips() {
             channelAvatar: v.uploaderAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${v.uploaderId}`,
             views: v.views || 0,
             verified: v.verified || false,
-            uploadDate: t('video_recently'),
-            duration: v.duration || '0:00'
+            uploadDate: v.$createdAt,
+            duration: v.duration || '0:00',
+            contentType: 'shorts'
           }));
 
         setClips(formatted);
@@ -49,7 +50,7 @@ export default function Clips() {
     };
 
     fetchClips();
-  }, [language]);
+  }, []);
 
   return (
     <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative mt-16 sm:mt-0">

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { getCurrentUser, logout, databases, withTimeout } from '../lib/appwrite';
 import { Models, Query } from 'appwrite';
 import AuthModal from './AuthModal';
@@ -69,13 +69,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const checkUserStatus = async () => {
         setIsLoading(true);
-        console.log("Checking user status...");
         try {
             // Auth check must not fail fast: a slow-but-working connection
             // (typical for Firefox / RU networks) must be allowed to finish
             const currentUser = await withTimeout(getCurrentUser(), 10000);
-            // Log ID instead of the full user object to avoid serialization issues
-            console.log("Current user ID:", currentUser?.$id || "No user found");
+
             setUser(currentUser);
             if (currentUser) {
                 try {
@@ -137,7 +135,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 }
             } else {
                 // 3. Create profile if missing, use u.$id as document ID
-                console.log("Creating missing profile for", u.$id);
                 try {
                     const newDoc = await databases.createDocument(dbId, usersColId, u.$id, {
                         userId: u.$id,
@@ -188,24 +185,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    const refreshProfile = async () => {
+    const refreshProfile = useCallback(async () => {
         if (user) {
             await ensureUserProfile(user);
         }
-    }
+    }, [user]);
 
-    const logoutUser = async () => {
+    const logoutUser = useCallback(async () => {
         await logout();
         setUser(null);
         setProfile(null);
-    };
+    }, []);
 
-    const login = () => {
+    const login = useCallback(() => {
         setIsAuthModalOpen(true);
-    };
+    }, []);
+
+    const value = useMemo(() => ({ user, profile, isLoading, login, logoutUser, refreshProfile, checkUserStatus }), [user, profile, isLoading, login, logoutUser, refreshProfile, checkUserStatus]);
 
     return (
-        <AuthContext.Provider value={{ user, profile, isLoading, login, logoutUser, refreshProfile, checkUserStatus }}>
+        <AuthContext.Provider value={value}>
             {children}
             {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} />}
         </AuthContext.Provider>

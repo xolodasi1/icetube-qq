@@ -4,7 +4,7 @@ import { VideoCard } from '../../components/VideoCard';
 import { Trash2, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SafeStorage } from '../../lib/storage';
-import { databases } from '../../lib/appwrite';
+import { databases, withTimeout } from '../../lib/appwrite';
 import { Query, ID } from 'appwrite';
 import { useAuth } from '../../auth/AuthContext';
 

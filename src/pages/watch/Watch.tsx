@@ -1,7 +1,7 @@
-import { Params, useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock, AlertTriangle, MessageCircle, Send, Settings } from "lucide-react";
 import { VideoCard } from "../../components/VideoCard";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { databases, Permission, Role, withTimeout } from "../../lib/appwrite";
 import { Query, ID } from "appwrite";
 import { useAuth } from "../../auth/AuthContext";
@@ -68,6 +68,9 @@ export default function Watch() {
   const [currentPlayTime, setCurrentPlayTime] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
 
+  const lastTimeUpdateRef = useRef(0);
+  const lastProgressSaveRef = useRef(0);
+
   const formatDuration = (seconds: number) => {
     if (!seconds || isNaN(seconds)) return '0:00';
     const h = Math.floor(seconds / 3600);
@@ -101,12 +104,25 @@ export default function Watch() {
     } catch { return ''; }
   };
 
-  const sortedComments = [...comments.filter(c => !c.parentId)].sort((a, b) => {
-    if (commentSort === 'newest') return new Date(b.$createdAt || 0).getTime() - new Date(a.$createdAt || 0).getTime();
-    if (commentSort === 'oldest') return new Date(a.$createdAt || 0).getTime() - new Date(b.$createdAt || 0).getTime();
-    if (commentSort === 'top') return (b.likes || 0) - (a.likes || 0);
-    return 0;
-  });
+  const repliesByParent = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const c of comments) {
+      if (!c.parentId) continue;
+      const arr = map.get(c.parentId);
+      if (arr) arr.push(c);
+      else map.set(c.parentId, [c]);
+    }
+    return map;
+  }, [comments]);
+
+  const sortedComments = useMemo(() => {
+    return [...comments.filter(c => !c.parentId)].sort((a, b) => {
+      if (commentSort === 'newest') return new Date(b.$createdAt || 0).getTime() - new Date(a.$createdAt || 0).getTime();
+      if (commentSort === 'oldest') return new Date(a.$createdAt || 0).getTime() - new Date(b.$createdAt || 0).getTime();
+      if (commentSort === 'top') return (b.likes || 0) - (a.likes || 0);
+      return 0;
+    });
+  }, [comments, commentSort]);
 
   const handleVideoError = (e: any) => {
     console.error("Video Playback Error");
@@ -582,7 +598,7 @@ export default function Watch() {
             channelName: uploaderProfile?.name || currentDoc.uploaderName,
             channelAvatar: uploaderProfile?.avatar || currentDoc.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentDoc.uploaderName || 'User')}`,
             views: currentDoc.views || 0,
-            uploadDate: t('video_recently'),
+            uploadDate: currentDoc.$createdAt,
             description: currentDoc.description || t('video_no_description'),
             category: currentDoc.category || 'All',
             contentType: currentDoc.contentType || 'video',
@@ -624,7 +640,7 @@ export default function Watch() {
                 channelHandle: '',
                 channelAvatar: v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
                 views: v.views || 0,
-                uploadDate: t('video_recently'),
+                uploadDate: v.$createdAt,
                 createdAt: v.$createdAt,
                 category: v.category || 'All',
                 verified: v.verified || false,
@@ -678,7 +694,7 @@ export default function Watch() {
     };
 
     fetchVideoData();
-  }, [id, user, language]);
+  }, [id, user]);
 
 
 
@@ -686,8 +702,8 @@ export default function Watch() {
     const mainContainer = document.querySelector('main');
     
     const handleScroll = () => {
-      if (!mainContainer) return;
-      if (mainContainer.scrollTop > 320) {
+      const scrollTop = mainContainer ? mainContainer.scrollTop : window.scrollY;
+      if (scrollTop > 320) {
         setIsFloating(true);
       } else {
         setIsFloating(false);
@@ -696,24 +712,15 @@ export default function Watch() {
     };
 
     if (mainContainer) {
-      mainContainer.addEventListener('scroll', handleScroll);
+      mainContainer.addEventListener('scroll', handleScroll, { passive: true });
     }
-
-    const handleWindowScroll = () => {
-      if (window.scrollY > 320) {
-        setIsFloating(true);
-      } else {
-        setIsFloating(false);
-        setIsMiniClosed(false);
-      }
-    };
-    window.addEventListener('scroll', handleWindowScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
       if (mainContainer) {
         mainContainer.removeEventListener('scroll', handleScroll);
       }
-      window.removeEventListener('scroll', handleWindowScroll);
+      window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
@@ -1267,33 +1274,16 @@ export default function Watch() {
   const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     if (!video) return;
     const target = e.target as HTMLVideoElement;
-    const progress = target.currentTime / target.duration;
-    setCurrentPlayTime(target.currentTime);
-    if (target.duration && !isNaN(target.duration)) setVideoDuration(target.duration);
-    
-    // Only save if watched between 5% and 95%
-    if (progress > 0.05 && progress < 0.95) {
-      try {
-        const saved = SafeStorage.get('watching_progress', {});
-        saved[video.id] = {
-          videoId: video.id,
-          title: video.title,
-          thumbnailUrl: video.thumbnailUrl,
-          channelName: video.channelName,
-          channelAvatar: video.channelAvatar,
-          uploaderId: video.uploaderId,
-          views: video.views,
-          uploadDate: video.uploadDate,
-          progress: progress,
-          currentTime: target.currentTime,
-          timestamp: Date.now()
-        };
-        SafeStorage.set('watching_progress', saved);
-      } catch(err) {
-         console.error('Error saving progress', err);
-      }
-    } else if (progress >= 0.95) {
-      // Remove it if watched to completion
+    const now = Date.now();
+    const progress = target.duration ? target.currentTime / target.duration : 0;
+
+    if (now - lastTimeUpdateRef.current > 1000) {
+      lastTimeUpdateRef.current = now;
+      setCurrentPlayTime(target.currentTime);
+      if (target.duration && !isNaN(target.duration)) setVideoDuration(target.duration);
+    }
+
+    if (progress >= 0.95) {
       try {
         const saved = SafeStorage.get('watching_progress', {});
         if (saved[video.id]) {
@@ -1301,6 +1291,31 @@ export default function Watch() {
           SafeStorage.set('watching_progress', saved);
         }
       } catch(err) {}
+      return;
+    }
+
+    if (progress <= 0.05) return;
+
+    if (now - lastProgressSaveRef.current < 5000) return;
+    lastProgressSaveRef.current = now;
+    try {
+      const saved = SafeStorage.get('watching_progress', {});
+      saved[video.id] = {
+        videoId: video.id,
+        title: video.title,
+        thumbnailUrl: video.thumbnailUrl,
+        channelName: video.channelName,
+        channelAvatar: video.channelAvatar,
+        uploaderId: video.uploaderId,
+        views: video.views,
+        uploadDate: video.uploadDate,
+        progress: progress,
+        currentTime: target.currentTime,
+        timestamp: Date.now()
+      };
+      SafeStorage.set('watching_progress', saved);
+    } catch(err) {
+      console.error('Error saving progress', err);
     }
   };
 
@@ -1925,7 +1940,7 @@ export default function Watch() {
 
           <div className="mt-8 flex flex-col gap-6">
             {sortedComments.map((comment) => {
-              const replies = comments.filter(reply => reply.parentId === comment.id);
+              const replies = repliesByParent.get(comment.id) || [];
               const repliesToShow = replies.slice(0, expandedReplies.has(comment.id) ? replies.length : 3);
               const hiddenCount = replies.length - 3;
               return (
@@ -2218,8 +2233,10 @@ export default function Watch() {
                           <Link to={`/shorts`} key={short.id} className="min-w-[140px] max-w-[140px] flex flex-col gap-2 snap-start group">
                            <div className="w-full aspect-[9/16] rounded-xl overflow-hidden bg-slate-800 relative">
                              <img 
-                               src={getOptimizedThumbnail(short.thumbnailUrl) || '/placeholder-thumb.jpg'} 
+                               src={getOptimizedThumbnail(short.thumbnailUrl) || `https://placehold.co/140x250/0f1115/70d6ff`} 
                                alt={short.title} 
+                               loading="lazy"
+                               decoding="async"
                                className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
                                onError={(e) => {
                                  (e.target as HTMLImageElement).src = `https://placehold.co/140x250/0f1115/70d6ff?text=${encodeURIComponent(short.title.substring(0, 5))}`;

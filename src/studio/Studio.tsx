@@ -67,7 +67,7 @@ export default function Studio() {
           await databases.updateDocument(dbId, colId, editingVideo.id, updateData);
         } catch (firstErr: any) {
           if (firstErr.code === 400 && firstErr.message?.toLowerCase().includes('unknown attribute')) {
-            console.log("Retrying update without category, contentType, and game");
+            console.warn("Retrying update without category, contentType, and game");
             updateData = {
               title: editingVideo.title,
               description: editingVideo.description
@@ -96,7 +96,9 @@ export default function Studio() {
       if (!dbId || !colId) return;
 
       const response = await databases.listDocuments(dbId, colId, [
-        Query.equal('uploaderId', user.$id)
+        Query.equal('uploaderId', user.$id),
+        Query.orderDesc('$createdAt'),
+        Query.limit(5000)
       ]);
 
       const userVids = response.documents.map(v => ({
@@ -259,13 +261,13 @@ export default function Studio() {
     if (studioTab === 'analytics' && videos.length > 0) {
       fetchAnalytics();
     }
-  }, [studioTab, videos]);
+  }, [studioTab, videos.length]);
 
   useEffect(() => {
     fetchStats();
     const interval = setInterval(fetchStats, 15000);
     return () => clearInterval(interval);
-  }, [user, language]);
+  }, [user]);
 
   const combinedActivity = [
     ...analyticsComments.map(c => ({ ...c, icon: 'comment' as const })),

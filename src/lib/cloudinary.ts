@@ -115,12 +115,17 @@ export const uploadImageToCloudinaryWithProgress = async (file: File, onProgress
   });
 };
 
-export const getOptimizedThumbnail = (url: string | undefined): string => {
+export const getOptimizedThumbnail = (url: string | undefined, width: number = 640): string => {
   if (!url) return '';
   if (url.includes('res.cloudinary.com') && url.includes('/video/upload/')) {
     let newUrl = url;
-    if (!newUrl.includes('/so_')) {
-      newUrl = newUrl.replace('/video/upload/', '/video/upload/so_auto/');
+    const transforms: string[] = [];
+    if (!newUrl.includes('/so_')) transforms.push('so_auto');
+    if (!newUrl.includes('/w_')) transforms.push(`w_${width}`);
+    if (!newUrl.includes('/q_auto')) transforms.push('q_auto:good');
+    if (!newUrl.includes('/f_auto')) transforms.push('f_auto');
+    if (transforms.length > 0) {
+      newUrl = newUrl.replace('/video/upload/', `/video/upload/${transforms.join(',')}/`);
     }
     // Ensure the extension is .jpg for images
     if (newUrl.match(/\.(mp4|webm|mov|ogg|avi|wmv)$/i)) {

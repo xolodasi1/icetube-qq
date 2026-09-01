@@ -46,22 +46,26 @@ export default function Liked() {
             return;
         }
 
-        // 3. Fetch full video details for these IDs
-        // Appwrite doesn't have an "IN" operator for direct IDs list in a single batch easily if IDs exceed limit,
-        // but for small sets we can use multiple equal checks or a listDocuments with multiple Query.equal
-        
-        // Let's fetch all videos and filter (not most efficient but works for now in this project structure)
-        const videosRes = await databases.listDocuments(dbId, videosCol);
-        
-        const formatted = videosRes.documents
-          .filter(v => videoIds.includes(v.$id))
+        // 3. Fetch full video details for these IDs (chunked: Appwrite limits ~100 values per Query.equal)
+        const chunks: string[][] = [];
+        for (let i = 0; i < videoIds.length; i += 100) chunks.push(videoIds.slice(i, i + 100));
+
+        const videoRes = await Promise.all(
+          chunks.map(ids => databases.listDocuments(dbId, videosCol, [
+            Query.equal('$id', ids),
+            Query.limit(100)
+          ]))
+        );
+
+        const formatted = videoRes
+          .flatMap(r => r.documents)
           .map(v => ({
             id: v.$id,
             uploaderId: v.uploaderId,
             title: v.title,
             thumbnailUrl: v.thumbnailUrl,
-            channelName: v.channelName || 'User',
-            channelAvatar: v.channelAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${v.uploaderId}`,
+            channelName: v.uploaderName || 'User',
+            channelAvatar: v.uploaderAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${v.uploaderId}`,
             views: v.views || 0,
             uploadDate: v.$createdAt,
             contentType: v.contentType || 'video',

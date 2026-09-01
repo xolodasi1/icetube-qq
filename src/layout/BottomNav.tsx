@@ -20,7 +20,7 @@ export function BottomNav() {
 
   const items = [
     { icon: Home, label: t('nav_home'), path: "/", active: location.pathname === "/" && !activeCategory },
-    { icon: Compass, label: t('nav_explore'), path: "/?category=Explore", active: activeCategory === "Explore" },
+    { icon: Compass, label: t('nav_explore'), path: "/browse", active: location.pathname === "/browse" },
     { icon: PlusCircle, label: t('nav_upload'), path: "#", active: false, center: true, action: () => setShowCreateMenu(!showCreateMenu) },
     { icon: PlaySquare, label: t('nav_library'), path: "/library", active: location.pathname === "/library" },
     { icon: Library, label: t('nav_you'), path: "#", active: ['/your-videos', '/studio', '/channel/me', '/channel'].some(p => location.pathname.startsWith(p)) && location.pathname !== '/', action: () => setShowLibraryMenu(!showLibraryMenu) },

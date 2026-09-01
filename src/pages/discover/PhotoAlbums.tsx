@@ -39,12 +39,6 @@ export default function PhotoAlbums() {
 
   const loadAlbums = () => {
     try {
-      const colId = getAlbumsColId();
-      if (colId) {
-        // For now fallback to localStorage even if env var is set,
-        // since we still need a proper Appwrite schema.
-        // This matches Playlists pattern.
-      }
       const saved = SafeStorage.get<Album[]>(STORAGE_KEY, []);
       setAlbums(saved);
     } catch (e) {

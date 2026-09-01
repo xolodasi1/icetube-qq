@@ -96,7 +96,7 @@ export default function Shorts() {
             if (!existingIds.has(doc.$id)) docs.push(doc);
           });
         } catch (queryErr: any) {
-          console.log("Query by contentType failed, fetching all and filtering manually");
+          console.warn("Query by contentType failed, fetching all and filtering manually");
           const allRes = await databases.listDocuments(dbId, colId, [Query.limit(100), Query.orderDesc('$createdAt')]);
           const filtered = allRes.documents.filter((d: any) => d.contentType === 'shorts' || d.title?.toLowerCase().includes('#shorts') || d.description?.toLowerCase().includes('#shorts'));
           
@@ -115,14 +115,17 @@ export default function Shorts() {
           });
         }
 
-        // Fetch user profiles to enrich avatars
+        // Enrich avatars only for needed uploaders (chunked)
         const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
         if (profilesCol && docs.length > 0) {
           try {
-            const profilesResult = await databases.listDocuments(dbId, profilesCol);
-            const profilesMap = new Map(profilesResult.documents.map(p => [p.userId, p]));
-            docs = docs.map(doc => {
-               const profile = profilesMap.get(doc.uploaderId);
+            const uniqueIds = Array.from(new Set(docs.map((d: any) => d.uploaderId).filter(Boolean))) as string[];
+            const chunks: string[][] = [];
+            for (let i = 0; i < uniqueIds.length; i += 50) chunks.push(uniqueIds.slice(i, i + 50));
+            const results = await Promise.all(chunks.map(ids => databases.listDocuments(dbId, profilesCol, [Query.equal('userId', ids)])));
+            const profilesMap = new Map(results.flatMap(r => r.documents).map((p: any) => [p.userId, p]));
+            docs = docs.map((doc: any) => {
+               const profile = profilesMap.get(doc.uploaderId) as any;
                if (profile) {
                  return {
                    ...doc,
@@ -148,7 +151,7 @@ export default function Shorts() {
           uploaderAvatar: doc.uploaderAvatar,
           views: doc.views || 0,
           description: doc.description,
-          contentType: doc.contentType || 'short',
+          contentType: doc.contentType || 'shorts',
           verified: doc.verified || false,
         }));
 
@@ -172,7 +175,7 @@ export default function Shorts() {
       }
     };
     fetchShorts();
-  }, [id, language]);
+  }, [id]);
 
   const fetchInteractions = async (videoId: string, uploaderId: string) => {
     try {
@@ -240,51 +243,53 @@ export default function Shorts() {
   };
 
   useEffect(() => {
-    if (videos.length > 0) {
-      const current = videos[currentVideoIndex];
-      fetchInteractions(current.$id, current.uploaderId);
-      if (showComments) fetchComments(current.$id);
+    if (videos.length === 0) return;
+    const current = videos[currentVideoIndex];
+    if (!current) return;
+    fetchInteractions(current.$id, current.uploaderId);
+    if (showComments) fetchComments(current.$id);
 
-      // Add to History
-      try {
-        let history = SafeStorage.get('watch_history', []);
-        history = history.filter((v: any) => v.id !== current.$id);
-        history.unshift({
-          id: current.$id,
-          title: current.title,
-          channelName: current.uploaderName,
-          channelAvatar: current.uploaderAvatar,
-          views: current.views || 0,
-          thumbnailUrl: current.thumbnailUrl,
-          videoUrl: current.videoUrl,
-          uploadDate: 'Recently',
-          timestamp: Date.now(),
-          contentType: 'shorts'
-        });
-        if (history.length > 100) history = history.slice(0, 100);
-        SafeStorage.set('watch_history', history);
-      } catch (e) {
-        console.error("Failed to save to history", e);
-      }
-
-      // Increment view count
-      const runViewUpdate = async () => {
-        try {
-          const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-          const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
-          if (dbId && colId) {
-            const increment = Math.floor(Math.random() * 3) + 1;
-            await databases.updateDocument(dbId, colId, current.$id, {
-              views: (current.views || 0) + increment
-            });
-          }
-        } catch (e) {
-          console.error("View increment failed:", e);
-        }
-      };
-      runViewUpdate();
+    // Add to History
+    try {
+      let history = SafeStorage.get('watch_history', []);
+      history = history.filter((v: any) => v.id !== current.$id);
+      history.unshift({
+        id: current.$id,
+        title: current.title,
+        channelName: current.uploaderName,
+        channelAvatar: current.uploaderAvatar,
+        views: current.views || 0,
+        thumbnailUrl: current.thumbnailUrl,
+        videoUrl: current.videoUrl,
+        uploadDate: 'Recently',
+        timestamp: Date.now(),
+        contentType: 'shorts'
+      });
+      if (history.length > 100) history = history.slice(0, 100);
+      SafeStorage.set('watch_history', history);
+    } catch (e) {
+      console.error("Failed to save to history", e);
     }
-  }, [currentVideoIndex, videos, user, language]);
+
+    // Increment view count (read fresh value to avoid stale overwrite)
+    const runViewUpdate = async () => {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+        if (dbId && colId) {
+          const fresh = await databases.getDocument(dbId, colId, current.$id).catch(() => null);
+          const base = fresh ? (fresh as any).views : current.views;
+          const increment = Math.floor(Math.random() * 3) + 1;
+          await databases.updateDocument(dbId, colId, current.$id, {
+            views: (base || 0) + increment
+          });
+        }
+      } catch (e) {
+        console.error("View increment failed:", e);
+      }
+    };
+    runViewUpdate();
+  }, [currentVideoIndex]);
 
   useEffect(() => {
     if (showComments && videos.length > 0) {
@@ -475,17 +480,30 @@ export default function Shorts() {
       const authorAvatar = user && profile?.avatar ? profile.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random`;
       const authorId = user ? user.$id : 'anonymous';
 
-      const res = await databases.createDocument(dbId, commsCol, ID.unique(), {
-        videoId: current.$id,
-        authorId: authorId,
-        authorName: authorName,
-        authorAvatar: authorAvatar,
-        text: newComment,
-        likes: 0,
-        likedBy: [],
-        dislikedBy: [],
-        parentId: null
-      });
+      let res: any;
+      try {
+        res = await databases.createDocument(dbId, commsCol, ID.unique(), {
+          videoId: current.$id,
+          authorId: authorId,
+          authorName: authorName,
+          authorAvatar: authorAvatar,
+          text: newComment,
+          likes: 0,
+          likedBy: [],
+          dislikedBy: [],
+          parentId: null
+        });
+      } catch (createErr: any) {
+        if (createErr.code === 400 && createErr.message?.toLowerCase().includes('unknown attribute')) {
+          res = await databases.createDocument(dbId, commsCol, ID.unique(), {
+            videoId: current.$id,
+            authorId: authorId,
+            authorName: authorName,
+            authorAvatar: authorAvatar,
+            text: newComment
+          });
+        } else throw createErr;
+      }
 
       setComments([{
         id: res.$id,
@@ -540,17 +558,31 @@ export default function Shorts() {
       const authorAvatar = user && profile?.avatar ? profile.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random`;
       const authorId = user ? user.$id : 'anonymous';
 
-      const res = await databases.createDocument(dbId, commsCol, ID.unique(), {
-        videoId: current.$id,
-        authorId: authorId,
-        authorName: authorName,
-        authorAvatar: authorAvatar,
-        text: replyText,
-        likes: 0,
-        likedBy: [],
-        dislikedBy: [],
-        parentId: parentId
-      });
+      let res: any;
+      try {
+        res = await databases.createDocument(dbId, commsCol, ID.unique(), {
+          videoId: current.$id,
+          authorId: authorId,
+          authorName: authorName,
+          authorAvatar: authorAvatar,
+          text: replyText,
+          likes: 0,
+          likedBy: [],
+          dislikedBy: [],
+          parentId: parentId
+        });
+      } catch (createErr: any) {
+        if (createErr.code === 400 && createErr.message?.toLowerCase().includes('unknown attribute')) {
+          res = await databases.createDocument(dbId, commsCol, ID.unique(), {
+            videoId: current.$id,
+            authorId: authorId,
+            authorName: authorName,
+            authorAvatar: authorAvatar,
+            text: replyText,
+            parentId: parentId
+          });
+        } else throw createErr;
+      }
 
       setComments([...comments, {
         id: res.$id,

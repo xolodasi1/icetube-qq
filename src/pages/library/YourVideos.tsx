@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { databases } from '../../lib/appwrite';
+import { Query } from 'appwrite';
 import { VideoCard } from '../../components/VideoCard';
 import { Loader2, Video, AlertCircle, Plus } from 'lucide-react';
 import { UploadModal } from '../../studio/UploadModal';
@@ -28,10 +29,13 @@ export default function YourVideos() {
         throw new Error(language === 'ru' ? "Отсутствуют ID базы данных или коллекции." : "Missing Database or Collection IDs. Please check your admin configuration.");
       }
 
-      const response = await databases.listDocuments(dbId, colId);
+      const response = await databases.listDocuments(dbId, colId, [
+        Query.equal('uploaderId', user.$id),
+        Query.orderDesc('$createdAt'),
+        Query.limit(5000)
+      ]);
       
       const userVids = response.documents
-        .filter((v: any) => v.uploaderId === user.$id)
         .map((v: any) => ({
           id: v.$id,
           uploaderId: v.uploaderId,

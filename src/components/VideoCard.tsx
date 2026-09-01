@@ -2,8 +2,9 @@ import { Link } from "react-router-dom";
 import { Video } from "../types";
 import clsx from "clsx";
 import { useLanguage } from "../language/LanguageContext";
-import { Check, Zap, MoreVertical } from "lucide-react";
+import { Check, Zap } from "lucide-react";
 import { getOptimizedThumbnail } from "../lib/cloudinary";
+import { memo } from "react";
 
 interface VideoCardProps {
   video: Video;
@@ -12,7 +13,7 @@ interface VideoCardProps {
   key?: string | number;
 }
 
-export function VideoCard({ video, layout = "grid", hideDetails = false }: VideoCardProps) {
+export const VideoCard = memo(function VideoCard({ video, layout = "grid", hideDetails = false }: VideoCardProps) {
   const { t, language } = useLanguage();
   const formatViews = (views: number) => {
     if (language === 'ru') {
@@ -36,6 +37,8 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
         <img 
           src={getOptimizedThumbnail(video.thumbnailUrl)} 
           alt={video.title} 
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           referrerPolicy="no-referrer"
           onError={(e) => {
@@ -66,6 +69,8 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
         <img 
           src={getOptimizedThumbnail(video.thumbnailUrl)} 
           alt={video.title} 
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           referrerPolicy="no-referrer"
           onError={(e) => {
@@ -106,11 +111,13 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
           ) : (
             <div className="flex gap-2.5">
               <Link to={`/channel/${video.uploaderId}`} className="shrink-0 mt-0.5">
-                <img 
-                  src={video.channelAvatar} 
-                  alt={video.channelName} 
-                  className="w-9 h-9 rounded-full object-cover bg-slate-600 ring-1 ring-white/10 hover:ring-[#70d6ff]/50 transition-all"
-                  referrerPolicy="no-referrer"
+                  <img 
+                   src={video.channelAvatar} 
+                   alt={video.channelName} 
+                   loading="lazy"
+                   decoding="async"
+                   className="w-9 h-9 rounded-full object-cover bg-slate-600 ring-1 ring-white/10 hover:ring-[#70d6ff]/50 transition-all"
+                   referrerPolicy="no-referrer"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(video.channelName || 'User')}&background=random`;
                   }}
@@ -121,9 +128,7 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
                   <Link to={targetUrl} className="text-sm font-bold text-slate-100 line-clamp-2 group-hover:text-[#70d6ff] transition-colors leading-tight">
                     {video.title}
                   </Link>
-                  <button className="text-slate-500 hover:text-white shrink-0 p-0.5 -mr-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
+
                 </div>
                 <Link to={`/channel/${video.uploaderId}`} className="text-slate-400 text-[13px] hover:text-slate-200 transition-colors truncate leading-tight mt-px">
                   {video.channelName}
@@ -146,4 +151,4 @@ export function VideoCard({ video, layout = "grid", hideDetails = false }: Video
       )}
     </div>
   );
-}
+});
