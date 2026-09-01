@@ -53,13 +53,13 @@ export default function Studio() {
     
     try {
       if (dbId && colId) {
-          let isShorts = editingVideo.contentType === 'shorts' || editingVideo.title?.toLowerCase().includes('#shorts') || editingVideo.description?.toLowerCase().includes('#shorts');
+          let isShorts = editingVideo.contentType === 'shorts' || (editingVideo.contentType !== 'photo' && (editingVideo.title?.toLowerCase().includes('#shorts') || editingVideo.description?.toLowerCase().includes('#shorts')));
           
           let updateData = {
             title: editingVideo.title,
-            description: isShorts ? (editingVideo.description.toLowerCase().includes('#shorts') ? editingVideo.description : `${editingVideo.description}\n\n#shorts`).trim() : editingVideo.description,
+            description: editingVideo.contentType === 'photo' ? editingVideo.description : (isShorts ? (editingVideo.description.toLowerCase().includes('#shorts') ? editingVideo.description : `${editingVideo.description}\n\n#shorts`).trim() : editingVideo.description),
             category: editingVideo.category,
-            contentType: isShorts ? 'shorts' : (editingVideo.contentType || 'video'),
+            contentType: editingVideo.contentType === 'photo' ? 'photo' : isShorts ? 'shorts' : (editingVideo.contentType || 'video'),
             game: editingVideo.game
           };
 
@@ -449,8 +449,8 @@ export default function Studio() {
                           <p className="text-sm text-white font-medium line-clamp-1 break-all">{v.title}</p>
                           <p className="text-[10px] text-slate-500"><Eye className="w-3 h-3 inline mr-1" />{v.views}</p>
                         </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${v.contentType === 'shorts' ? 'bg-teal-500/10 text-teal-400' : 'bg-purple-500/10 text-purple-400'}`}>
-                          {v.contentType === 'shorts' ? 'Short' : 'Video'}
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${v.contentType === 'shorts' ? 'bg-teal-500/10 text-teal-400' : v.contentType === 'photo' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-purple-500/10 text-purple-400'}`}>
+                          {v.contentType === 'shorts' ? 'Short' : v.contentType === 'photo' ? 'Photo' : 'Video'}
                         </span>
                       </div>
                     ))}
@@ -784,11 +784,11 @@ export default function Studio() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">{t('upload_type')}</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setEditingVideo({ ...editingVideo, contentType: 'video' })}
-                    className={`px-4 py-2 text-sm rounded-lg border transition-colors ${editingVideo.contentType !== 'shorts' ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"}`}
+                    className={`px-4 py-2 text-sm rounded-lg border transition-colors ${(editingVideo.contentType || 'video') === 'video' ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"}`}
                   >
                     {t('upload_video')}
                   </button>
@@ -798,6 +798,13 @@ export default function Studio() {
                     className={`px-4 py-2 text-sm rounded-lg border transition-colors ${editingVideo.contentType === 'shorts' ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"}`}
                   >
                     {t('upload_shorts')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingVideo({ ...editingVideo, contentType: 'photo' })}
+                    className={`px-4 py-2 text-sm rounded-lg border transition-colors ${editingVideo.contentType === 'photo' ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"}`}
+                  >
+                    {language === 'ru' ? 'Фото' : 'Photo'}
                   </button>
                 </div>
               </div>

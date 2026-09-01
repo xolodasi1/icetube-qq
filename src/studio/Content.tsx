@@ -97,13 +97,13 @@ export default function Content() {
     const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
     if (!dbId || !colId) return;
     try {
-      let isShorts = editingVideo.contentType === 'shorts' || editingVideo.title?.toLowerCase().includes('#shorts') || (editingVideo.description || '').toLowerCase().includes('#shorts');
+      let isShorts = editingVideo.contentType === 'shorts' || (editingVideo.contentType !== 'photo' && (editingVideo.title?.toLowerCase().includes('#shorts') || (editingVideo.description || '').toLowerCase().includes('#shorts')));
       const desc = editingVideo.description || '';
       let updateData = {
         title: editingVideo.title,
-        description: isShorts ? (desc.toLowerCase().includes('#shorts') ? desc : `${desc}\n\n#shorts`).trim() : desc,
+        description: editingVideo.contentType === 'photo' ? desc : (isShorts ? (desc.toLowerCase().includes('#shorts') ? desc : `${desc}\n\n#shorts`).trim() : desc),
         category: editingVideo.category,
-        contentType: isShorts ? 'shorts' : (editingVideo.contentType || 'video'),
+        contentType: editingVideo.contentType === 'photo' ? 'photo' : isShorts ? 'shorts' : (editingVideo.contentType || 'video'),
         game: editingVideo.game
       };
       try {
@@ -348,14 +348,18 @@ export default function Content() {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-300 mb-1">{t('upload_type')}</label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <button type="button" onClick={() => setEditingVideo({ ...editingVideo, contentType: 'video' })}
-                      className={`px-4 py-2 text-sm rounded-lg border transition-colors ${editingVideo.contentType !== 'shorts' ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"}`}>
+                      className={`px-4 py-2 text-sm rounded-lg border transition-colors ${(editingVideo.contentType || 'video') === 'video' ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"}`}>
                       {t('upload_video')}
                     </button>
                     <button type="button" onClick={() => setEditingVideo({ ...editingVideo, contentType: 'shorts' })}
                       className={`px-4 py-2 text-sm rounded-lg border transition-colors ${editingVideo.contentType === 'shorts' ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"}`}>
                       {t('upload_shorts')}
+                    </button>
+                    <button type="button" onClick={() => setEditingVideo({ ...editingVideo, contentType: 'photo' })}
+                      className={`px-4 py-2 text-sm rounded-lg border transition-colors ${editingVideo.contentType === 'photo' ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"}`}>
+                      {language === 'ru' ? 'Фото' : 'Photo'}
                     </button>
                   </div>
                 </div>

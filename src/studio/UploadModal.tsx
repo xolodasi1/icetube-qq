@@ -37,6 +37,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,6 +84,16 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   useEffect(() => {
     if (!isGamingCategory && game) setGame('');
   }, [isGamingCategory]);
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
   if (!isOpen) return null;
 
@@ -424,22 +435,45 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
               />
             </div>
           ) : (
-            <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/10">
-              <div className="w-12 h-12 bg-[#70d6ff]/20 rounded-lg flex items-center justify-center shrink-0">
-                {isImage ? <UploadCloud className="w-6 h-6 text-[#70d6ff]" /> : <PlayCircle className="w-6 h-6 text-[#70d6ff]" />}
+            <div className="flex flex-col gap-3 bg-white/5 p-3 rounded-xl border border-white/10">
+              <div className="relative w-full rounded-lg overflow-hidden bg-black flex items-center justify-center max-h-[260px]">
+                {previewUrl ? (
+                  isImage ? (
+                    <img src={previewUrl} alt="preview" className="w-full h-auto max-h-[260px] object-contain" />
+                  ) : (
+                    <video src={previewUrl} controls muted playsInline className={`w-full max-h-[260px] ${contentType === 'shorts' ? 'aspect-[9/16] max-w-[200px] mx-auto object-cover' : 'object-contain'}`} />
+                  )
+                ) : (
+                  <div className="w-12 h-12 bg-[#70d6ff]/20 rounded-lg flex items-center justify-center my-6">
+                    {isImage ? <UploadCloud className="w-6 h-6 text-[#70d6ff]" /> : <PlayCircle className="w-6 h-6 text-[#70d6ff]" />}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setFile(null)}
+                  className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 rounded-full text-white backdrop-blur-sm transition-colors"
+                  disabled={isUploading}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 rounded-full text-[10px] font-bold text-white backdrop-blur-sm">
+                  {isImage ? (language === 'ru' ? 'Фото' : 'Photo') : contentType === 'shorts' ? 'Shorts' : 'Видео'} • {(file.size / (1024 * 1024)).toFixed(2)} MB
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{file.name}</p>
-                <p className="text-xs text-slate-400">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+              <div className="flex items-center gap-3 px-1">
+                <div className="w-8 h-8 rounded-lg bg-[#70d6ff]/20 flex items-center justify-center shrink-0">
+                  {isImage ? <UploadCloud className="w-4 h-4 text-[#70d6ff]" /> : <PlayCircle className="w-4 h-4 text-[#70d6ff]" />}
+                </div>
+                <p className="text-sm font-medium text-white truncate flex-1">{file.name}</p>
+                <button
+                  type="button"
+                  onClick={() => setFile(null)}
+                  className="text-xs text-slate-400 hover:text-white transition-colors"
+                  disabled={isUploading}
+                >
+                  {language === 'ru' ? 'Удалить' : 'Remove'}
+                </button>
               </div>
-              <button 
-                type="button"
-                onClick={() => setFile(null)}
-                className="p-2 hover:bg-white/10 rounded-full text-slate-400"
-                disabled={isUploading}
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
           )}
 
