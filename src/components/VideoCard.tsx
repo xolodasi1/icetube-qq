@@ -26,6 +26,36 @@ export const VideoCard = memo(function VideoCard({ video, layout = "grid", hideD
     return views.toString();
   };
 
+  const viewsWord = (views: number) => {
+    if (language !== 'ru') return t('video_views');
+    const mod10 = views % 10;
+    const mod100 = views % 100;
+    if (mod10 === 1 && mod100 !== 11) return 'просмотр';
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'просмотра';
+    return 'просмотров';
+  };
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    if (dateStr.includes('назад') || dateStr.includes('ago') || dateStr.includes('только') || dateStr.includes('just')) return dateStr;
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const now = Date.now();
+      const diff = now - d.getTime();
+      if (diff < 0) return d.toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short' });
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return language === 'ru' ? 'только что' : 'just now';
+      if (mins < 60) return language === 'ru' ? `${mins} мин. назад` : `${mins}m ago`;
+      const hours = Math.floor(mins / 60);
+      if (hours < 24) return language === 'ru' ? `${hours} ч. назад` : `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      if (days < 7) return language === 'ru' ? `${days} д. назад` : `${days}d ago`;
+      if (days < 30) return language === 'ru' ? `${Math.floor(days/7)} нед. назад` : `${Math.floor(days/7)}w ago`;
+      return d.toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
+    } catch { return dateStr; }
+  };
+
   const isList = layout === "list";
   const isClip = layout === "clip";
   const isShortContentType = video.contentType === 'shorts' || video.title?.toLowerCase().includes('#shorts') || video.description?.toLowerCase().includes('#shorts');
@@ -48,10 +78,12 @@ export const VideoCard = memo(function VideoCard({ video, layout = "grid", hideD
             }
           }}
         />
-        <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col gap-1">
-          <h3 className="text-white font-bold line-clamp-2 text-sm drop-shadow-md">{video.title}</h3>
-          <div className="flex items-center gap-2 text-xs text-slate-300">
-             <span>{formatViews(video.views)} {t('video_views')}</span>
+        <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col gap-1">
+          <h3 className="text-white font-semibold line-clamp-2 text-sm leading-tight drop-shadow-md">{video.title}</h3>
+          <div className="flex items-center gap-2 text-xs text-slate-200">
+             <span>{formatViews(video.views)} {viewsWord(video.views)}</span>
+             <span className="w-0.5 h-0.5 rounded-full bg-white/60" />
+             <span>{formatDate(video.uploadDate || '')}</span>
           </div>
         </div>
         <div className="absolute inset-0 bg-[#70d6ff]/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -64,8 +96,8 @@ export const VideoCard = memo(function VideoCard({ video, layout = "grid", hideD
   }
 
   return (
-    <div className={clsx("group", isList ? "flex flex-row gap-3 w-full" : "video-card flex-col")}>
-      <Link to={targetUrl} className={clsx("shrink-0 video-thumb aspect-video block relative", isList ? "w-40 sm:w-48 rounded-xl overflow-hidden" : "w-full")}>
+    <div className={clsx("group", isList ? "flex flex-row gap-3 w-full" : "video-card flex flex-col gap-0")}>
+      <Link to={targetUrl} className={clsx("shrink-0 video-thumb aspect-video block relative overflow-hidden bg-slate-900", isList ? "w-40 sm:w-48 rounded-xl" : "w-full rounded-xl")}>
         <img 
           src={getOptimizedThumbnail(video.thumbnailUrl)} 
           alt={video.title} 
@@ -102,21 +134,21 @@ export const VideoCard = memo(function VideoCard({ video, layout = "grid", hideD
               <Link to={`/channel/${video.uploaderId}`} className="text-slate-400 text-xs hover:text-slate-200 transition-colors truncate mb-0.5">
                 {video.channelName}
               </Link>
-              <Link to={targetUrl} className="text-slate-500 text-xs flex items-center gap-1">
-                <span>{formatViews(video.views)} {t('video_views')}</span>
-                <span className="text-slate-600">•</span>
-                <span>{video.uploadDate}</span>
+              <Link to={targetUrl} className="text-slate-500 text-xs flex items-center gap-1.5">
+                <span>{formatViews(video.views)} {viewsWord(video.views)}</span>
+                <span className="w-0.5 h-0.5 rounded-full bg-slate-600" />
+                <span className="truncate">{formatDate(video.uploadDate)}</span>
               </Link>
             </>
           ) : (
-            <div className="flex gap-2.5">
-              <Link to={`/channel/${video.uploaderId}`} className="shrink-0 mt-0.5">
+            <div className="flex gap-3">
+              <Link to={`/channel/${video.uploaderId}`} className="shrink-0 mt-1">
                   <img 
                    src={video.channelAvatar} 
-                   alt={video.channelName} 
-                   loading="lazy"
-                   decoding="async"
-                   className="w-9 h-9 rounded-full object-cover bg-slate-600 ring-1 ring-white/10 hover:ring-[#70d6ff]/50 transition-all"
+                    alt={video.channelName} 
+                    loading="lazy"
+                    decoding="async"
+                    className="w-8 h-8 rounded-full object-cover bg-slate-700 ring-1 ring-white/10 hover:ring-[#70d6ff]/40 transition-all"
                    referrerPolicy="no-referrer"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(video.channelName || 'User')}&background=random`;
@@ -139,10 +171,10 @@ export const VideoCard = memo(function VideoCard({ video, layout = "grid", hideD
                 {video.channelHandle && (
                   <span className="text-slate-500 text-[11px] leading-tight">@{video.channelHandle}</span>
                 )}
-                <Link to={targetUrl} className="text-slate-500 text-[12px] flex items-center gap-1 leading-tight mt-px">
-                  <span>{formatViews(video.views)} {t('video_views')}</span>
-                  <span className="text-slate-700">•</span>
-                  <span>{video.uploadDate}</span>
+                <Link to={targetUrl} className="text-slate-500 text-xs flex items-center gap-1.5 leading-tight mt-1">
+                  <span>{formatViews(video.views)} {viewsWord(video.views)}</span>
+                  <span className="w-0.5 h-0.5 rounded-full bg-slate-600" />
+                  <span className="truncate">{formatDate(video.uploadDate)}</span>
                 </Link>
               </div>
             </div>

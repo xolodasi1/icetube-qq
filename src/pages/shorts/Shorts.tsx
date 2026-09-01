@@ -336,47 +336,52 @@ export default function Shorts() {
     })();
   };
 
+  const likeInFlight = useRef(false);
   const handleLike = async (isLike: boolean) => {
     if (!user) {
       alert(language === 'ru' ? 'Вам нужно войти в аккаунт, чтобы ставить оценки' : 'You must log in to rate videos');
       return;
     }
-    if (isLiking || videos.length === 0) return;
+    if (videos.length === 0 || likeInFlight.current) return;
     const current = videos[currentVideoIndex];
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const likesCol = import.meta.env.VITE_APPWRITE_LIKES_COLLECTION_ID;
     if (!dbId || !likesCol) return;
 
+    const actionType = isLike ? 'like' : 'dislike' as const;
+    const prevState = likeState;
+    const prevLikes = likesCount;
+    const prevDislikes = dislikesCount;
+
+    let nextState: 'none' | 'liked' | 'disliked' = 'none';
+    let deltaLikes = 0;
+    let deltaDislikes = 0;
+    if (prevState === 'liked' && isLike) { nextState = 'none'; deltaLikes = -1; }
+    else if (prevState === 'disliked' && !isLike) { nextState = 'none'; deltaDislikes = -1; }
+    else if (prevState === 'liked' && !isLike) { nextState = 'disliked'; deltaLikes = -1; deltaDislikes = 1; }
+    else if (prevState === 'disliked' && isLike) { nextState = 'liked'; deltaDislikes = -1; deltaLikes = 1; }
+    else if (prevState === 'none' && isLike) { nextState = 'liked'; deltaLikes = 1; }
+    else if (prevState === 'none' && !isLike) { nextState = 'disliked'; deltaDislikes = 1; }
+
+    setLikeState(nextState);
+    if (deltaLikes) setLikesCount(c => c + deltaLikes);
+    if (deltaDislikes) setDislikesCount(c => c + deltaDislikes);
+    if (isLike && deltaLikes > 0) updateProfileStat(current.uploaderId, 'likesCount', 1);
+    if (isLike && deltaLikes < 0) updateProfileStat(current.uploaderId, 'likesCount', -1);
+
+    likeInFlight.current = true;
     try {
-      setIsLiking(true);
-      const actionType = isLike ? 'like' : 'dislike';
       const res = await databases.listDocuments(dbId, likesCol, [
         Query.equal('videoId', current.$id),
         Query.equal('userId', user.$id)
       ]);
-      
       if (res.total > 0) {
         const existingDoc = res.documents[0];
         const existingType = existingDoc.type || 'like';
-
         if (existingType === actionType) {
           await databases.deleteDocument(dbId, likesCol, existingDoc.$id);
-          setLikeState('none');
-          if (isLike) {
-            setLikesCount(prev => prev - 1);
-            updateProfileStat(current.uploaderId, 'likesCount', -1);
-          }
         } else {
           await databases.updateDocument(dbId, likesCol, existingDoc.$id, { type: actionType });
-          setLikeState(actionType as 'liked' | 'disliked');
-          if (isLike) {
-            setLikesCount(prev => prev + 1);
-            updateProfileStat(current.uploaderId, 'likesCount', 1);
-          }
-          else {
-            setLikesCount(prev => prev - 1);
-            updateProfileStat(current.uploaderId, 'likesCount', -1);
-          }
         }
       } else {
         await databases.createDocument(dbId, likesCol, ID.unique(), {
@@ -384,10 +389,7 @@ export default function Shorts() {
           userId: user.$id,
           type: actionType
         });
-        setLikeState(actionType as 'liked' | 'disliked');
-        if (isLike) {
-          setLikesCount(prev => prev + 1);
-          updateProfileStat(current.uploaderId, 'likesCount', 1);
+        if (isLike && deltaLikes > 0) {
           createNotification({
             userId: current.uploaderId,
             actorId: user.$id,
@@ -397,13 +399,17 @@ export default function Shorts() {
             videoId: current.$id,
             videoTitle: current.title,
             contentType: 'shorts'
-          });
+          }).catch(()=>{});
         }
       }
     } catch (err) {
       console.error("Like failed in Shorts:", err);
+      setLikeState(prevState);
+      setLikesCount(prevLikes);
+      setDislikesCount(prevDislikes);
+      if (isLike && deltaLikes !== 0) updateProfileStat(current.uploaderId, 'likesCount', -deltaLikes);
     } finally {
-      setIsLiking(false);
+      likeInFlight.current = false;
     }
   };
 
@@ -694,8 +700,7 @@ export default function Shorts() {
             <div className="flex flex-col items-center gap-1 group">
                 <button 
                   onClick={() => handleLike(true)}
-                  disabled={isLiking}
-                  className={`w-12 h-12 rounded-full backdrop-blur-xl flex items-center justify-center transition-all ${likeState === 'liked' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.5)]' : 'bg-black/40 text-white hover:bg-white/20'}`}
+                  className={`w-12 h-12 rounded-full backdrop-blur-xl flex items-center justify-center transition-all active:scale-90 ${likeState === 'liked' ? 'bg-[#70d6ff] text-black shadow-[0_0_15px_rgba(112,214,255,0.5)]' : 'bg-black/40 text-white hover:bg-white/20'}`}
                 >
                     <ThumbsUp className={`w-6 h-6 ${likeState === 'liked' ? 'fill-current' : ''}`} />
                 </button>
@@ -705,8 +710,7 @@ export default function Shorts() {
             <div className="flex flex-col items-center gap-1 group">
                 <button 
                   onClick={() => handleLike(false)}
-                  disabled={isLiking}
-                  className={`w-12 h-12 rounded-full backdrop-blur-xl flex items-center justify-center transition-all ${likeState === 'disliked' ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-black/40 text-white hover:bg-white/20'}`}
+                  className={`w-12 h-12 rounded-full backdrop-blur-xl flex items-center justify-center transition-all active:scale-90 ${likeState === 'disliked' ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-black/40 text-white hover:bg-white/20'}`}
                 >
                     <ThumbsDown className={`w-6 h-6 ${likeState === 'disliked' ? 'fill-current' : ''}`} />
                 </button>

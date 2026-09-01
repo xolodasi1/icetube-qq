@@ -127,17 +127,17 @@ export default function Home() {
   ];
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-6 pt-2 sm:pt-0 pb-4 sm:pb-0">
+    <div className="flex flex-col gap-5 pt-3 sm:pt-1 pb-6">
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 px-4 sm:px-0 overflow-x-auto custom-scrollbar hide-scrollbar -mt-2 pb-2">
+      <div className="flex items-center gap-2.5 px-4 sm:px-0 overflow-x-auto custom-scrollbar hide-scrollbar pb-1">
         {filterTabs.map(tab => (
           <button
             key={tab.value}
             onClick={() => setActiveFilter(tab.value)}
-            className={`whitespace-nowrap px-4 py-1.5 rounded-lg text-sm transition-all ${
+            className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-all border ${
               activeFilter === tab.value
-                ? "bg-blue-500 text-white font-medium shadow-[0_0_10px_rgba(59,130,246,0.5)] scale-105"
-                : "bg-white/5 border ice-border text-slate-300 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff]"
+                ? "bg-white text-black border-white shadow-sm"
+                : "bg-white/[0.06] border-white/10 text-slate-300 hover:bg-white/10 hover:text-white hover:border-white/20"
             }`}
           >
             {tab.label}
@@ -184,8 +184,8 @@ export default function Home() {
               return (
                 <>
                   {regs.length > 0 && (
-                    <div className="mb-8">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-y-4 sm:gap-y-8 gap-x-4 px-4 sm:px-0">
+                    <div className="mb-10">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-6 px-4 sm:px-0">
                         {regs.map(video => (
                           <VideoCard key={video.id} video={video} />
                         ))}
@@ -193,13 +193,15 @@ export default function Home() {
                     </div>
                   )}
                   {shs.length > 0 && (
-                    <div className="mb-8 px-4 sm:px-0">
+                    <div className="mb-10 px-4 sm:px-0">
                       <div className="flex items-center gap-2 mb-4">
-                        <span className="text-xl font-bold text-white">{t('shorts_tab')}</span>
+                        <span className="text-[15px] font-bold tracking-tight text-white uppercase">{t('shorts_tab')}</span>
+                        <span className="h-4 w-px bg-white/10" />
+                        <span className="text-xs text-slate-500">{shs.length}</span>
                       </div>
-                      <div className="flex overflow-x-auto gap-4 custom-scrollbar pb-4 hide-scrollbar snap-x">
+                      <div className="flex overflow-x-auto gap-3 custom-scrollbar pb-2 hide-scrollbar snap-x">
                         {shs.map(video => (
-                          <div key={video.id} className="w-[180px] sm:w-[200px] shrink-0 snap-start">
+                          <div key={video.id} className="w-[168px] sm:w-[180px] shrink-0 snap-start">
                             <VideoCard video={video} layout="clip" />
                           </div>
                         ))}
@@ -207,19 +209,21 @@ export default function Home() {
                     </div>
                   )}
                   {phs.length > 0 && (
-                    <div className="mb-8 px-4 sm:px-0">
+                    <div className="mb-10 px-4 sm:px-0">
                       <div className="flex items-center gap-2 mb-4">
-                        <Image className="w-5 h-5 text-purple-400" />
-                        <span className="text-xl font-bold text-purple-400">{t('nav_photos')}</span>
+                        <Image className="w-4 h-4 text-slate-400" />
+                        <span className="text-[15px] font-bold tracking-tight text-white">{t('nav_photos')}</span>
+                        <span className="h-4 w-px bg-white/10" />
+                        <span className="text-xs text-slate-500">{phs.length}</span>
                       </div>
-                      <div className="flex overflow-x-auto gap-4 custom-scrollbar pb-4 hide-scrollbar snap-x">
+                      <div className="flex overflow-x-auto gap-3 custom-scrollbar pb-2 hide-scrollbar snap-x">
                         {phs.map(photo => (
-                          <div key={photo.id} className="w-[180px] sm:w-[200px] shrink-0 snap-start">
-                            <Link to="/photos" className="block relative group aspect-square rounded-2xl overflow-hidden bg-slate-800 border border-white/5 hover:border-purple-400/30 transition-all">
+                          <div key={photo.id} className="w-[168px] sm:w-[180px] shrink-0 snap-start">
+                            <Link to="/photos" className="block relative group aspect-square rounded-xl overflow-hidden bg-slate-900 border border-white/5 hover:border-white/15 transition-all">
                               <img src={getOptimizedThumbnail(photo.thumbnailUrl) || photo.thumbnailUrl} alt={photo.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" loading="lazy" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                                <p className="absolute bottom-2 left-2 right-2 text-white text-xs font-bold truncate">{photo.title}</p>
+                                className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" referrerPolicy="no-referrer" loading="lazy" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                                <p className="absolute bottom-2.5 left-2.5 right-2.5 text-white text-xs font-medium truncate">{photo.title}</p>
                               </div>
                             </Link>
                           </div>
@@ -232,7 +236,7 @@ export default function Home() {
             })()}
           </>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-y-4 sm:gap-y-8 gap-x-4 px-4 sm:px-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-6 px-4 sm:px-0">
             {filteredVideos.map(video => (
               <VideoCard key={video.id} video={video} />
             ))}
