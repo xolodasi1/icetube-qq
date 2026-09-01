@@ -713,7 +713,7 @@ export default function Shorts() {
         {/* double-tap heart */}
         {showHeart && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-            <div className="w-24 h-24 text-red-500 animate-[heartPop_0.8s_ease-out] drop-shadow-[0_4px_20px_rgba(239,68,68,0.6)]">
+            <div className="w-24 h-24 text-red-500 animate-ping drop-shadow-[0_4px_20px_rgba(239,68,68,0.6)]">
               <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><path d="M12 21s-6.5-4.2-8.7-8.3C1.1 8.3 3 4.5 7.2 4.5c2.4 0 4.1 1.4 4.8 2.8 0.7-1.4 2.4-2.8 4.8-2.8 4.2 0 6.1 3.8 3.9 8.2C18.5 16.8 12 21 12 21z"/></svg>
             </div>
           </div>
@@ -983,6 +983,5 @@ export default function Shorts() {
       )}
 
     </div>
-    <style>{`@keyframes heartPop{0%{transform:scale(0.4);opacity:0}15%{opacity:1}100%{transform:scale(1.15);opacity:0}}`}</style>
   );
 }
