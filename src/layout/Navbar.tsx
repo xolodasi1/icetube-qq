@@ -137,7 +137,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 h-16 bg-ice-glass border-b ice-border z-50 flex items-center px-4 sm:px-6 justify-between transition-all pt-safe">
+    <nav className="fixed top-0 left-0 right-0 h-16 bg-[#05070a]/95 backdrop-blur-3xl border-b border-white/5 z-50 flex items-center px-4 sm:px-6 justify-between transition-all pt-safe">
       <div className="flex items-center gap-2 sm:gap-4">
         <button 
           onClick={onMenuClick}

@@ -1514,7 +1514,7 @@ export default function Watch() {
               [2, 3, 4].includes(video.views % 10) && ![12, 13, 14].includes(video.views % 100) ? 'просмотра' :
               'просмотров'
             ) : t('video_views')}</span>
-            <span>{video.uploadDate}</span>
+            <span>{getRelativeTime(video.uploadDate)}</span>
             <span className="font-medium text-slate-200 ml-1">{language === 'ru' ? '...Ещё' : '...More'}</span>
           </div>
 
@@ -1803,13 +1803,13 @@ export default function Watch() {
         >
           <div className="font-medium text-white mb-2">
             <span className="mr-2 font-bold">
-              {new Intl.NumberFormat().format(video.views)} {language === 'ru' ? (
+              {new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US').format(video.views)} {language === 'ru' ? (
                 video.views % 10 === 1 && video.views % 100 !== 11 ? 'просмотр' :
                 [2, 3, 4].includes(video.views % 10) && ![12, 13, 14].includes(video.views % 100) ? 'просмотра' :
                 'просмотров'
               ) : t('video_views_time').split('•')[0].trim()}
             </span>
-            <span className="font-bold">• {video.uploadDate}</span>
+            <span className="font-bold">• {getRelativeTime(video.uploadDate)}</span>
           </div>
           <div className={`text-slate-300 font-medium whitespace-pre-wrap ${!isDescExpanded ? 'line-clamp-2' : ''}`}>
              {video.description || (language === 'ru' ? 'Нет описания' : 'No description provided.')}
