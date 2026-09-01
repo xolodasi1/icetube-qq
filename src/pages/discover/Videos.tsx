@@ -23,10 +23,19 @@ export default function Videos() {
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
       const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
       if (dbId && colId) {
-          const response = await withTimeout(databases.listDocuments(dbId, colId, [
-            Query.orderDesc('$createdAt'),
-            Query.limit(50)
-          ]), 4000);
+          let response: any;
+          try {
+            response = await withTimeout(databases.listDocuments(dbId, colId, [
+              Query.orderDesc('$createdAt'),
+              Query.limit(50)
+            ]), 8000);
+          } catch (firstErr) {
+            console.warn("Videos first fetch failed, retrying directly:", firstErr);
+            response = await databases.listDocuments(dbId, colId, [
+              Query.orderDesc('$createdAt'),
+              Query.limit(50)
+            ]);
+          }
           
           // Fetch users/profiles to get freshest avatars (chunked)
           const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;

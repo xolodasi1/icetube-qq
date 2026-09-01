@@ -33,10 +33,19 @@ export default function Home() {
         setDbVideos([]);
         return;
       }
-      const response = await withTimeout(databases.listDocuments(dbId, colId, [
-        Query.orderDesc('$createdAt'),
-        Query.limit(50)
-      ]), 4000);
+      let response: any;
+      try {
+        response = await withTimeout(databases.listDocuments(dbId, colId, [
+          Query.orderDesc('$createdAt'),
+          Query.limit(50)
+        ]), 8000);
+      } catch (firstErr) {
+        console.warn("Home first fetch failed, retrying directly:", firstErr);
+        response = await databases.listDocuments(dbId, colId, [
+          Query.orderDesc('$createdAt'),
+          Query.limit(50)
+        ]);
+      }
 
       const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
       let profilesMap: Record<string, {name: string, avatar: string}> = {};
