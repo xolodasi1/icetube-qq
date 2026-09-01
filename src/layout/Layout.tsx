@@ -37,7 +37,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <div className="relative z-10 w-full h-full flex flex-col flex-1">
         <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <div className="flex flex-1 overflow-hidden pt-16 relative">
+        <div className="flex flex-1 overflow-hidden pt-[calc(4rem+env(safe-area-inset-top))] relative">
           {isAdminView ? null : isStudioView ? (
             <StudioSidebar isOpen={sidebarOpen} onClose={() => window.innerWidth < 1024 && setSidebarOpen(false)} />
           ) : (
@@ -51,7 +51,7 @@ export function Layout({ children }: { children: ReactNode }) {
             />
           )}
           {/* Adjusted padding: Main layout has padding bottom for mobile nav */}
-          <main className={`flex-1 overflow-y-auto custom-scrollbar transition-all duration-300 ${!isAdminView && sidebarOpen ? 'sm:ml-64' : 'ml-0'} ${location.pathname.startsWith('/watch') || location.pathname.startsWith('/shorts') ? 'pb-0' : 'pb-20 sm:pb-0'}`}>
+          <main className={`flex-1 overflow-y-auto custom-scrollbar transition-all duration-300 ${!isAdminView && sidebarOpen ? 'sm:ml-64' : 'ml-0'} pb-[calc(80px+env(safe-area-inset-bottom))] sm:pb-6 lg:pb-6`}>
             <div className="mx-auto max-w-[2000px] p-0 sm:p-4 lg:p-6 xl:p-8">
               {children}
             </div>

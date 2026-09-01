@@ -15,7 +15,7 @@
     background-color: #06080c;
     background: radial-gradient(ellipse at 50% 0%, #0a1628 0%, #06080c 60%, #040508 100%);
     background-attachment: fixed;
-    min-height: 100vh;
+    min-height: 100dvh;
     overflow-x: hidden;
     max-width: 100vw;
   }
@@ -337,7 +337,7 @@ button:focus, a:focus, .video-card:focus {
 @media (max-width: 639px) {
   .video-card { border-radius: 8px; }
   .duration-badge { font-size: 9px; padding: 1px 4px; }
-  input, button, a { min-height: 40px; }
+  input, button, a { min-height: 44px; min-width: 44px; }
   input[type="text"] { font-size: 16px !important; }
 }
 

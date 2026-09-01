@@ -83,7 +83,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-[#1f1f1f] border border-[#2f2f2f] rounded-2xl p-6 w-full max-w-md shadow-2xl relative"
+          className="bg-[#0a192f]/90 backdrop-blur-2xl border ice-border ice-panel rounded-2xl p-6 w-full max-w-md shadow-[0_0_30px_rgba(112,214,255,0.15)] relative"
         >
           <button
             onClick={onClose}
@@ -109,7 +109,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    className="w-full pl-10 pr-4 py-2 bg-[#2f2f2f] border border-[#3f3f3f] rounded-lg text-white focus:outline-none focus:border-[#00f5d4] transition-colors"
+                    className="w-full pl-10 pr-4 py-2 bg-white/5 border ice-border rounded-lg text-white focus:outline-none focus:border-[#70d6ff]/50 backdrop-blur transition-colors placeholder:text-slate-500"
                     placeholder={t('auth_name_placeholder')}
                   />
                 </div>
@@ -122,14 +122,14 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail size={18} className="text-gray-500" />
                 </div>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full pl-10 pr-4 py-2 bg-[#2f2f2f] border border-[#3f3f3f] rounded-lg text-white focus:outline-none focus:border-[#00f5d4] transition-colors"
-                  placeholder={t('auth_email_placeholder')}
-                />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full pl-10 pr-4 py-2 bg-white/5 border ice-border rounded-lg text-white focus:outline-none focus:border-[#70d6ff]/50 backdrop-blur transition-colors placeholder:text-slate-500"
+                    placeholder={t('auth_email_placeholder')}
+                  />
               </div>
             </div>
 
@@ -139,15 +139,15 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock size={18} className="text-gray-500" />
                 </div>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={8}
-                  className="w-full pl-10 pr-4 py-2 bg-[#2f2f2f] border border-[#3f3f3f] rounded-lg text-white focus:outline-none focus:border-[#00f5d4] transition-colors"
-                  placeholder={t('auth_password_placeholder')}
-                />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    className="w-full pl-10 pr-4 py-2 bg-white/5 border ice-border rounded-lg text-white focus:outline-none focus:border-[#70d6ff]/50 backdrop-blur transition-colors placeholder:text-slate-500"
+                    placeholder={t('auth_password_placeholder')}
+                  />
               </div>
             </div>
 
@@ -158,7 +158,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 bg-[#00f5d4] text-black font-semibold rounded-lg hover:bg-[#00f5d4]/90 transition-colors disabled:opacity-50"
+              className="w-full py-2.5 bg-gradient-to-r from-[#70d6ff] to-[#00ff80] text-[#05070a] font-bold rounded-lg hover:opacity-90 transition-opacity shadow-[0_0_15px_rgba(112,214,255,0.3)] disabled:opacity-50"
             >
               {loading ? t('auth_please_wait') : (isLogin ? t('auth_sign_in') : t('auth_sign_up'))}
             </button>
@@ -173,7 +173,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
           <button
             onClick={() => loginWithGoogle()}
             type="button"
-            className="mt-6 w-full flex items-center justify-center gap-3 py-2 bg-white text-gray-800 font-medium rounded-lg hover:bg-gray-100 transition-colors"
+            className="mt-6 w-full flex items-center justify-center gap-3 py-2.5 bg-white/5 backdrop-blur border ice-border text-white font-medium rounded-lg hover:bg-white/10 transition-colors"
           >
             <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />

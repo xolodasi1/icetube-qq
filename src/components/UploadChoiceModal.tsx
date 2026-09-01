@@ -15,13 +15,13 @@ export function UploadChoiceModal({ isOpen, onClose, onSelect }: UploadChoiceMod
 
   const cards: Array<{ type: 'video'|'shorts'|'photo'; icon: any; title: string; desc: string; gradient: string }> = [
     { type: 'video', icon: Video, title: language === 'ru' ? 'Видео' : 'Video', desc: language === 'ru' ? 'Обычное видео до 10 ГБ' : 'Standard video up to 10GB', gradient: 'from-[#70d6ff]/20 to-blue-600/20 border-[#70d6ff]/30' },
-    { type: 'shorts', icon: Smartphone, title: 'Shorts', desc: language === 'ru' ? 'Вертикальный Short до 60с' : 'Vertical Short up to 60s', gradient: 'from-purple-500/20 to-pink-500/20 border-purple-500/30' },
-    { type: 'photo', icon: Image, title: language === 'ru' ? 'Фото' : 'Photo', desc: language === 'ru' ? 'Изображение до 50 МБ' : 'Image up to 50MB', gradient: 'from-emerald-500/20 to-teal-500/20 border-emerald-500/30' },
+    { type: 'shorts', icon: Smartphone, title: 'Shorts', desc: language === 'ru' ? 'Вертикальный Short до 60с' : 'Vertical Short up to 60s', gradient: 'from-[#6a00ff]/20 to-[#70d6ff]/20 border-[#6a00ff]/30' },
+    { type: 'photo', icon: Image, title: language === 'ru' ? 'Фото' : 'Photo', desc: language === 'ru' ? 'Изображение до 50 МБ' : 'Image up to 50MB', gradient: 'from-[#00ff80]/15 to-[#70d6ff]/20 border-[#00ff80]/30' },
   ];
 
   const content = (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} className="bg-[#0f1115] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pb-[env(safe-area-inset-bottom)] bg-black/70 backdrop-blur-sm" onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} className="bg-[#0a192f]/90 backdrop-blur-xl border ice-border ice-panel rounded-2xl w-full max-w-md shadow-[0_0_30px_rgba(112,214,255,0.15)] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-5 border-b border-white/10">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#70d6ff]" />
