@@ -1,8 +1,8 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Navbar } from "./Navbar";
-import { Sidebar } from "./Sidebar";
+import { Sidebar } from "../устройства/пк/Sidebar";
 import { StudioSidebar } from "../studio/StudioSidebar";
-import { BottomNav } from "./BottomNav";
+import { BottomNav } from "../устройства/телефон/BottomNav";
 import { useLocation } from "react-router-dom";
 
 export function Layout({ children }: { children: ReactNode }) {

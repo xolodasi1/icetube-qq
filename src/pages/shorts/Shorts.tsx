@@ -35,6 +35,10 @@ export default function Shorts() {
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isCommenting, setIsCommenting] = useState(false);
+  const [showHeart, setShowHeart] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const lastTapRef = useRef(0);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
@@ -656,24 +660,47 @@ export default function Shorts() {
   const current = videos[currentVideoIndex];
   const uploaderAvatar = current.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName)}`;
 
+  const handleVideoClick = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      if (likeState !== 'liked') handleLike(true);
+      setShowHeart(true);
+      setTimeout(()=>setShowHeart(false), 800);
+      try { (navigator as any).vibrate?.(20); } catch {}
+    } else {
+      if (videoRef.current) {
+        if (videoRef.current.paused) videoRef.current.play();
+        else videoRef.current.pause();
+      }
+    }
+    lastTapRef.current = now;
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center w-full min-h-[calc(100vh-64px)] px-0 bg-black pt-0 sm:pt-4 overflow-hidden animate-in fade-in duration-300">
+    <div className="flex flex-col items-center justify-center w-full h-[100dvh] sm:min-h-[calc(100vh-64px)] px-0 bg-black pt-0 sm:pt-4 overflow-hidden animate-in fade-in duration-300 sm:pb-0 pb-0">
       
-      {/* Immersive Video Container */}
+      {/* TikTok лента — на телефоне на весь экран */}
       <div 
-        className="relative w-full sm:max-w-[380px] h-full sm:h-[calc(100vh-140px)] aspect-[9/16] bg-slate-900 sm:rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] flex-shrink-0 border border-white/5 group"
+        className="relative w-screen h-[100dvh] sm:w-full sm:max-w-[380px] sm:h-[calc(100vh-120px)] sm:aspect-[9/16] bg-black sm:bg-slate-900 sm:rounded-2xl overflow-hidden sm:shadow-[0_0_50px_rgba(0,0,0,0.5)] flex-shrink-0 sm:border border-0 sm:border-white/10 group"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
         
         <video 
+          ref={videoRef}
           key={current.$id}
           src={getOptimizedVideoUrl(current.videoUrl)} 
           poster={getOptimizedThumbnail(current.thumbnailUrl)}
           loop 
           autoPlay 
           playsInline
+          muted={false}
           className="w-full h-full object-cover"
+          onClick={handleVideoClick}
+          onTimeUpdate={(e)=> {
+            const v = e.currentTarget;
+            if (v.duration) setVideoProgress((v.currentTime / v.duration) * 100);
+          }}
           onError={(e) => {
             const videoEl = e.target as HTMLVideoElement;
             const errCode = videoEl.error?.code;
@@ -683,6 +710,18 @@ export default function Shorts() {
           }}
           onLoadedData={() => setPlaybackError(null)}
         />
+        {/* double-tap heart */}
+        {showHeart && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+            <div className="w-24 h-24 text-red-500 animate-[heartPop_0.8s_ease-out] drop-shadow-[0_4px_20px_rgba(239,68,68,0.6)]">
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><path d="M12 21s-6.5-4.2-8.7-8.3C1.1 8.3 3 4.5 7.2 4.5c2.4 0 4.1 1.4 4.8 2.8 0.7-1.4 2.4-2.8 4.8-2.8 4.2 0 6.1 3.8 3.9 8.2C18.5 16.8 12 21 12 21z"/></svg>
+            </div>
+          </div>
+        )}
+        {/* progress TikTok style */}
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] sm:h-[3px] bg-white/20 z-20">
+          <div className="h-full bg-white transition-all duration-150" style={{ width: `${videoProgress}%` }} />
+        </div>
 
         {playbackError && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md z-30 p-6 text-center">
@@ -697,8 +736,8 @@ export default function Shorts() {
           </div>
         )}
 
-        {/* Interaction Side Overlay (Right) */}
-        <div className="absolute right-3 bottom-24 flex flex-col items-center gap-5 z-20">
+        {/* TikTok правая колонка — на телефоне прижата к низу */}
+        <div className="absolute right-2 sm:right-3 bottom-[88px] sm:bottom-24 flex flex-col items-center gap-4 sm:gap-5 z-20">
             <div className="flex flex-col items-center gap-1 group">
                 <button 
                   onClick={() => handleLike(true)}
@@ -752,7 +791,7 @@ export default function Shorts() {
                 <span className="text-white text-xs font-bold drop-shadow-md">{language === 'ru' ? 'Поделиться' : 'Share'}</span>
             </div>
 
-            <Link to={`/channel/${current.uploaderId}`} className="w-10 h-10 rounded-lg overflow-hidden border-2 border-[#70d6ff]/30 shadow-lg mt-2 animate-pulse block">
+            <Link to={`/channel/${current.uploaderId}`} className="w-11 h-11 sm:w-10 sm:h-10 rounded-full sm:rounded-lg overflow-hidden border-2 border-white shadow-lg mt-1 block">
                 <img 
                   src={uploaderAvatar} 
                   alt="audio" 
@@ -764,24 +803,15 @@ export default function Shorts() {
             </Link>
         </div>
 
-        {/* Content Info (Bottom) */}
-        <div className="absolute bottom-0 left-0 right-16 p-4 pt-10 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col gap-2 z-10">
-          <div className="flex items-center gap-2">
-            <Link to={`/channel/${current.uploaderId}`} className="shrink-0">
-              <img 
-                src={uploaderAvatar} 
-                alt={current.uploaderName || 'User'} 
-                className="w-9 h-9 rounded-full border border-white/20 shadow-md" 
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(current.uploaderName || 'User')}&background=random`;
-                }}
-              />
-            </Link>
-            <Link to={`/channel/${current.uploaderId}`} className="text-white font-bold text-sm truncate drop-shadow-md hover:underline decoration-[#70d6ff]">@{current.uploaderName || 'user'}</Link>
-          </div>
-          <h2 className="text-white text-sm font-medium line-clamp-2 leading-snug drop-shadow-md">
+        {/* TikTok нижний блок — на телефоне на всю ширину */}
+        <div className="absolute bottom-0 left-0 right-14 sm:right-16 p-3 sm:p-4 pb-[14px] sm:pb-4 pt-12 bg-gradient-to-t from-black via-black/60 to-transparent flex flex-col gap-1.5 z-10">
+          <Link to={`/channel/${current.uploaderId}`} className="text-white font-bold text-[13px] sm:text-sm truncate drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] hover:underline decoration-white/60">@{current.uploaderName || 'user'}</Link>
+          <h2 className="text-white text-[13px] sm:text-sm font-normal line-clamp-2 leading-snug drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
             {current.title}
           </h2>
+          <div className="flex items-center gap-1.5 text-white/90 text-xs">
+            <span className="truncate opacity-80">♫ {current.uploaderName} · original sound</span>
+          </div>
         </div>
 
         {/* Next/Prev Navigation Hints - Desktop only */}
@@ -953,5 +983,6 @@ export default function Shorts() {
       )}
 
     </div>
+    <style>{`@keyframes heartPop{0%{transform:scale(0.4);opacity:0}15%{opacity:1}100%{transform:scale(1.15);opacity:0}}`}</style>
   );
 }

@@ -128,8 +128,8 @@ export default function Home() {
 
   return (
     <div className="flex flex-col gap-5 pt-3 sm:pt-1 pb-6">
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2.5 px-4 sm:px-0 overflow-x-auto custom-scrollbar hide-scrollbar pb-1">
+      {/* Filter Tabs — на телефоне sticky с блюром */}
+      <div className="sticky top-[64px] z-20 -mx-4 px-4 py-2.5 bg-[#05070a]/80 backdrop-blur-2xl border-y border-white/[0.04] sm:static sm:mx-0 sm:px-0 sm:py-0 sm:bg-transparent sm:border-0 sm:backdrop-blur-none flex items-center gap-2.5 overflow-x-auto custom-scrollbar hide-scrollbar">
         {filterTabs.map(tab => (
           <button
             key={tab.value}
