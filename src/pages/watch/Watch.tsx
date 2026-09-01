@@ -724,20 +724,36 @@ export default function Watch() {
     };
   }, []);
 
+  const likeInFlight = useRef(false);
   const handleLike = async (isLike: boolean) => {
-    if (!user) {
-      alert(language === 'ru' ? 'Вам нужно войти в аккаунт, чтобы ставить оценки' : 'You must log in to rate videos');
+    if (!user || !video) {
+      if (!user) alert(language === 'ru' ? 'Вам нужно войти в аккаунт, чтобы ставить оценки' : 'You must log in to rate videos');
       return;
     }
-    if (isLiking) return;
+    if (likeInFlight.current) return;
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const likesCol = import.meta.env.VITE_APPWRITE_LIKES_COLLECTION_ID;
     if (!dbId || !likesCol) return;
 
+    const actionType = isLike ? 'like' : 'dislike' as const;
+    const prevState = likeState;
+    const prevLikes = likesCount;
+    const prevDislikes = dislikesCount;
+    let nextState: 'none'|'liked'|'disliked' = 'none';
+    let dL = 0, dD = 0;
+    if (prevState === 'liked' && isLike) { nextState='none'; dL=-1; }
+    else if (prevState === 'disliked' && !isLike) { nextState='none'; dD=-1; }
+    else if (prevState === 'liked' && !isLike) { nextState='disliked'; dL=-1; dD=1; }
+    else if (prevState === 'disliked' && isLike) { nextState='liked'; dD=-1; dL=1; }
+    else if (prevState === 'none' && isLike) { nextState='liked'; dL=1; }
+    else if (prevState === 'none' && !isLike) { nextState='disliked'; dD=1; }
+    setLikeState(nextState);
+    if (dL) setLikesCount(c=>c+dL);
+    if (dD) setDislikesCount(c=>c+dD);
+    if (dL) updateProfileStat(video.uploaderId, 'likesCount', dL);
+
+    likeInFlight.current = true;
     try {
-      setIsLiking(true);
-      const actionType = isLike ? 'like' : 'dislike';
-      
       const res = await databases.listDocuments(dbId, likesCol, [
         Query.equal('videoId', id!),
         Query.equal('userId', user.$id)
@@ -746,43 +762,18 @@ export default function Watch() {
       if (res.total > 0) {
         const existingDoc = res.documents[0];
         const existingType = existingDoc.type || 'like';
-
         if (existingType === actionType) {
-          // Remove interaction
           await databases.deleteDocument(dbId, likesCol, existingDoc.$id);
-          setLikeState('none');
-          if (isLike) {
-            setLikesCount(prev => prev - 1);
-            updateProfileStat(video.uploaderId, 'likesCount', -1);
-          }
-          else setDislikesCount(prev => prev - 1);
         } else {
-          // Switch interaction
-          await databases.updateDocument(dbId, likesCol, existingDoc.$id, {
-            type: actionType
-          });
-          setLikeState(actionType as 'liked' | 'disliked');
-          if (isLike) {
-            setLikesCount(prev => prev + 1);
-            setDislikesCount(prev => prev - 1);
-            updateProfileStat(video.uploaderId, 'likesCount', 1);
-          } else {
-            setLikesCount(prev => prev - 1);
-            setDislikesCount(prev => prev + 1);
-            updateProfileStat(video.uploaderId, 'likesCount', -1);
-          }
+          await databases.updateDocument(dbId, likesCol, existingDoc.$id, { type: actionType });
         }
       } else {
-        // Create new
         await databases.createDocument(dbId, likesCol, ID.unique(), {
           videoId: id,
           userId: user.$id,
           type: actionType
         });
-        setLikeState(actionType as 'liked' | 'disliked');
-        if (isLike) {
-          setLikesCount(prev => prev + 1);
-          updateProfileStat(video.uploaderId, 'likesCount', 1);
+        if (isLike && dL > 0) {
           createNotification({
             userId: video.uploaderId,
             actorId: user.$id,
@@ -798,13 +789,17 @@ export default function Watch() {
       }
     } catch (err: any) {
       console.error("Like failed:", err);
+      setLikeState(prevState);
+      setLikesCount(prevLikes);
+      setDislikesCount(prevDislikes);
+      if (dL) updateProfileStat(video.uploaderId, 'likesCount', -dL);
       if (err.message?.toLowerCase().includes('attribute') || err.message?.toLowerCase().includes('invalid document structure')) {
         alert(language === 'ru' ? 'Вам нужно добавить атрибут type (String, размер 10) в коллекцию Likes в базе данных Appwrite, чтобы заработали дизлайки по видео.' : 'You need to add a "type" (String, size 10) attribute to the Likes collection in Appwrite for video dislikes to work.');
-      } else {
+      } else if (!err.message?.toLowerCase().includes('index')) {
         alert("Ошибка: " + err.message);
       }
     } finally {
-      setIsLiking(false);
+      likeInFlight.current = false;
     }
   };
 
@@ -1561,17 +1556,17 @@ export default function Watch() {
               {/* Like/Dislike group */}
               <div className="flex items-center bg-white/5 border ice-border rounded-full overflow-hidden shrink-0">
                 <button 
-                  disabled={isLiking || !user}
+                  disabled={!user}
                   onClick={() => handleLike(true)}
-                  className={`flex items-center gap-1.5 px-3 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors border-r ice-border text-sm ${likeState === 'liked' ? 'text-[#70d6ff]' : 'text-slate-300'}`}
+                  className={`flex items-center gap-1.5 px-3 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors border-r ice-border text-sm active:scale-95 ${likeState === 'liked' ? 'text-[#70d6ff]' : 'text-slate-300'}`}
                 >
                   <ThumbsUp className={`w-4 h-4 ${likeState === 'liked' ? 'fill-current' : ''}`} />
                   <span className="font-medium tabular-nums">{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(likesCount)}</span>
                 </button>
                 <button 
-                  disabled={isLiking || !user}
+                  disabled={!user}
                   onClick={() => handleLike(false)}
-                  className={`flex items-center gap-1.5 px-3 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors text-sm ${likeState === 'disliked' ? 'text-red-400' : 'text-slate-300'}`}
+                  className={`flex items-center gap-1.5 px-3 py-2 hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] transition-colors text-sm active:scale-95 ${likeState === 'disliked' ? 'text-red-400' : 'text-slate-300'}`}
                 >
                   <ThumbsDown className={`w-4 h-4 ${likeState === 'disliked' ? 'fill-current text-red-400' : ''}`} />
                   {dislikesCount > 0 && <span className="font-medium tabular-nums">{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(dislikesCount)}</span>}

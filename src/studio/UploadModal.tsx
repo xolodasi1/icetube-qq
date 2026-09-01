@@ -301,7 +301,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
               // Continue to list if not found
             }
 
-            const profileRes = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', user.$id)]);
+            const profileRes = await databases.listDocuments(dbId, profilesCol, [Query.equal('userId', user.$id), Query.limit(1)]);
             if (profileRes.documents.length > 0) {
               const profileDoc = profileRes.documents[0];
               await databases.updateDocument(dbId, profilesCol, profileDoc.$id, {
