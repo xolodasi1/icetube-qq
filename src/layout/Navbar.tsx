@@ -1,22 +1,49 @@
 import { Search, Bell, Video, User, Menu, ArrowLeft, LogOut, ShieldAlert, Settings, LayoutDashboard, Box, Snowflake } from "lucide-react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../language/LanguageContext";
 import { databases } from "../lib/appwrite";
 import { Query } from "appwrite";
 import { UploadModal } from "../studio/UploadModal";
+import { UploadChoiceModal } from "../components/UploadChoiceModal";
 
 export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
   const { user, profile, login, logoutUser } = useAuth();
   const { t, language } = useLanguage();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotification, setShowNotification] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [showUploadChoice, setShowUploadChoice] = useState(false);
+  const [uploadInitialType, setUploadInitialType] = useState<'video'|'shorts'|'photo'>('video');
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+
+  const isStudio = location.pathname.startsWith('/studio');
+
+  const handleUploadClick = () => {
+    if (!user) { login(); return; }
+    if (isStudio) {
+      setUploadInitialType('video');
+      setIsUploadOpen(true);
+    } else {
+      setShowUploadChoice(true);
+    }
+  };
+
+  const handleChoiceSelect = (type: 'video'|'shorts'|'photo') => {
+    setShowUploadChoice(false);
+    setUploadInitialType(type);
+    if (isStudio) {
+      setIsUploadOpen(true);
+    } else {
+      navigate('/studio');
+      setTimeout(() => setIsUploadOpen(true), 250);
+    }
+  };
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   useEffect(() => {
@@ -177,7 +204,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
       <div className="flex items-center gap-1 sm:gap-4 shrink-0">
         {user && (
           <button 
-            onClick={() => setIsUploadOpen(true)}
+            onClick={handleUploadClick}
             className="hidden sm:flex items-center gap-2 px-4 py-2.5 btn-primary rounded-full text-sm shadow-[0_0_15px_rgba(112,214,255,0.1)] active:scale-95"
             title={language === 'ru' ? 'Загрузить ролик' : 'Upload Video'}
           >
@@ -186,9 +213,11 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
           </button>
         )}
 
+        <UploadChoiceModal isOpen={showUploadChoice} onClose={() => setShowUploadChoice(false)} onSelect={handleChoiceSelect} />
         <UploadModal 
           isOpen={isUploadOpen} 
           onClose={() => setIsUploadOpen(false)}
+          initialType={uploadInitialType}
         />
 
         <button 

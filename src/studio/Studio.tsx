@@ -116,7 +116,7 @@ export default function Studio() {
         status: 'Published'
       }));
 
-      setVideos(userVids.reverse());
+      setVideos(userVids);
 
       let subscriberCount = 0;
       const subsColId = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
@@ -341,7 +341,7 @@ export default function Studio() {
             <LayoutDashboard className="w-8 h-8 text-[#70d6ff]" />
             {t('nav_studio')}
           </h1>
-          <p className="text-slate-400 mt-1">{t('studio_analytics')}</p>
+          <p className="text-slate-400 mt-1">{t('studio_title')}</p>
         </div>
         <div className="flex items-center gap-3">
           <Link
@@ -388,7 +388,7 @@ export default function Studio() {
                     </div>
                   </div>
                   <div className="text-3xl font-black text-white mb-1">
-                    {new Intl.NumberFormat().format(stats.totalViews)}
+                    {new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : language === 'es' ? 'es-ES' : 'en-US').format(stats.totalViews)}
                   </div>
                   <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{language === 'ru' ? 'Всего просмотров' : 'Total Views'}</p>
                 </div>
@@ -400,7 +400,7 @@ export default function Studio() {
                     </div>
                   </div>
                   <div className="text-3xl font-black text-white mb-1">
-                    {new Intl.NumberFormat().format(stats.subscriberCount)}
+                    {new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : language === 'es' ? 'es-ES' : 'en-US').format(stats.subscriberCount)}
                   </div>
                   <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{language === 'ru' ? 'Подписчики' : 'Subscribers'}</p>
                 </div>
@@ -446,7 +446,7 @@ export default function Studio() {
                           <img src={v.thumbnailUrl} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-white font-medium truncate">{v.title}</p>
+                          <p className="text-sm text-white font-medium line-clamp-1 break-all">{v.title}</p>
                           <p className="text-[10px] text-slate-500"><Eye className="w-3 h-3 inline mr-1" />{v.views}</p>
                         </div>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${v.contentType === 'shorts' ? 'bg-teal-500/10 text-teal-400' : 'bg-purple-500/10 text-purple-400'}`}>

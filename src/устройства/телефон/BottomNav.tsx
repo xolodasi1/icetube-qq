@@ -1,15 +1,21 @@
-import { Home, Compass, Plus, Library, User, Video, ListVideo, X, Sparkles } from "lucide-react";
+import { Home, Compass, Plus, Library, User, Video, ListVideo, X, Sparkles, Smartphone, Image } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { useState } from "react";
 import { useLanguage } from "../../language/LanguageContext";
+import { useAuth } from "../../auth/AuthContext";
+import { UploadChoiceModal } from "../../components/UploadChoiceModal";
+import { UploadModal } from "../../studio/UploadModal";
 
 export function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { user, login } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
   const [showYou, setShowYou] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [uploadInitialType, setUploadInitialType] = useState<'video'|'shorts'|'photo'>('video');
 
   if (location.pathname.startsWith("/shorts")) return null;
 
@@ -17,10 +23,32 @@ export function BottomNav() {
     try { (navigator as any).vibrate?.(12); } catch {}
   };
 
+  const isStudio = location.pathname.startsWith('/studio');
+  const handleChoiceSelect = (type: 'video'|'shorts'|'photo') => {
+    setShowCreate(false);
+    setUploadInitialType(type);
+    if (isStudio) {
+      setIsUploadOpen(true);
+    } else {
+      navigate('/studio');
+      setTimeout(() => setIsUploadOpen(true), 250);
+    }
+  };
+  const handleCreateClick = () => {
+    haptic();
+    if (!user) { login(); return; }
+    if (isStudio) {
+      setUploadInitialType('video');
+      setIsUploadOpen(true);
+    } else {
+      setShowCreate(v=>!v);
+    }
+  };
+
   const items: Array<{ id: string; icon: any; label: string; path?: string; active?: boolean; center?: boolean; action?: () => void }> = [
     { id: "home", icon: Home, label: t('nav_home'), path: "/", active: location.pathname === "/" && !location.search.includes("category") },
     { id: "browse", icon: Compass, label: t('nav_browse'), path: "/browse", active: location.pathname === "/browse" },
-    { id: "create", icon: Plus, label: "", center: true, action: () => { haptic(); setShowCreate(v=>!v); } },
+    { id: "create", icon: Plus, label: "", center: true, action: handleCreateClick },
     { id: "library", icon: Library, label: t('nav_library'), path: "/library", active: location.pathname.startsWith("/library") },
     { id: "you", icon: User, label: t('nav_you'), active: location.pathname.startsWith("/channel") || location.pathname.startsWith("/you"), action: () => { haptic(); setShowYou(v=>!v); } },
   ];
@@ -66,22 +94,24 @@ export function BottomNav() {
 
       {showCreate && (
           <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm p-3 sm:hidden animate-in fade-in duration-200" onClick={() => setShowCreate(false)}>
-            <div onClick={e=>e.stopPropagation()} className="w-full max-w-[480px] rounded-[24px] bg-[#0f172a] border border-white/10 overflow-hidden shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
+            <div onClick={e=>e.stopPropagation()} className="w-full max-w-[480px] rounded-[24px] bg-[#0f1115] border border-white/10 overflow-hidden shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
               <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-white/20" />
               <div className="p-5 pb-3 flex items-center justify-between">
-                <span className="text-white font-bold flex items-center gap-2"><Sparkles className="w-4 h-4 text-[#70d6ff]" /> {t('nav_create')}</span>
+                <span className="text-white font-bold flex items-center gap-2"><Sparkles className="w-4 h-4 text-[#70d6ff]" /> {language === 'ru' ? 'Что загрузим?' : 'What to upload?'}</span>
                 <button onClick={()=>setShowCreate(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white"><X className="w-4 h-4" /></button>
               </div>
-              <div className="grid grid-cols-2 gap-3 p-3 pb-6">
-                <button onClick={()=>{ setShowCreate(false); navigate("/studio/content"); }} className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-gradient-to-br from-[#70d6ff]/20 to-blue-600/20 border border-[#70d6ff]/20 text-white active:scale-[0.98] transition-transform">
-                  <div className="w-12 h-12 rounded-2xl bg-white text-black flex items-center justify-center"><Video className="w-6 h-6" /></div>
-                  <span className="font-bold text-sm">{t('nav_upload')}</span>
-                  <span className="text-xs text-white/60">Видео, Shorts, Фото</span>
+              <div className="p-3 grid gap-3 pb-6">
+                <button onClick={()=>handleChoiceSelect('video')} className="flex items-center gap-4 p-4 rounded-xl border bg-gradient-to-br from-[#70d6ff]/20 to-blue-600/20 border-[#70d6ff]/30 text-white active:scale-[0.99] transition-transform text-left">
+                  <div className="w-12 h-12 rounded-xl bg-white text-black flex items-center justify-center shrink-0"><Video className="w-6 h-6" /></div>
+                  <div className="flex-1"><div className="font-bold">{language === 'ru' ? 'Видео' : 'Video'}</div><div className="text-xs text-white/60">{language === 'ru' ? 'Обычное видео до 10 ГБ' : 'Standard video up to 10GB'}</div></div>
                 </button>
-                <button onClick={()=>{ setShowCreate(false); navigate("/playlists"); }} className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-white/[0.06] border border-white/10 text-white active:scale-[0.98] transition-transform">
-                  <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center"><ListVideo className="w-6 h-6 text-[#70d6ff]" /></div>
-                  <span className="font-bold text-sm">{t('nav_playlists')}</span>
-                  <span className="text-xs text-white/60">Собрать плейлист</span>
+                <button onClick={()=>handleChoiceSelect('shorts')} className="flex items-center gap-4 p-4 rounded-xl border bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/30 text-white active:scale-[0.99] transition-transform text-left">
+                  <div className="w-12 h-12 rounded-xl bg-white text-black flex items-center justify-center shrink-0"><Smartphone className="w-6 h-6" /></div>
+                  <div className="flex-1"><div className="font-bold">Shorts</div><div className="text-xs text-white/60">{language === 'ru' ? 'Вертикальный Short до 60с' : 'Vertical Short up to 60s'}</div></div>
+                </button>
+                <button onClick={()=>handleChoiceSelect('photo')} className="flex items-center gap-4 p-4 rounded-xl border bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border-emerald-500/30 text-white active:scale-[0.99] transition-transform text-left">
+                  <div className="w-12 h-12 rounded-xl bg-white text-black flex items-center justify-center shrink-0"><Image className="w-6 h-6" /></div>
+                  <div className="flex-1"><div className="font-bold">{language === 'ru' ? 'Фото' : 'Photo'}</div><div className="text-xs text-white/60">{language === 'ru' ? 'Изображение до 50 МБ' : 'Image up to 50MB'}</div></div>
                 </button>
               </div>
             </div>
@@ -104,6 +134,7 @@ export function BottomNav() {
             </div>
           </div>
         )}
+      <UploadModal isOpen={isUploadOpen} onClose={()=>setIsUploadOpen(false)} initialType={uploadInitialType} />
     </>
   );
 }

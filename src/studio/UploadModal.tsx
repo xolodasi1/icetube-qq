@@ -14,9 +14,10 @@ interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUploadSuccess?: () => void;
+  initialType?: 'video' | 'shorts' | 'photo';
 }
 
-export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUploadSuccess }) => {
+export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUploadSuccess, initialType }) => {
   const { user } = useAuth();
   const { t, language } = useLanguage();
   
@@ -38,6 +39,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const [error, setError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen && initialType) {
+      setContentType(initialType);
+      setIsImage(initialType === 'photo');
+      if (initialType === 'photo' && file && !file.type.startsWith('image/')) setFile(null);
+    }
+  }, [isOpen, initialType]);
 
   useEffect(() => {
     if (!user) return;
@@ -80,6 +89,15 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const commonGames = [
     'Minecraft', 'Roblox', 'Fortnite', 'GTA V', 'CS:GO', 'Valorant', 'League of Legends'
   ];
+
+  const isGamingCategory = (() => {
+    const c = category.trim().toLowerCase();
+    return c === 'gaming' || c === 'игры';
+  })();
+
+  useEffect(() => {
+    if (!isGamingCategory && game) setGame('');
+  }, [isGamingCategory]);
 
   const parseHashtags = (raw: string): string[] => {
     const tags = raw.split(/[\s,]+/).map(t => t.trim().replace(/^#/, '')).filter(t => t.length > 0);
@@ -152,7 +170,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         views: 0,
         category: category.trim() || 'All',
         contentType: finalContentType,
-        game: isPhoto ? undefined : (game.trim() || undefined),
+        game: isPhoto || !isGamingCategory ? undefined : (game.trim() || undefined),
         hashtags: tags.length > 0 ? tags : undefined,
         language: videoLanguage || undefined,
         playlistId: (playlistId && playlistId !== '__new__') ? playlistId : undefined,
@@ -475,7 +493,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
               />
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className={clsx("flex flex-col gap-2", !isGamingCategory && "sm:col-span-2")}>
               <label className="text-sm font-medium text-slate-200">{language === 'ru' ? 'Категория' : 'Category'}</label>
               <div className="relative">
                 <input 
@@ -495,25 +513,27 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-200">{language === 'ru' ? 'Игра (Опционально)' : 'Game (Optional)'}</label>
-              <div className="relative">
-                <input 
-                  list="game-suggestions"
-                  type="text"
-                  value={game}
-                  onChange={(e) => setGame(e.target.value)}
-                  disabled={isUploading}
-                  placeholder={language === 'ru' ? 'Название игры...' : 'Enter or select game...'}
-                  className="bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#70d6ff]/50 w-full"
-                />
-                <datalist id="game-suggestions">
-                  {commonGames.map(g => (
-                    <option key={g} value={g} />
-                  ))}
-                </datalist>
+            {isGamingCategory && (
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-slate-200">{language === 'ru' ? 'Игра (Опционально)' : 'Game (Optional)'}</label>
+                <div className="relative">
+                  <input 
+                    list="game-suggestions"
+                    type="text"
+                    value={game}
+                    onChange={(e) => setGame(e.target.value)}
+                    disabled={isUploading}
+                    placeholder={language === 'ru' ? 'Название игры...' : 'Enter or select game...'}
+                    className="bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#70d6ff]/50 w-full"
+                  />
+                  <datalist id="game-suggestions">
+                    {commonGames.map(g => (
+                      <option key={g} value={g} />
+                    ))}
+                  </datalist>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
