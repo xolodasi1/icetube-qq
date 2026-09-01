@@ -75,6 +75,15 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
     })();
   }, [user]);
 
+  const isGamingCategory = (() => {
+    const c = category.trim().toLowerCase();
+    return c === 'gaming' || c === 'игры';
+  })();
+
+  useEffect(() => {
+    if (!isGamingCategory && game) setGame('');
+  }, [isGamingCategory]);
+
   if (!isOpen) return null;
 
   const categories = [
@@ -89,15 +98,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const commonGames = [
     'Minecraft', 'Roblox', 'Fortnite', 'GTA V', 'CS:GO', 'Valorant', 'League of Legends'
   ];
-
-  const isGamingCategory = (() => {
-    const c = category.trim().toLowerCase();
-    return c === 'gaming' || c === 'игры';
-  })();
-
-  useEffect(() => {
-    if (!isGamingCategory && game) setGame('');
-  }, [isGamingCategory]);
 
   const parseHashtags = (raw: string): string[] => {
     const tags = raw.split(/[\s,]+/).map(t => t.trim().replace(/^#/, '')).filter(t => t.length > 0);
