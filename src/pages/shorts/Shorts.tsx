@@ -611,7 +611,7 @@ export default function Shorts() {
           actorId: authorId,
           actorName: authorName,
           actorAvatar: authorAvatar,
-          type: 'comment',
+          type: 'reply',
           videoId: current.$id,
           videoTitle: current.title,
           contentType: 'shorts'
