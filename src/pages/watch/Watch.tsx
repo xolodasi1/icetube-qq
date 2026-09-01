@@ -1196,9 +1196,10 @@ export default function Watch() {
             actorId: authorId,
             actorName: authorName,
             actorAvatar: authorAvatar,
-            type: 'comment',
+            type: 'reply',
             videoId: video.id,
-            videoTitle: video.title
+            videoTitle: video.title,
+            contentType: video.contentType
           });
         }
       }

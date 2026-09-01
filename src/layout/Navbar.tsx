@@ -43,8 +43,13 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
       }
     };
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchNotifications, 15000);
+    const onFocus = () => fetchNotifications();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [user]);
 
   const handleMarkAsRead = async () => {
@@ -54,9 +59,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
 
     try {
       const unreadNotifs = notifications.filter(n => !n.isRead);
-      for (const notif of unreadNotifs) {
-        databases.updateDocument(dbId, notifCol, notif.$id, { isRead: true });
-      }
+      await Promise.all(unreadNotifs.map(n => databases.updateDocument(dbId, notifCol, n.$id, { isRead: true }).catch(()=>{})));
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } catch (err) { }
@@ -67,6 +70,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
       case 'like': return t('notif_like') || 'liked your video';
       case 'snowflake': return t('notif_snowflake') || 'gave a snowflake to your video';
       case 'comment': return t('notif_comment') || 'commented on your video';
+      case 'reply': return t('notif_reply') || 'replied to your comment';
       case 'subscribe': return t('notif_subscribe') || 'subscribed to your channel';
       case 'upload': 
         if (notif.contentType === 'shorts') {
