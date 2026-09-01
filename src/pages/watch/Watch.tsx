@@ -1030,7 +1030,7 @@ export default function Watch() {
 
       if (!user) registerAnonComment(id!);
 
-      if (video) {
+      if (video && video.uploaderId !== authorId) {
         createNotification({
           userId: video.uploaderId,
           actorId: authorId,
@@ -1040,7 +1040,7 @@ export default function Watch() {
           videoId: video.id,
           videoTitle: video.title,
           contentType: video.contentType
-        });
+        }).catch(()=>{});
       }
     } catch (err: any) {
       console.error("Comment submission failed:", err);

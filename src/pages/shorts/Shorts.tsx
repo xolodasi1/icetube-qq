@@ -523,16 +523,18 @@ export default function Shorts() {
 
       if (!user) registerAnonComment(current.$id);
 
-      createNotification({
-        userId: current.uploaderId,
-        actorId: authorId,
-        actorName: authorName,
-        actorAvatar: authorAvatar,
-        type: 'comment',
-        videoId: current.$id,
-        videoTitle: current.title,
-        contentType: 'shorts'
-      });
+      if (current.uploaderId !== authorId) {
+        createNotification({
+          userId: current.uploaderId,
+          actorId: authorId,
+          actorName: authorName,
+          actorAvatar: authorAvatar,
+          type: 'comment',
+          videoId: current.$id,
+          videoTitle: current.title,
+          contentType: 'shorts'
+        }).catch(()=>{});
+      }
     } catch (err) {
       console.error("Comment failed in Shorts:", err);
     } finally {

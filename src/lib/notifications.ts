@@ -40,6 +40,7 @@ export const createNotification = async (params: {
       contentType: params.contentType || 'video',
       isRead: false
     }, permissions);
+    try { window.dispatchEvent(new Event('icetube_refresh_notifications')); } catch {}
   } catch (err) {
     console.warn("Failed to create notification (Appwrite permissions block):", err);
   }

@@ -45,10 +45,13 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 15000);
     const onFocus = () => fetchNotifications();
+    const onRefresh = () => fetchNotifications();
     window.addEventListener('focus', onFocus);
+    window.addEventListener('icetube_refresh_notifications', onRefresh);
     return () => {
       clearInterval(interval);
       window.removeEventListener('focus', onFocus);
+      window.removeEventListener('icetube_refresh_notifications', onRefresh);
     };
   }, [user]);
 
