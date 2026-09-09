@@ -1,6 +1,6 @@
 import { VideoCard } from "../../components/VideoCard";
-import { useSearchParams, Link } from "react-router-dom";
-import React, { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { databases, withTimeout } from "../../lib/appwrite";
 import { Query } from "appwrite";
 import { Loader2, Video, Image, RefreshCw } from "lucide-react";
@@ -8,6 +8,7 @@ import { useLanguage } from "../../language/LanguageContext";
 import { getOptimizedThumbnail } from "../../lib/cloudinary";
 import { getRecommendations } from "../../lib/recommendations";
 import { SafeStorage } from "../../lib/storage";
+import { useNavigate } from "react-router-dom";
 
 const COUNTRY_OPTIONS: { id: string, label: string, flag: string }[] = [
   { id: 'RU', label: 'Россия', flag: '🇷🇺' },
@@ -34,11 +35,12 @@ export default function Home() {
   const { t, language } = useLanguage();
   const [searchParams] = useSearchParams();
 
-  const [dbVideos, setDbVideos] = useState<any[]>([]);
+const [dbVideos, setDbVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'video' | 'shorts' | 'photo'>('all');
   const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCountries, setSelectedCountries] = useState<string[]>(() => {
     const saved = SafeStorage.get<string[] | null>('home_country_filter', null);
     if (saved === null) return COUNTRY_OPTIONS.map(c=>c.id);
@@ -47,6 +49,23 @@ export default function Home() {
   useEffect(() => {
     SafeStorage.set('home_country_filter', selectedCountries);
   }, [selectedCountries]);
+  const [dbChannels, setDbChannels] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchChannels = async () => {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+      if (!dbId || !profilesCol) return;
+      try {
+        const result = await withTimeout(databases.listDocuments(dbId, profilesCol, [Query.orderDesc('$createdAt'), Query.limit(50)]), 5000);
+        setDbChannels(result.documents);
+      } catch (err) {
+        console.warn("Could not fetch channels:", err);
+      }
+    };
+    fetchChannels();
+  }, []);
+
   useEffect(() => {
     const syncCountries = () => {
       const saved = SafeStorage.get<string[] | null>('home_country_filter', null);
@@ -58,9 +77,7 @@ export default function Home() {
     return () => { window.removeEventListener('focus', syncCountries); window.removeEventListener('storage', syncCountries); clearInterval(id); };
   }, []);
 
-  const searchQuery = searchParams.get("search") || "";
-
-  const fetchVideos = async (silent = false) => {
+  // Local search state - keeps us on home page instead of navigating to /search
     if (!silent) {
       setIsLoading(true);
     }
@@ -273,73 +290,88 @@ export default function Home() {
             <p className="text-xl font-medium">{t('video_no_results')}</p>
             <p className="text-sm mt-2 text-slate-500">{t('video_search_try_again')}</p>
           </div>
-        ) : activeFilter === 'all' ? (
-          <>
-            {(() => {
-              const regs = filteredVideos.filter(v => !isShort(v) && !isPhoto(v));
-              const shs = filteredVideos.filter(v => isShort(v));
-              const phs = filteredVideos.filter(v => isPhoto(v));
-              return (
-                <>
-                  {regs.length > 0 && (
-                    <div className="mb-10">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-6 px-4 sm:px-0">
-                        {regs.map(video => (
-                          <VideoCard key={video.id} video={video} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {shs.length > 0 && (
-                    <div className="mb-10 px-4 sm:px-0">
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-[15px] font-bold tracking-tight text-white uppercase">{t('shorts_tab')}</span>
-                        <span className="h-4 w-px bg-white/10" />
-                        <span className="text-xs text-slate-500">{shs.length}</span>
-                      </div>
-                      <div className="flex overflow-x-auto gap-3 custom-scrollbar pb-2 hide-scrollbar snap-x">
-                        {shs.map(video => (
-                          <div key={video.id} className="w-[168px] sm:w-[180px] shrink-0 snap-start">
-                            <VideoCard video={video} layout="clip" />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {phs.length > 0 && (
-                    <div className="mb-10 px-4 sm:px-0">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Image className="w-4 h-4 text-slate-400" />
-                        <span className="text-[15px] font-bold tracking-tight text-white">{t('nav_photos')}</span>
-                        <span className="h-4 w-px bg-white/10" />
-                        <span className="text-xs text-slate-500">{phs.length}</span>
-                      </div>
-                      <div className="flex overflow-x-auto gap-3 custom-scrollbar pb-2 hide-scrollbar snap-x">
-                        {phs.map(photo => (
-                          <div key={photo.id} className="w-[168px] sm:w-[180px] shrink-0 snap-start">
-                            <Link to="/photos" className="block relative group aspect-square rounded-xl overflow-hidden bg-slate-900 border border-white/5 hover:border-white/15 transition-all">
-                              <img src={getOptimizedThumbnail(photo.thumbnailUrl) || photo.thumbnailUrl} alt={photo.title}
-                                className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" referrerPolicy="no-referrer" loading="lazy" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                                <p className="absolute bottom-2.5 left-2.5 right-2.5 text-white text-xs font-medium truncate">{photo.title}</p>
-                              </div>
-                            </Link>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-6 px-4 sm:px-0">
-            {filteredVideos.map(video => (
-              <VideoCard key={video.id} video={video} />
-            ))}
-          </div>
-        )}
+) : activeFilter === 'all' ? (
+           <>
+             {(() => {
+               const regs = filteredVideos.filter(v => !isShort(v) && !isPhoto(v));
+               const shs = filteredVideos.filter(v => isShort(v));
+               const phs = filteredVideos.filter(v => isPhoto(v));
+               return (
+                 <>
+                   {regs.length > 0 && (
+                     <div className="mb-10">
+                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-6 px-4 sm:px-0">
+                         {regs.map(video => (
+                           <VideoCard key={video.id} video={video} />
+                         ))}
+                       </div>
+                     </div>
+                   )}
+                   {shs.length > 0 && (
+                     <div className="mb-10 px-4 sm:px-0">
+                       <div className="flex items-center gap-2 mb-4">
+                         <span className="text-[15px] font-bold tracking-tight text-white uppercase">{t('shorts_tab')}</span>
+                         <span className="h-4 w-px bg-white/10" />
+                         <span className="text-xs text-slate-500">{shs.length}</span>
+                       </div>
+                       <div className="flex overflow-x-auto gap-3 custom-scrollbar pb-2 hide-scrollbar snap-x">
+                         {shs.map(video => (
+                           <div key={video.id} className="w-[168px] sm:w-[180px] shrink-0 snap-start">
+                             <VideoCard video={video} layout="clip" />
+                           </div>
+                         ))}
+                       </div>
+                     </div>
+                   )}
+                   {phs.length > 0 && (
+                     <div className="mb-10 px-4 sm:px-0">
+                       <div className="flex items-center gap-2 mb-4">
+                         <Image className="w-4 h-4 text-slate-400" />
+                         <span className="text-[15px] font-bold tracking-tight text-white">{t('nav_photos')}</span>
+                         <span className="h-4 w-px bg-white/10" />
+                         <span className="text-xs text-slate-500">{phs.length}</span>
+                       </div>
+                       <div className="flex overflow-x-auto gap-3 custom-scrollbar pb-2 hide-scrollbar snap-x">
+                         {phs.map(photo => (
+                           <div key={photo.id} className="w-[168px] sm:w-[180px] shrink-0 snap-start">
+                             <Link to="/photos" className="block relative group aspect-square rounded-xl overflow-hidden bg-slate-900 border border-white/5 hover:border-white/15 transition-all">
+                               <img src={getOptimizedThumbnail(photo.thumbnailUrl) || photo.thumbnailUrl} alt={photo.title}
+                                 className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" referrerPolicy="no-referrer" loading="lazy" />
+                               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                                 <p className="absolute bottom-2.5 left-2.5 right-2.5 text-white text-xs font-medium truncate">{photo.title}</p>
+                               </div>
+                             </Link>
+                           </div>
+                         ))}
+                       </div>
+                     </div>
+                   )}
+                   {dbChannels.length > 0 && (
+                     <div className="mb-10">
+                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                         {dbChannels.map(channel => (
+                           <div key={channel.$id || channel.id} className="border-white/5 border rounded-xl p-3 hover:border-[#70d6ff]/20 transition-colors">
+                             <img src={channel.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.name || 'Channel')}`} alt={channel.name} className="w-full h-48 object-cover rounded-t-xl mb-3" />
+                             <div className="text-center">
+                               <h3 className="text-sm font-bold text-white truncate">{channel.name || 'Channel'}</h3>
+                               <p className="text-xs text-slate-400">{channel.handle || ''}</p>
+                             </div>
+                           </div>
+                         ))}
+                       </div>
+                     </div>
+                   )}
+                 </>
+               );
+             })()}
+           </>
+         ) : (
+           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-6 px-4 sm:px-0">
+             {filteredVideos.map(video => (
+               <VideoCard key={video.id} video={video} />
+             ))}
+           </div>
+         )}
       </div>
 
       

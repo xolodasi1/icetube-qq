@@ -125,21 +125,13 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
     setSearchQuery(query);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
-      if (query.trim()) {
-        navigate(`/search?q=${encodeURIComponent(query.trim())}`);
-      } else {
-        navigate(`/search`);
-      }
+      // Just update query state, don't navigate - search will be handled locally on Home page
     }, 350);
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-    } else {
-      navigate(`/search`);
-    }
+    // Don't navigate - search will be handled locally on Home page
     setMobileSearchOpen(false);
   };
 
