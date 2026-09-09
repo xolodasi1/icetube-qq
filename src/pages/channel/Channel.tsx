@@ -55,21 +55,28 @@ export default function Channel() {
           Query.limit(5000)
         ]);
 
-        const formattedVideos = videosRes.documents.map(v => ({
-          id: v.$id,
-          uploaderId: v.uploaderId,
-          title: v.title,
-          thumbnailUrl: v.thumbnailUrl,
-          videoUrl: v.videoUrl,
-          channelName: channelProfile ? (channelProfile.name || channelProfile.displayName) : v.uploaderName,
-          channelAvatar: channelProfile ? (channelProfile.avatar || channelProfile.photoUrl) : (v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`),
-          views: v.views || 0,
-          uploadDate: v.$createdAt,
-          duration: v.duration || '0:00',
-          contentType: v.contentType || 'video',
-          verified: v.verified || false,
-          createdAt: v.$createdAt
-        }));
+        const formattedVideos = videosRes.documents.map(v => {
+          const ct = v.contentType || 'video';
+          const isShortLike = ct === 'shorts' || v.title?.toLowerCase().includes('#shorts');
+          const rawDur = v.duration as string | undefined;
+          const cleanDur = rawDur && rawDur !== '0:00' && rawDur !== '0:0' && rawDur !== '0' ? rawDur : '';
+          return {
+            id: v.$id,
+            uploaderId: v.uploaderId,
+            title: v.title,
+            thumbnailUrl: v.thumbnailUrl,
+            videoUrl: v.videoUrl,
+            channelName: channelProfile ? (channelProfile.name || channelProfile.displayName) : v.uploaderName,
+            channelAvatar: channelProfile ? (channelProfile.avatar || channelProfile.photoUrl) : (v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`),
+            views: v.views || 0,
+            uploadDate: v.$createdAt,
+            duration: ct === 'photo' || isShortLike ? '' : cleanDur,
+            description: v.description || '',
+            contentType: ct,
+            verified: v.verified || false,
+            createdAt: v.$createdAt
+          };
+        });
 
         setVideos(formattedVideos);
 

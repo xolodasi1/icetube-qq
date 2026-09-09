@@ -53,14 +53,13 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
   }, [user]);
 
   const navItems = [
-    // Главная — только 3 кнопки, категории/поиск на главной (Home filterTabs) + Navbar
     { header_text: language === 'ru' ? 'Главная' : 'Main' },
+    { icon: Home, label: t('nav_home'), path: "/" },
     { icon: Film, label: language === 'ru' ? 'Видео' : 'Videos', path: "/videos" },
     { icon: Compass, label: t('nav_shorts'), path: "/shorts" },
     { icon: Image, label: language === 'ru' ? 'Фото' : 'Photos', path: "/photos" },
     { divider: true },
     { header_text: language === 'ru' ? 'Вы' : 'You' },
-    ...(user ? [{ header: t('nav_you'), path: `/channel/${user.$id}` }] : []),
     ...(user ? [{ icon: User, label: t('nav_your_channel'), path: `/channel/${user.$id}` }] : []),
     { icon: History, label: t('nav_history'), path: "/history", requiresAuth: true },
     { icon: PlaySquare, label: t('nav_continue_watching'), path: "/continue-watching" },

@@ -117,7 +117,7 @@ export const VideoCard = memo(function VideoCard({ video, layout = "grid", hideD
             <Zap className="w-3 h-3 text-[#70d6ff] fill-[#70d6ff]" />
             <span className="text-[10px] font-bold text-white uppercase tracking-wider">{t('short_badge')}</span>
           </div>
-        ) : video.duration ? (
+        ) : video.duration && video.duration !== '0:00' && video.duration !== '0:0' && video.duration !== '0' ? (
           <div className="absolute bottom-1.5 right-1.5 z-20 bg-black/90 px-1.5 py-0.5 rounded text-[11px] font-medium text-white leading-none">
             {video.duration}
           </div>

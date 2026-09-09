@@ -38,8 +38,43 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [duration, setDuration] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const formatDuration = (sec: number) => {
+    if (!sec || isNaN(sec) || !isFinite(sec)) return '';
+    const s = Math.round(sec);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    if (m >= 60) {
+      const h = Math.floor(m / 60);
+      const mm = m % 60;
+      return `${h}:${String(mm).padStart(2,'0')}:${String(r).padStart(2,'0')}`;
+    }
+    return `${m}:${String(r).padStart(2,'0')}`;
+  };
+
+  const getVideoDuration = (f: File): Promise<string> => new Promise((resolve) => {
+    try {
+      const el = document.createElement('video');
+      el.preload = 'metadata';
+      el.muted = true;
+      el.src = URL.createObjectURL(f);
+      const cleanup = () => {
+        URL.revokeObjectURL(el.src);
+        el.remove();
+      };
+      el.onloadedmetadata = () => {
+        const d = formatDuration(el.duration);
+        cleanup();
+        resolve(d);
+      };
+      el.onerror = () => { cleanup(); resolve(''); };
+      // fallback 5с
+      setTimeout(() => { cleanup(); resolve(''); }, 5000);
+    } catch { resolve(''); }
+  });
 
   useEffect(() => {
     if (isOpen && initialType) {
@@ -128,7 +163,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
       }
       setFile(selectedFile);
       setIsImage(isImageFile);
-      if (isImageFile) setContentType('photo');
+      if (isImageFile) {
+        setContentType('photo');
+        setDuration('');
+      } else {
+        // извлечь длительность для корректного превью (фикс бага 0:00 на канале)
+        setDuration('');
+        getVideoDuration(selectedFile).then(d => { if (d) setDuration(d); });
+      }
       if (!title) {
         setTitle(selectedFile.name.replace(/\.[^/.]+$/, ""));
       }
@@ -170,6 +212,12 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
       
       const finalContentType = isPhoto ? 'photo' : (isShorts ? 'shorts' : 'video');
       
+      // длительность — фиксим баг 0:00 на канале: если еще не извлекли, пробуем сейчас
+      let finalDuration = duration;
+      if (!isPhoto && !finalDuration && file && !isImage) {
+        try { finalDuration = await getVideoDuration(file); if (finalDuration) setDuration(finalDuration); } catch {}
+      }
+      
       const uploadData: any = {
         title: title,
         description: isPhoto ? finalDescription : (isShorts ? (finalDescription.toLowerCase().includes('#shorts') ? finalDescription : `${finalDescription}\n\n#shorts`.trim()) : finalDescription),
@@ -181,6 +229,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         views: 0,
         category: category.trim() || 'All',
         contentType: finalContentType,
+        duration: isPhoto ? '' : (finalDuration || ''),
         game: isPhoto || !isGamingCategory ? undefined : (game.trim() || undefined),
         hashtags: tags.length > 0 ? tags : undefined,
         language: videoLanguage || undefined,
