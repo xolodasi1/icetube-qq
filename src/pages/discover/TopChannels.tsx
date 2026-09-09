@@ -66,17 +66,17 @@ export default function TopChannels() {
               const uid = v.uploaderId;
               if (uid) photoCountMap[uid] = (photoCountMap[uid] || 0) + 1;
             });
-            channels = channels.map(c => ({
+            channels = channels.map((c: any) => ({
               ...c,
-              photosCount: photoCountMap[c.userId] || 0,
-            })).sort((a, b) => (b.photosCount || 0) - (a.photosCount || 0));
+              photosCount: photoCountMap[(c as any).userId] || 0,
+            })).sort((a: any, b: any) => (b.photosCount || 0) - (a.photosCount || 0));
           }
-        } catch (err) {
+          } catch (err) {
           console.error("Failed to fetch photo counts:", err);
-          channels = channels.map(c => ({ ...c, photosCount: 0 }));
+          channels = channels.map((c: any) => ({ ...c, photosCount: 0 }));
         }
       } else {
-        channels = channels.map(c => ({ ...c, photosCount: 0 }));
+        channels = channels.map((c: any) => ({ ...c, photosCount: 0 }));
       }
 
       setChannels(channels.slice(0, 50));

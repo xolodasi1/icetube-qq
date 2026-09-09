@@ -48,7 +48,7 @@ export default function Home() {
       }
 
       const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
-      let profilesMap: Record<string, {name: string, avatar: string}> = {};
+      let profilesMap: Record<string, {name: string, avatar: string, handle?: string}> = {};
       try {
         if (profilesCol) {
           const uploaderIds = Array.from(new Set(response.documents.map((v: any) => v.uploaderId).filter(Boolean))) as string[];
@@ -109,8 +109,8 @@ export default function Home() {
 
   const filteredVideos = dbVideos.filter(video => {
     const matchesSearch = searchQuery
-      ? video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        video.channelName.toLowerCase().includes(searchQuery.toLowerCase())
+      ? (video.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (video.channelName || '').toLowerCase().includes(searchQuery.toLowerCase())
       : true;
     let matchesFilter = true;
     if (activeFilter === 'video') matchesFilter = !isShort(video) && !isPhoto(video);
@@ -178,9 +178,9 @@ export default function Home() {
         ) : activeFilter === 'all' ? (
           <>
             {(() => {
-              const regs = dbVideos.filter(v => !isShort(v) && !isPhoto(v) && (!searchQuery || v.title.toLowerCase().includes(searchQuery.toLowerCase()) || v.channelName.toLowerCase().includes(searchQuery.toLowerCase())));
-              const shs = dbVideos.filter(v => isShort(v) && (!searchQuery || v.title.toLowerCase().includes(searchQuery.toLowerCase()) || v.channelName.toLowerCase().includes(searchQuery.toLowerCase())));
-              const phs = dbVideos.filter(v => isPhoto(v) && (!searchQuery || v.title.toLowerCase().includes(searchQuery.toLowerCase()) || v.channelName.toLowerCase().includes(searchQuery.toLowerCase())));
+              const regs = dbVideos.filter(v => !isShort(v) && !isPhoto(v) && (!searchQuery || (v.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || (v.channelName || '').toLowerCase().includes(searchQuery.toLowerCase())));
+              const shs = dbVideos.filter(v => isShort(v) && (!searchQuery || (v.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || (v.channelName || '').toLowerCase().includes(searchQuery.toLowerCase())));
+              const phs = dbVideos.filter(v => isPhoto(v) && (!searchQuery || (v.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || (v.channelName || '').toLowerCase().includes(searchQuery.toLowerCase())));
               return (
                 <>
                   {regs.length > 0 && (

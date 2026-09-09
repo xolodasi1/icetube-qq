@@ -119,9 +119,3 @@ See `capacitor.config.ts` for app configuration:
 - App ID: `com.icetube.app`
 - App Name: `Icetube`
 - Web directory: `dist`
-```
-
-Let me also update the package.json to reflect the updated scripts.</think>Now let me finalize the package.json scripts properly:
-<tool_call>read
-<arg_key>filePath</arg_key>
-<arg_value>H:\888\icetube-qq\package.json

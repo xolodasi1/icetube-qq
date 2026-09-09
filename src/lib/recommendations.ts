@@ -28,6 +28,8 @@ export function getRecommendations(videos: VideoLike[], options: RecommendOption
     preferContentType,
   } = options;
 
+  if (videos.length === 0) return [];
+
   const targetCategory = currentVideo?.category || preferCategory;
   const targetUploader = currentVideo?.uploaderId || preferUploader;
   const targetContentType = currentVideo?.contentType || preferContentType || 'video';

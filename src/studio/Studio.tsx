@@ -270,8 +270,8 @@ export default function Studio() {
   }, [user]);
 
   const combinedActivity = [
-    ...analyticsComments.map(c => ({ ...c, icon: 'comment' as const })),
-    ...analyticsNotifications.map(n => ({ icon: (n.type === 'like' ? 'like' : n.type === 'subscribe' ? 'subscribe' : 'other') as const, ...n }))
+    ...analyticsComments.map(c => ({ ...c, icon: 'comment' as 'comment' })),
+    ...analyticsNotifications.map(n => ({ ...n, icon: (n.type === 'like' ? 'like' : n.type === 'subscribe' ? 'subscribe' : 'other') as 'like' | 'subscribe' | 'other' }))
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10);
 
   if (!user) {
@@ -318,7 +318,7 @@ export default function Studio() {
     </button>
   );
 
-  const maxViews = Math.max(...videos.map(v => v.views), 1);
+  const maxViews = videos.length > 0 ? Math.max(...videos.map(v => v.views || 0), 1) : 1;
   const contentTotal = stats.totalVideos + stats.totalShorts + stats.totalPhotos || 1;
   const videoPct = (stats.totalVideos / contentTotal) * 100;
   const shortsPct = (stats.totalShorts / contentTotal) * 100;

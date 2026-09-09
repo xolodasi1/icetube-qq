@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../auth/AuthContext';
-import { uploadVideoToCloudinary, uploadImageToCloudinaryWithProgress, getOptimizedThumbnail } from '../lib/cloudinary';
+import { uploadVideoToCloudinary, uploadImageToCloudinary, getOptimizedThumbnail } from '../lib/cloudinary';
 import { databases } from '../lib/appwrite';
 import { SafeStorage } from '../lib/storage';
 import { ID, Query } from 'appwrite';
@@ -146,7 +146,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
 
     try {
       const fileUrl = isImage
-        ? await uploadImageToCloudinaryWithProgress(file, (p) => setProgress(p))
+        ? await uploadImageToCloudinary(file, (p) => setProgress(p))
         : await uploadVideoToCloudinary(file, (p) => setProgress(p));
       const thumbnailUrl = isImage ? fileUrl : (getOptimizedThumbnail(fileUrl) || fileUrl.replace(/\.[^/.]+$/, ".jpg"));
 
