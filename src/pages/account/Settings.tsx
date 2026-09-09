@@ -1,11 +1,39 @@
-import React, { useState } from 'react';
-import { Moon, Sun, Globe, Check, Settings as SettingsIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Moon, Sun, Globe, Check, Settings as SettingsIcon, X } from 'lucide-react';
 import { useLanguage } from '../../language/LanguageContext';
 import { useTheme } from '../../theme/ThemeContext';
+import { SafeStorage } from '../../lib/storage';
+
+const COUNTRY_OPTIONS: { id: string, label: string, flag: string }[] = [
+  { id: 'RU', label: 'Россия', flag: '🇷🇺' },
+  { id: 'UA', label: 'Украина', flag: '🇺🇦' },
+  { id: 'BY', label: 'Беларусь', flag: '🇧🇾' },
+  { id: 'KZ', label: 'Казахстан', flag: '🇰🇿' },
+  { id: 'US', label: 'USA', flag: '🇺🇸' },
+  { id: 'GB', label: 'UK', flag: '🇬🇧' },
+  { id: 'DE', label: 'Германия', flag: '🇩🇪' },
+  { id: 'FR', label: 'Франция', flag: '🇫🇷' },
+  { id: 'ES', label: 'Испания', flag: '🇪🇸' },
+  { id: 'IT', label: 'Италия', flag: '🇮🇹' },
+  { id: 'TR', label: 'Турция', flag: '🇹🇷' },
+  { id: 'PL', label: 'Польша', flag: '🇵🇱' },
+  { id: 'CN', label: 'Китай', flag: '🇨🇳' },
+  { id: 'JP', label: 'Япония', flag: '🇯🇵' },
+  { id: 'KR', label: 'Корея', flag: '🇰🇷' },
+  { id: 'IN', label: 'Индия', flag: '🇮🇳' },
+  { id: 'BR', label: 'Бразилия', flag: '🇧🇷' },
+  { id: 'WW', label: 'Worldwide', flag: '🌍' },
+];
 
 export default function Settings() {
   const { language, setLanguage, t } = useLanguage();
   const { theme, setTheme } = useTheme();
+  const [selectedCountries, setSelectedCountries] = useState<string[]>(() => {
+    const saved = SafeStorage.get<string[] | null>('home_country_filter', null);
+    if (saved === null) return COUNTRY_OPTIONS.map(c=>c.id);
+    return saved;
+  });
+  useEffect(() => { SafeStorage.set('home_country_filter', selectedCountries); }, [selectedCountries]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 flex flex-col gap-8">
@@ -120,6 +148,44 @@ export default function Settings() {
               {language === 'es' && <Check className="w-4 h-4 text-[#70d6ff]" />}
             </button>
           </div>
+        </div>
+
+        {/* Country Filter — п.3 (кнопка Настройки в боковой панели внизу) */}
+        <div className="bg-white/5 border ice-border rounded-2xl p-6">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="p-2.5 bg-[#70d6ff]/10 rounded-xl text-[#70d6ff]">
+              <Globe className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-white">{language === 'ru' ? 'Страны каналов' : 'Channel countries'}</h3>
+              <p className="text-xs text-slate-500 mt-0.5">{language === 'ru' ? 'Выбери, каналы каких стран показывать на главной' : 'Choose which countries to show on Home'}</p>
+            </div>
+            <span className="ml-auto text-xs bg-white/5 border border-white/10 px-2.5 py-1 rounded-full text-slate-400">{selectedCountries.length}/{COUNTRY_OPTIONS.length}</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
+            {COUNTRY_OPTIONS.map(opt => {
+              const checked = selectedCountries.includes(opt.id);
+              return (
+                <label key={opt.id} className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition-all ${checked ? 'bg-[#70d6ff]/10 border-[#70d6ff]/30' : 'bg-black/20 border-white/5 hover:bg-white/5'}`}>
+                  <input type="checkbox" checked={checked} onChange={e=>{
+                    if (e.target.checked) setSelectedCountries(prev=>[...prev, opt.id]);
+                    else setSelectedCountries(prev=>prev.filter(c=>c!==opt.id));
+                  }} className="accent-[#70d6ff] w-4 h-4" />
+                  <span className="text-base">{opt.flag}</span>
+                  <span className="text-sm text-white truncate">{opt.label}</span>
+                </label>
+              );
+            })}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={()=>setSelectedCountries([])} className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-slate-300 hover:bg-white/10 flex items-center justify-center gap-1.5">
+              <X className="w-4 h-4" /> {language === 'ru' ? 'Снять всё' : 'Deselect all'}
+            </button>
+            <button onClick={()=>setSelectedCountries(COUNTRY_OPTIONS.map(c=>c.id))} className="flex-1 py-2.5 bg-[#70d6ff] text-black rounded-xl text-sm font-bold hover:bg-[#5bc0e6] flex items-center justify-center gap-1.5">
+              <Check className="w-4 h-4" /> {language === 'ru' ? 'Выделить всё' : 'Select all'}
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-500 mt-3 text-center">{language === 'ru' ? 'Находится в боковой панели внизу → Настройки (как просили). Сохраняется автоматически.' : 'Found in sidebar bottom → Settings as requested. Saved automatically.'}</p>
         </div>
 
         {/* Updates Setting */}

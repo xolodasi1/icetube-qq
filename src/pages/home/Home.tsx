@@ -151,7 +151,7 @@ export default function Home() {
 
   const allCategories = useMemo(() => {
     const set = new Set<string>();
-    dbVideos.forEach(v => { const c = (v.category || '').trim(); if (c && c !== 'All') set.add(c); });
+    dbVideos.forEach(v => { const c = (v.category || '').trim(); if (c && c.toLowerCase() !== 'all' && c.toLowerCase() !== 'все') set.add(c); });
     return ['All', ...Array.from(set).sort((a,b)=>a.localeCompare(b))];
   }, [dbVideos]);
 
@@ -270,9 +270,9 @@ export default function Home() {
         ) : activeFilter === 'all' ? (
           <>
             {(() => {
-              const regs = dbVideos.filter(v => !isShort(v) && !isPhoto(v) && (!searchQuery || (v.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || (v.channelName || '').toLowerCase().includes(searchQuery.toLowerCase())));
-              const shs = dbVideos.filter(v => isShort(v) && (!searchQuery || (v.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || (v.channelName || '').toLowerCase().includes(searchQuery.toLowerCase())));
-              const phs = dbVideos.filter(v => isPhoto(v) && (!searchQuery || (v.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || (v.channelName || '').toLowerCase().includes(searchQuery.toLowerCase())));
+              const regs = filteredVideos.filter(v => !isShort(v) && !isPhoto(v));
+              const shs = filteredVideos.filter(v => isShort(v));
+              const phs = filteredVideos.filter(v => isPhoto(v));
               return (
                 <>
                   {regs.length > 0 && (
