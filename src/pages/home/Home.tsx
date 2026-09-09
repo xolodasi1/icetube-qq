@@ -342,44 +342,7 @@ export default function Home() {
         )}
       </div>
 
-      {/* Country filter modal — п.3 */}
-      {showCountrySettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowCountrySettings(false)}>
-          <div className="bg-[#0a0f1e] border border-white/10 rounded-2xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={e=>e.stopPropagation()}>
-            <div className="p-5 border-b border-white/10 flex items-center justify-between shrink-0">
-              <h3 className="text-white font-bold flex items-center gap-2"><Globe className="w-5 h-5 text-[#70d6ff]" /> {language === 'ru' ? 'Каналы каких стран показывать' : 'Which countries to show'}</h3>
-              <button onClick={()=>setShowCountrySettings(false)} className="p-2 hover:bg-white/10 rounded-full"><X className="w-4 h-4 text-slate-400" /></button>
-            </div>
-            <div className="p-4 overflow-y-auto max-h-[50vh] grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
-              {availableCountries.map(cid=>{
-                const opt = COUNTRY_OPTIONS.find(c=>c.id===cid) || { id: cid, label: cid, flag: '🏳️' };
-                const checked = selectedCountries.includes(cid);
-                return (
-                  <label key={cid} className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition-all ${checked ? 'bg-[#70d6ff]/10 border-[#70d6ff]/30' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}>
-                    <input type="checkbox" checked={checked} onChange={e=>{
-                      if (e.target.checked) setSelectedCountries(prev=>[...prev, cid]);
-                      else setSelectedCountries(prev=>prev.filter(c=>c!==cid));
-                    }} className="accent-[#70d6ff] w-4 h-4" />
-                    <span className="text-base">{opt.flag}</span>
-                    <span className="text-sm text-white truncate">{opt.label}</span>
-                    <span className="text-xs text-slate-500 ml-auto">{cid}</span>
-                    {checked && <Check className="w-4 h-4 text-[#70d6ff] shrink-0" />}
-                  </label>
-                );
-              })}
-            </div>
-            <div className="p-4 border-t border-white/10 flex gap-2 shrink-0">
-              <button onClick={()=>setSelectedCountries([])} className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-slate-300 hover:bg-white/10 flex items-center justify-center gap-1.5">
-                <X className="w-4 h-4" /> {language === 'ru' ? 'Снять всё' : 'Deselect all'}
-              </button>
-              <button onClick={()=>setSelectedCountries(availableCountries)} className="flex-1 py-2.5 bg-[#70d6ff] text-black rounded-xl text-sm font-bold hover:bg-[#5bc0e6] flex items-center justify-center gap-1.5">
-                <Check className="w-4 h-4" /> {language === 'ru' ? 'Выделить всё' : 'Select all'}
-              </button>
-            </div>
-            <div className="px-4 pb-3 text-[11px] text-slate-500 text-center">{language === 'ru' ? 'Галочки сохраняются автоматически. Ниже кнопки как просили.' : 'Checkboxes are saved automatically.'}</div>
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 }
