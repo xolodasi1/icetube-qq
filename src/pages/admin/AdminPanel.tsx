@@ -6,13 +6,36 @@ import {
   Ban, Trash2, Clock, Eye, AlertTriangle, 
   LayoutDashboard, PieChart, BarChart3, ArrowLeft, Loader2,
   ChevronRight, Calendar, Bell, Search, Filter, Film, Scissors, Image,
-  Wifi, Radio, Circle, UserCheck, Signal, History, PlayCircle
+  Wifi, Radio, Circle, UserCheck, Signal, History, PlayCircle, Globe
 } from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
 import { useLanguage } from '../../language/LanguageContext';
 import { Query, ID } from 'appwrite';
 import { isUserOnline, formatLastSeen, ONLINE_THRESHOLD_MS } from '../../lib/presence';
 import { getOptimizedThumbnail } from '../../lib/cloudinary';
+
+const COUNTRY_META: Record<string, {flag: string, label: string}> = {
+  RU: {flag: '🇷🇺', label: 'Россия'},
+  UA: {flag: '🇺🇦', label: 'Украина'},
+  BY: {flag: '🇧🇾', label: 'Беларусь'},
+  KZ: {flag: '🇰🇿', label: 'Казахстан'},
+  US: {flag: '🇺🇸', label: 'USA'},
+  GB: {flag: '🇬🇧', label: 'UK'},
+  DE: {flag: '🇩🇪', label: 'Германия'},
+  FR: {flag: '🇫🇷', label: 'Франция'},
+  ES: {flag: '🇪🇸', label: 'Испания'},
+  IT: {flag: '🇮🇹', label: 'Италия'},
+  TR: {flag: '🇹🇷', label: 'Турция'},
+  PL: {flag: '🇵🇱', label: 'Польша'},
+  CN: {flag: '🇨🇳', label: 'Китай'},
+  JP: {flag: '🇯🇵', label: 'Япония'},
+  KR: {flag: '🇰🇷', label: 'Корея'},
+  IN: {flag: '🇮🇳', label: 'Индия'},
+  BR: {flag: '🇧🇷', label: 'Бразилия'},
+  WW: {flag: '🌍', label: 'Worldwide'},
+  '': {flag: '🏳️', label: 'Не указана'},
+};
+const getCountryMeta = (code: string) => COUNTRY_META[code] || {flag: '🏳️', label: code || 'Не указана'};
 
 type AdminTab = 'dashboard' | 'analytics' | 'users' | 'reports' | 'content';
 
@@ -106,6 +129,8 @@ export default function AdminPanel() {
             videosCount: doc.videosCount,
             snowflakesCount: doc.snowflakesCount,
             lastSeen: doc.lastSeen || doc.lastActive || null,
+            country: doc.country || doc.channelCountry || '',
+            aliases: doc.aliases || doc.searchAliases || '',
             $createdAt: doc.$createdAt,
             $updatedAt: doc.$updatedAt
           })));
@@ -219,6 +244,21 @@ export default function AdminPanel() {
       snowflakes: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, snowflakesCount: u.snowflakesCount || 0 })).sort((a, b) => (b.snowflakesCount || 0) - (a.snowflakesCount || 0)).slice(0, 5),
       photos: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, photosCount: dbVideos.filter(v => v.contentType === 'photo' && (v.uploaderId === u.userId)).length })).sort((a, b) => (b.photosCount || 0) - (a.photosCount || 0)).slice(0, 5),
     };
+
+    // Топ стран — для какой страны больше каналов (п. analytics)
+    const countryCounts: Record<string, number> = {};
+    dbUsers.forEach((u: any) => {
+      const c = u.country || '';
+      const key = c || '—';
+      countryCounts[key] = (countryCounts[key] || 0) + 1;
+    });
+    const topCountries = Object.entries(countryCounts)
+      .sort((a,b)=>b[1]-a[1])
+      .slice(0,8)
+      .map(([code,count])=>{
+        const meta = getCountryMeta(code === '—' ? '' : code);
+        return { code: code === '—' ? '' : code, flag: meta.flag, label: code === '—' ? (language==='ru'?'Не указана':'Not specified') : meta.label, count };
+      });
     
     return {
       totalUsers: dbUsers.length,
@@ -231,9 +271,10 @@ export default function AdminPanel() {
       growth: '+12%',
       serverStatus: 'Online',
       uptime: '99.98%',
-      leaderboards
+      leaderboards,
+      topCountries
     };
-  }, [dbUsers, dbVideos, reports, presenceTick]);
+  }, [dbUsers, dbVideos, reports, presenceTick, language]);
 
   if (isAuthLoading) {
     return (
@@ -540,11 +581,38 @@ export default function AdminPanel() {
                </div>
             </div>
 
-             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-               <MetricSquare label={language === 'ru' ? 'Всего просмотров' : 'Total Views'} value="Live" change="+4.2%" trend="up" />
-               <MetricSquare label={language === 'ru' ? 'Жалобы' : 'Reports'} value={stats.totalReports} change="Managed" trend="up" />
-               <MetricSquare label={language === 'ru' ? 'Сред. сессия' : 'Avg Session'} value="--m" change="+0.8%" trend="up" />
-               <MetricSquare label={language === 'ru' ? 'Сеть' : 'Network'} value="Cloud" change="Active" trend="up" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <MetricSquare label={language === 'ru' ? 'Всего просмотров' : 'Total Views'} value="Live" change="+4.2%" trend="up" />
+                <MetricSquare label={language === 'ru' ? 'Жалобы' : 'Reports'} value={stats.totalReports} change="Managed" trend="up" />
+                <MetricSquare label={language === 'ru' ? 'Сред. сессия' : 'Avg Session'} value="--m" change="+0.8%" trend="up" />
+                <MetricSquare label={language === 'ru' ? 'Сеть' : 'Network'} value="Cloud" change="Active" trend="up" />
+             </div>
+
+            <div className="bg-white/[0.02] border ice-border rounded-3xl p-6">
+              <h2 className="text-xl font-bold text-white uppercase italic tracking-tighter flex items-center gap-2">
+                <Globe className="w-5 h-5 text-[#70d6ff]" />
+                {language === 'ru' ? 'География — где больше каналов' : 'Geography — channels by country'}
+              </h2>
+              <p className="text-sm text-slate-400 mt-1">{language === 'ru' ? `Всего стран: ${stats.topCountries.length} · Топ по количеству каналов` : `Total countries: ${stats.topCountries.length} · Top by channel count`}</p>
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {stats.topCountries.length === 0 ? (
+                  <div className="col-span-full py-10 text-center text-slate-500 text-sm">{language === 'ru' ? 'Нет данных по странам — укажите страну в настройках канала' : 'No country data — set country in channel settings'}</div>
+                ) : stats.topCountries.map(c=>(
+                  <div key={c.code || 'none'} className="flex items-center gap-3 p-3 bg-black/20 border border-white/5 rounded-xl hover:border-[#70d6ff]/20 transition-colors">
+                    <span className="text-2xl">{c.flag}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-white truncate">{c.label} <span className="text-xs font-mono text-slate-500">· {c.code || '—'}</span></div>
+                      <div className="text-xs text-slate-400">{c.count} {language === 'ru' ? 'каналов' : 'channels'}</div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-black text-[#70d6ff]">{c.count}</div>
+                      <div className="w-16 h-1.5 bg-black/40 rounded-full overflow-hidden mt-1">
+                        <div className="h-full bg-[#70d6ff]" style={{width: `${(c.count/Math.max(1, Math.max(...stats.topCountries.map(x=>x.count))))*100}%`}}></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="bg-white/[0.02] border ice-border rounded-3xl p-6 overflow-hidden">
@@ -735,7 +803,8 @@ function UsersSection({ dbUsers, t, language }: any) {
             <thead className="bg-black/20 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b ice-border">
               <tr>
                 <th className="px-6 py-4">Profile</th>
-                <th className="px-6 py-4 flex items-center gap-1"><Wifi className="w-3 h-3" /> {language === 'ru' ? 'Статус' : 'Presence'}</th>
+                <th className="px-6 py-4"><span className="flex items-center gap-1"><Wifi className="w-3 h-3" /> {language === 'ru' ? 'Статус' : 'Presence'}</span></th>
+                <th className="px-6 py-4"><span className="flex items-center gap-1"><Globe className="w-3 h-3" /> {language === 'ru' ? 'Страна' : 'Country'}</span></th>
                 <th className="px-6 py-4">Role / Permissions</th>
                 <th className="px-6 py-4">Registered At</th>
                 <th className="px-6 py-4 text-right">Settings</th>
@@ -778,6 +847,13 @@ function UsersSection({ dbUsers, t, language }: any) {
                         <span className="text-[10px] text-slate-600 mt-1 font-mono">{formatLastSeen(usr.lastSeen, language)}</span>
                       </span>
                     )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/5 border border-white/10 rounded-full text-xs whitespace-nowrap">
+                      <span>{getCountryMeta(usr.country).flag}</span>
+                      <span className="font-bold text-white">{usr.country || '—'}</span>
+                      <span className="text-[10px] text-slate-500 hidden sm:inline">{getCountryMeta(usr.country).label}</span>
+                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
