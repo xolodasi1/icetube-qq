@@ -1,12 +1,34 @@
 import { VideoCard } from "../../components/VideoCard";
 import { useSearchParams, Link } from "react-router-dom";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { databases, withTimeout } from "../../lib/appwrite";
 import { Query } from "appwrite";
-import { Loader2, Video, Image, RefreshCw } from "lucide-react";
+import { Loader2, Video, Image, RefreshCw, Settings, Globe, X, Check } from "lucide-react";
 import { useLanguage } from "../../language/LanguageContext";
 import { getOptimizedThumbnail } from "../../lib/cloudinary";
 import { getRecommendations } from "../../lib/recommendations";
+import { SafeStorage } from "../../lib/storage";
+
+const COUNTRY_OPTIONS: { id: string, label: string, flag: string }[] = [
+  { id: 'RU', label: 'Россия', flag: '🇷🇺' },
+  { id: 'UA', label: 'Украина', flag: '🇺🇦' },
+  { id: 'BY', label: 'Беларусь', flag: '🇧🇾' },
+  { id: 'KZ', label: 'Казахстан', flag: '🇰🇿' },
+  { id: 'US', label: 'USA', flag: '🇺🇸' },
+  { id: 'GB', label: 'UK', flag: '🇬🇧' },
+  { id: 'DE', label: 'Германия', flag: '🇩🇪' },
+  { id: 'FR', label: 'Франция', flag: '🇫🇷' },
+  { id: 'ES', label: 'Испания', flag: '🇪🇸' },
+  { id: 'IT', label: 'Италия', flag: '🇮🇹' },
+  { id: 'TR', label: 'Турция', flag: '🇹🇷' },
+  { id: 'PL', label: 'Польша', flag: '🇵🇱' },
+  { id: 'CN', label: 'Китай', flag: '🇨🇳' },
+  { id: 'JP', label: 'Япония', flag: '🇯🇵' },
+  { id: 'KR', label: 'Корея', flag: '🇰🇷' },
+  { id: 'IN', label: 'Индия', flag: '🇮🇳' },
+  { id: 'BR', label: 'Бразилия', flag: '🇧🇷' },
+  { id: 'WW', label: 'Worldwide', flag: '🌍' },
+];
 
 export default function Home() {
   const { t, language } = useLanguage();
@@ -16,6 +38,13 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'video' | 'shorts' | 'photo'>('all');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [selectedCountries, setSelectedCountries] = useState<string[]>(() => {
+    const saved = SafeStorage.get<string[] | null>('home_country_filter', null);
+    if (saved === null) return COUNTRY_OPTIONS.map(c=>c.id);
+    return saved;
+  });
+  const [showCountrySettings, setShowCountrySettings] = useState(false);
 
   const searchQuery = searchParams.get("search") || "";
 
@@ -48,7 +77,7 @@ export default function Home() {
       }
 
       const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
-      let profilesMap: Record<string, {name: string, avatar: string, handle?: string}> = {};
+      let profilesMap: Record<string, {name: string, avatar: string, handle?: string, country?: string, aliases?: string}> = {};
       try {
         if (profilesCol) {
           const uploaderIds = Array.from(new Set(response.documents.map((v: any) => v.uploaderId).filter(Boolean))) as string[];
@@ -58,9 +87,14 @@ export default function Home() {
             const results = await Promise.all(chunks.map(ids => withTimeout(databases.listDocuments(dbId, profilesCol, [Query.equal('userId', ids)]), 2500)));
             results.flatMap(r => r.documents).forEach((p: any) => {
               if (p.userId) {
+                const aliasesRaw = p.aliases ?? p.searchAliases ?? '';
+                const aliasesStr = Array.isArray(aliasesRaw) ? aliasesRaw.join(', ') : String(aliasesRaw || '');
                 profilesMap[p.userId] = {
                   name: p.name || '',
-                  avatar: p.avatar || ''
+                  avatar: p.avatar || '',
+                  handle: p.handle || '',
+                  country: p.country || p.channelCountry || '',
+                  aliases: aliasesStr
                 };
               }
             });
@@ -72,6 +106,7 @@ export default function Home() {
 
       const formatted = response.documents.map(v => {
           const profile = profilesMap[v.uploaderId];
+          const cat = v.category || 'All';
           return {
             id: v.$id,
             uploaderId: v.uploaderId,
@@ -81,10 +116,12 @@ export default function Home() {
             channelName: profile?.name || v.uploaderName,
             channelHandle: profile?.handle || '',
             channelAvatar: profile?.avatar || v.uploaderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.uploaderName)}`,
+            channelCountry: profile?.country || '',
+            channelAliases: profile?.aliases || '',
             views: v.views || 0,
             uploadDate: v.$createdAt,
             createdAt: v.$createdAt,
-            category: v.category || 'All',
+            category: cat,
             contentType: v.contentType || 'video',
             verified: v.verified || false,
             description: v.description || ''
@@ -107,17 +144,50 @@ export default function Home() {
   const isShort = (v: any) => v.contentType === 'shorts' || v.title?.toLowerCase().includes('#shorts') || v.description?.toLowerCase().includes('#shorts');
   const isPhoto = (v: any) => v.contentType === 'photo';
 
-  const filteredVideos = dbVideos.filter(video => {
-    const matchesSearch = searchQuery
-      ? (video.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (video.channelName || '').toLowerCase().includes(searchQuery.toLowerCase())
-      : true;
-    let matchesFilter = true;
-    if (activeFilter === 'video') matchesFilter = !isShort(video) && !isPhoto(video);
-    else if (activeFilter === 'shorts') matchesFilter = isShort(video);
-    else if (activeFilter === 'photo') matchesFilter = isPhoto(video);
-    return matchesSearch && matchesFilter;
-  });
+  // п.3 — persist страны, п.5 — категории
+  useEffect(() => {
+    SafeStorage.set('home_country_filter', selectedCountries);
+  }, [selectedCountries]);
+
+  const allCategories = useMemo(() => {
+    const set = new Set<string>();
+    dbVideos.forEach(v => { const c = (v.category || '').trim(); if (c && c !== 'All') set.add(c); });
+    return ['All', ...Array.from(set).sort((a,b)=>a.localeCompare(b))];
+  }, [dbVideos]);
+
+  const availableCountries = useMemo(() => {
+    const set = new Set<string>();
+    dbVideos.forEach(v => { if (v.channelCountry) set.add(v.channelCountry); });
+    // если видео без страны — показываем WW как фолбек
+    const fromOptions = COUNTRY_OPTIONS.map(c=>c.id);
+    const combined = Array.from(new Set([...fromOptions, ...Array.from(set)]));
+    return combined;
+  }, [dbVideos]);
+
+  const filteredVideos = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return dbVideos.filter(video => {
+      const title = (video.title || '').toLowerCase();
+      const chName = (video.channelName || '').toLowerCase();
+      const chHandle = (video.channelHandle || '').toLowerCase();
+      const aliases = (video.channelAliases || '').toLowerCase();
+      const cat = (video.category || '').toLowerCase();
+      const desc = (video.description || '').toLowerCase();
+      const aliasParts = aliases.split(/[,\s]+/).filter(Boolean);
+      const matchesSearch = !q ? true : (
+        title.includes(q) || chName.includes(q) || chHandle.includes(q) || cat.includes(q) || desc.includes(q) ||
+        aliases.includes(q) || aliasParts.some(a => a.includes(q) || q.includes(a))
+      );
+      let matchesFilter = true;
+      if (activeFilter === 'video') matchesFilter = !isShort(video) && !isPhoto(video);
+      else if (activeFilter === 'shorts') matchesFilter = isShort(video);
+      else if (activeFilter === 'photo') matchesFilter = isPhoto(video);
+      const matchesCategory = activeCategory === 'All' || (video.category || 'All') === activeCategory;
+      const cc = video.channelCountry || '';
+      const matchesCountry = selectedCountries.includes(cc) || (cc === '' && selectedCountries.includes('WW'));
+      return matchesSearch && matchesFilter && matchesCategory && matchesCountry;
+    });
+  }, [dbVideos, searchQuery, activeFilter, activeCategory, selectedCountries]);
 
   const filterTabs = [
     { value: 'all' as const, label: language === 'ru' ? 'Все' : 'All' },
@@ -128,7 +198,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col gap-5 pt-3 sm:pt-1 pb-6">
-      {/* Filter Tabs — на телефоне sticky с блюром */}
+      {/* Filter Tabs — контент-тип (п.5 категории/поиск — как на YouTube) */}
       <div className="sticky top-[64px] z-20 -mx-4 px-4 py-2.5 bg-[#05070a]/80 backdrop-blur-2xl border-y border-white/[0.04] sm:static sm:mx-0 sm:px-0 sm:py-0 sm:bg-transparent sm:border-0 sm:backdrop-blur-none flex items-center gap-2.5 overflow-x-auto custom-scrollbar hide-scrollbar">
         {filterTabs.map(tab => (
           <button
@@ -143,6 +213,28 @@ export default function Home() {
             {tab.label}
           </button>
         ))}
+        <button onClick={() => setShowCountrySettings(true)} className="ml-auto shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white text-sm whitespace-nowrap">
+          <Globe className="w-4 h-4" /> {language === 'ru' ? 'Страны' : 'Countries'} <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded-full">{selectedCountries.length}/{availableCountries.length}</span>
+        </button>
+        <button onClick={() => setShowCountrySettings(true)} className="shrink-0 p-2 rounded-full bg-white/5 border border-white/10 text-slate-400 hover:text-white md:hidden">
+          <Settings className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Категории — строка как на YouTube, кастомные из загрузки (п.5) */}
+      <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar hide-scrollbar pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+        {allCategories.map(cat => (
+          <button
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            className={`whitespace-nowrap px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${activeCategory === cat ? "bg-[#70d6ff] text-black border-[#70d6ff] shadow-sm" : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"}`}
+          >
+            {cat === 'All' ? (language === 'ru' ? 'Все' : 'All') : cat}
+          </button>
+        ))}
+        {allCategories.length <= 1 && (
+          <span className="text-xs text-slate-500 whitespace-nowrap ml-2">{language === 'ru' ? 'Категории появятся когда авторы укажут их при загрузке' : 'Categories appear when authors set them on upload'}</span>
+        )}
       </div>
 
       {/* Video Grid */}
@@ -243,6 +335,45 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Country filter modal — п.3 */}
+      {showCountrySettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowCountrySettings(false)}>
+          <div className="bg-[#0a0f1e] border border-white/10 rounded-2xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={e=>e.stopPropagation()}>
+            <div className="p-5 border-b border-white/10 flex items-center justify-between shrink-0">
+              <h3 className="text-white font-bold flex items-center gap-2"><Globe className="w-5 h-5 text-[#70d6ff]" /> {language === 'ru' ? 'Каналы каких стран показывать' : 'Which countries to show'}</h3>
+              <button onClick={()=>setShowCountrySettings(false)} className="p-2 hover:bg-white/10 rounded-full"><X className="w-4 h-4 text-slate-400" /></button>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[50vh] grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
+              {availableCountries.map(cid=>{
+                const opt = COUNTRY_OPTIONS.find(c=>c.id===cid) || { id: cid, label: cid, flag: '🏳️' };
+                const checked = selectedCountries.includes(cid);
+                return (
+                  <label key={cid} className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition-all ${checked ? 'bg-[#70d6ff]/10 border-[#70d6ff]/30' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}>
+                    <input type="checkbox" checked={checked} onChange={e=>{
+                      if (e.target.checked) setSelectedCountries(prev=>[...prev, cid]);
+                      else setSelectedCountries(prev=>prev.filter(c=>c!==cid));
+                    }} className="accent-[#70d6ff] w-4 h-4" />
+                    <span className="text-base">{opt.flag}</span>
+                    <span className="text-sm text-white truncate">{opt.label}</span>
+                    <span className="text-xs text-slate-500 ml-auto">{cid}</span>
+                    {checked && <Check className="w-4 h-4 text-[#70d6ff] shrink-0" />}
+                  </label>
+                );
+              })}
+            </div>
+            <div className="p-4 border-t border-white/10 flex gap-2 shrink-0">
+              <button onClick={()=>setSelectedCountries([])} className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-slate-300 hover:bg-white/10 flex items-center justify-center gap-1.5">
+                <X className="w-4 h-4" /> {language === 'ru' ? 'Снять всё' : 'Deselect all'}
+              </button>
+              <button onClick={()=>setSelectedCountries(availableCountries)} className="flex-1 py-2.5 bg-[#70d6ff] text-black rounded-xl text-sm font-bold hover:bg-[#5bc0e6] flex items-center justify-center gap-1.5">
+                <Check className="w-4 h-4" /> {language === 'ru' ? 'Выделить всё' : 'Select all'}
+              </button>
+            </div>
+            <div className="px-4 pb-3 text-[11px] text-slate-500 text-center">{language === 'ru' ? 'Галочки сохраняются автоматически. Ниже кнопки как просили.' : 'Checkboxes are saved automatically.'}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

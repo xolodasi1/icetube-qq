@@ -4,7 +4,7 @@ import { uploadImageToCloudinary } from '../lib/cloudinary';
 import { useAuth } from '../auth/AuthContext';
 import { databases, account } from '../lib/appwrite';
 import { useLanguage } from '../language/LanguageContext';
-import { Wand2, Save, X, Loader2, Image as ImageIcon, User, AlignLeft, AlertCircle, CheckCircle2, Upload, Tag } from 'lucide-react';
+import { Wand2, Save, X, Loader2, Image as ImageIcon, User, AlignLeft, AlertCircle, CheckCircle2, Upload, Tag, Globe, Search, Languages } from 'lucide-react';
 import { Query, ID } from 'appwrite';
 
 export default function ChannelEditor() {
@@ -29,7 +29,9 @@ export default function ChannelEditor() {
       'tiktok': 'TikTok',
       'telegram': 'Telegram',
       'vk': 'VK',
-      'category': language === 'ru' ? 'Категория' : 'Category'
+      'category': language === 'ru' ? 'Категория' : 'Category',
+      'country': language === 'ru' ? 'Страна канала' : 'Channel country',
+      'aliases': language === 'ru' ? 'Алиасы поиска' : 'Search aliases'
     };
     return errorMap[field] || field;
   };
@@ -45,7 +47,9 @@ export default function ChannelEditor() {
     tiktok: '',
     telegram: '',
     vk: '',
-    category: ''
+    category: '',
+    country: '',
+    aliases: ''
   });
 
   const [dbDocId, setDbDocId] = useState<string | null>(null);
@@ -97,7 +101,15 @@ export default function ChannelEditor() {
             handle: '',
             description: '',
             avatar: '',
-            bannerUrl: ''
+            bannerUrl: '',
+            website: '',
+            youtube: '',
+            tiktok: '',
+            telegram: '',
+            vk: '',
+            category: '',
+            country: '',
+            aliases: ''
           });
           setIsLoading(false);
           return;
@@ -111,6 +123,9 @@ export default function ChannelEditor() {
         if (response.documents.length > 0) {
           const doc = response.documents[0];
           setDbDocId(doc.$id);
+          // aliases может быть массивом или строкой (совместимость)
+          const aliasesRaw = doc.aliases ?? doc.searchAliases ?? '';
+          const aliasesStr = Array.isArray(aliasesRaw) ? aliasesRaw.join(', ') : String(aliasesRaw || '');
           setFormData({
             name: doc.name || doc.displayName || user.name || '',
             handle: doc.handle || '',
@@ -122,7 +137,9 @@ export default function ChannelEditor() {
             tiktok: doc.tiktok || '',
             telegram: doc.telegram || '',
             vk: doc.vk || '',
-            category: doc.category || ''
+            category: doc.category || '',
+            country: doc.country || doc.channelCountry || '',
+            aliases: aliasesStr
           });
         } else {
           // No doc yet, use account info
@@ -137,7 +154,9 @@ export default function ChannelEditor() {
             tiktok: '',
             telegram: '',
             vk: '',
-            category: ''
+            category: '',
+            country: '',
+            aliases: ''
           });
         }
       } catch (err: any) {
@@ -167,7 +186,9 @@ export default function ChannelEditor() {
         throw new Error("Missing Database or Collection ID configuration.");
       }
 
-      const payload = {
+      // aliases храним как строку (совместимо с text и array в Appwrite)
+      const aliasesToSave = formData.aliases.trim();
+      let payload: any = {
         userId: user.$id,
         name: formData.name,
         handle: formData.handle,
@@ -179,28 +200,68 @@ export default function ChannelEditor() {
         tiktok: formData.tiktok,
         telegram: formData.telegram,
         vk: formData.vk,
-        category: formData.category
+        category: formData.category,
+        country: formData.country || null,
+        aliases: aliasesToSave || null
+      };
+
+      // Убираем пустые опциональные чтобы не триггерить unknown attribute лишний раз — оставим null для проверки
+      // Но Appwrite лучше не слать null для отсутствующих — удалим пустые
+      Object.keys(payload).forEach(k => {
+        if (payload[k] === '' || payload[k] === null) {
+          // name/handle/userId обязательны, их не трогаем
+          if (!['name','handle','userId'].includes(k)) delete payload[k];
+        }
+      });
+
+      const trySave = async (data: any) => {
+        if (dbDocId) return databases.updateDocument(dbId, colId, dbDocId, data);
+        return databases.createDocument(dbId, colId, ID.unique(), data);
       };
 
       try {
-        if (dbDocId) {
-          await databases.updateDocument(dbId, colId, dbDocId, payload);
-        } else {
-          await databases.createDocument(dbId, colId, ID.unique(), payload);
-        }
+        await trySave(payload);
       } catch (firstErr: any) {
-        if (firstErr.code === 400 && firstErr.message?.toLowerCase().includes('unknown attribute')) {
-          const basicPayload = {
-            userId: user.$id,
-            name: formData.name,
-            handle: formData.handle,
-            description: formData.description,
-            avatar: formData.avatar
-          };
-          if (dbDocId) {
-            await databases.updateDocument(dbId, colId, dbDocId, basicPayload);
-          } else {
-            await databases.createDocument(dbId, colId, ID.unique(), basicPayload);
+        const msg = (firstErr.message || '').toLowerCase();
+        if (firstErr.code === 400 && msg.includes('unknown attribute')) {
+          // пробуем ретрай удаляя проблемное поле по одному
+          let retryPayload = { ...payload };
+          for (let i = 0; i < 5; i++) {
+            const m = firstErr.message.match(/"([^"]+)"/) || (retryPayload.country ? '"country"' : null) || (retryPayload.aliases ? '"aliases"' : null);
+            // если не нашли имя — пробуем по очереди country/aliases/category/bannerUrl и тд
+            let field = m ? (Array.isArray(m) ? m[1] : m) : null;
+            if (!field) {
+              if (retryPayload.aliases) field = 'aliases';
+              else if (retryPayload.country) field = 'country';
+              else if (retryPayload.category) field = 'category';
+              else if (retryPayload.bannerUrl) field = 'bannerUrl';
+              else if (retryPayload.website) field = 'website';
+            }
+            if (!field || !(field in retryPayload)) {
+              // фолбек к базовым 4 полям
+              retryPayload = {
+                userId: user.$id,
+                name: formData.name,
+                handle: formData.handle,
+                description: formData.description,
+                avatar: formData.avatar
+              };
+              await trySave(retryPayload);
+              break;
+            }
+            delete retryPayload[field];
+            try {
+              await trySave(retryPayload);
+              console.warn(`Saved without "${field}" — add attribute "${field}" in Appwrite to enable it`);
+              break;
+            } catch (e: any) {
+              if (e.code === 400 && (e.message||'').toLowerCase().includes('unknown attribute')) {
+                // продолжаем удалять следующее поле
+                firstErr.message = e.message;
+                continue;
+              }
+              throw e;
+            }
           }
         } else {
           throw new Error(`Profile (Users Collection) Error: ${firstErr.message}`);
@@ -506,6 +567,56 @@ export default function ChannelEditor() {
                 <option key={cat.id} value={cat.label} />
               ))}
             </datalist>
+          </div>
+
+          {/* Country — п.4 */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+              <Globe className="w-3.5 h-3.5 text-[#70d6ff]" />
+              {language === 'ru' ? 'Страна канала' : 'Channel country'}
+            </label>
+            <select
+              value={formData.country}
+              onChange={(e) => setFormData({...formData, country: e.target.value})}
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 text-white text-sm focus:outline-none focus:border-[#70d6ff]/50 focus:bg-black/60 transition-all"
+            >
+              <option value="">{language === 'ru' ? 'Не указана' : 'Not specified'}</option>
+              <option value="RU">🇷🇺 Россия / RU</option>
+              <option value="UA">🇺🇦 Украина / UA</option>
+              <option value="BY">🇧🇾 Беларусь / BY</option>
+              <option value="KZ">🇰🇿 Казахстан / KZ</option>
+              <option value="US">🇺🇸 USA / US</option>
+              <option value="GB">🇬🇧 UK / GB</option>
+              <option value="DE">🇩🇪 Германия / DE</option>
+              <option value="FR">🇫🇷 Франция / FR</option>
+              <option value="ES">🇪🇸 Испания / ES</option>
+              <option value="IT">🇮🇹 Италия / IT</option>
+              <option value="TR">🇹🇷 Турция / TR</option>
+              <option value="PL">🇵🇱 Польша / PL</option>
+              <option value="CN">🇨🇳 Китай / CN</option>
+              <option value="JP">🇯🇵 Япония / JP</option>
+              <option value="KR">🇰🇷 Корея / KR</option>
+              <option value="IN">🇮🇳 Индия / IN</option>
+              <option value="BR">🇧🇷 Бразилия / BR</option>
+              <option value="WW">🌍 Worldwide</option>
+            </select>
+            <p className="text-[11px] text-slate-500">{language === 'ru' ? 'Для фильтра «Страны» на главной (п.3) и рекомендаций. Если пусто — канал показывается всем.' : 'Used for country filter on Home (p.3). If empty — shown to everyone.'}</p>
+          </div>
+
+          {/* Aliases — п.2 */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+              <Languages className="w-3.5 h-3.5 text-[#70d6ff]" />
+              {language === 'ru' ? 'Как находить канал (алиасы)' : 'Search aliases'}
+            </label>
+            <input
+              type="text"
+              value={formData.aliases}
+              onChange={(e) => setFormData({...formData, aliases: e.target.value})}
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-[#70d6ff]/50 focus:bg-black/60 transition-all"
+              placeholder={language === 'ru' ? 'например: ice, айс, ледяной, icetube, хелод' : 'e.g. ice, айс, icetube'}
+            />
+            <p className="text-[11px] text-slate-500">{language === 'ru' ? 'Через запятую, на любом языке. По ним будет находиться канал в поиске, даже если название другое. До 10 вариантов.' : 'Comma separated, any language. Channel will be found by these terms in search.'}</p>
           </div>
 
           {/* Social Links */}

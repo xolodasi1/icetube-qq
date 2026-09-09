@@ -291,6 +291,12 @@ export default function Channel() {
           <h1 className="text-2xl sm:text-4xl font-bold font-display text-white mb-2 truncate max-w-full">{channelName}</h1>
           <div className="flex flex-wrap items-center justify-center md:justify-start gap-1.5 sm:gap-2 text-xs sm:text-base text-slate-400 mb-4">
             <span className="font-medium text-slate-300 truncate max-w-[50vw] sm:max-w-[30vw]">{channelHandle}</span>
+            {profile.country && (
+              <>
+                <span>•</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/5 border border-white/10 rounded-full text-xs text-slate-300"><span>🌍</span> {profile.country}</span>
+              </>
+            )}
             <span>•</span>
             <span className="whitespace-nowrap">{new Intl.NumberFormat().format(subsCount)} {t('channel_subscribers')}</span>
             <span>•</span>
@@ -457,6 +463,24 @@ export default function Channel() {
                 {profile.description || profile.bio || (language === 'ru' ? 'Нет описания.' : 'No description provided.')}
               </p>
             </div>
+
+            {(profile.country || profile.aliases || profile.searchAliases) && (
+              <div className="pt-6 border-t border-white/10 space-y-3">
+                {profile.country && (
+                  <div className="flex items-center gap-2 text-slate-300"><span className="text-slate-500 text-sm">{language==='ru'?'Страна:':'Country:'}</span> <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-full text-sm">🌍 {profile.country}</span></div>
+                )}
+                {(profile.aliases || profile.searchAliases) && (
+                  <div>
+                    <div className="text-slate-500 text-sm mb-1">{language==='ru'?'Как найти канал:':'Search aliases:'}</div>
+                    <div className="flex flex-wrap gap-2">
+                      {String(profile.aliases || profile.searchAliases || '').split(/[,\s]+/).filter(Boolean).slice(0,20).map((a:string,i:number)=>(
+                        <span key={i} className="px-2.5 py-1 bg-[#70d6ff]/10 border border-[#70d6ff]/20 rounded-full text-xs text-[#70d6ff]">{a}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             
             <div className="pt-6 border-t border-white/10">
               <h3 className="text-xl font-bold text-white mb-4">{language === 'ru' ? 'Статистика' : 'Stats'}</h3>
