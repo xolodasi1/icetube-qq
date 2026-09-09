@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { databases } from '../../lib/appwrite';
+import { databases, client } from '../../lib/appwrite';
 import { 
   ShieldCheck, ShieldAlert, Users, Video, Activity, MoreHorizontal, 
   Ban, Trash2, Clock, Eye, AlertTriangle, 
   LayoutDashboard, PieChart, BarChart3, ArrowLeft, Loader2,
-  ChevronRight, Calendar, Bell, Search, Filter, Film, Scissors, Image
+  ChevronRight, Calendar, Bell, Search, Filter, Film, Scissors, Image,
+  Wifi, Radio, Circle, UserCheck, Signal
 } from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
 import { useLanguage } from '../../language/LanguageContext';
 import { Query, ID } from 'appwrite';
+import { isUserOnline, formatLastSeen, ONLINE_THRESHOLD_MS } from '../../lib/presence';
 
 type AdminTab = 'dashboard' | 'analytics' | 'users' | 'reports' | 'content';
 
@@ -42,6 +44,13 @@ export default function AdminPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorDetails, setErrorDetails] = useState<{message: string, collection: string} | null>(null);
   const isFetchingRef = useRef(false);
+  const [presenceTick, setPresenceTick] = useState(0);
+
+  // Тик для перерисовки "в сети" каждые 15с без запроса к БД
+  useEffect(() => {
+    const id = setInterval(() => setPresenceTick(t => t + 1), 15_000);
+    return () => clearInterval(id);
+  }, []);
 
   const fetchData = useCallback(async (silent = false) => {
     if (isFetchingRef.current) return;
@@ -94,7 +103,10 @@ export default function AdminPanel() {
             likesCount: doc.likesCount,
             viewsCount: doc.viewsCount,
             videosCount: doc.videosCount,
-            snowflakesCount: doc.snowflakesCount
+            snowflakesCount: doc.snowflakesCount,
+            lastSeen: doc.lastSeen || doc.lastActive || null,
+            $createdAt: doc.$createdAt,
+            $updatedAt: doc.$updatedAt
           })));
         } catch (err: any) {
           console.error("Users Fetch Error:", err);
@@ -161,9 +173,23 @@ export default function AdminPanel() {
       if (!document.hidden) fetchData(true);
     }, 3000);
 
+    // Realtime для присутствия — моментально видим кто зашёл/вышел
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const usersColId = import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+    let unsub: (() => void) | null = null;
+    if (dbId && usersColId) {
+      try {
+        const sub = client.subscribe(`databases.${dbId}.collections.${usersColId}.documents`, () => {
+          fetchData(true);
+        });
+        unsub = () => sub();
+      } catch {}
+    }
+
     return () => {
       window.removeEventListener('refreshAdminData', onRefresh);
       clearInterval(interval);
+      if (unsub) unsub();
     };
   }, [fetchData]);
 
@@ -172,6 +198,11 @@ export default function AdminPanel() {
     const photos = dbVideos.filter(v => v.contentType === 'photo').length;
     const regularVideos = dbVideos.length - shorts - photos;
     
+    // Online — lastSeen < 2 мин
+    void presenceTick; // триггер перерисовки
+    const onlineUsers = dbUsers.filter((u: any) => isUserOnline(u.lastSeen));
+    const totalOnline = onlineUsers.length;
+
     // Calculate leaderboards
     const leaderboards = {
       subscribers: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, subscribersCount: u.subscribersCount || 0 })).sort((a, b) => (b.subscribersCount || 0) - (a.subscribersCount || 0)).slice(0, 5),
@@ -179,11 +210,13 @@ export default function AdminPanel() {
       views: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, viewsCount: u.viewsCount || 0 })).sort((a, b) => (b.viewsCount || 0) - (a.viewsCount || 0)).slice(0, 5),
       videos: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, videosCount: u.videosCount || 0 })).sort((a, b) => (b.videosCount || 0) - (a.videosCount || 0)).slice(0, 5),
       snowflakes: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, snowflakesCount: u.snowflakesCount || 0 })).sort((a, b) => (b.snowflakesCount || 0) - (a.snowflakesCount || 0)).slice(0, 5),
-      photos: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, photosCount: dbVideos.filter(v => v.contentType === 'photo' && (v.uploaderId === u.$id)).length })).sort((a, b) => (b.photosCount || 0) - (a.photosCount || 0)).slice(0, 5),
+      photos: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, photosCount: dbVideos.filter(v => v.contentType === 'photo' && (v.uploaderId === u.userId)).length })).sort((a, b) => (b.photosCount || 0) - (a.photosCount || 0)).slice(0, 5),
     };
     
     return {
       totalUsers: dbUsers.length,
+      totalOnline,
+      onlineUsers: onlineUsers.slice(0, 12),
       totalVideos: regularVideos,
       totalShorts: shorts,
       totalPhotos: photos,
@@ -193,7 +226,7 @@ export default function AdminPanel() {
       uptime: '99.98%',
       leaderboards
     };
-  }, [dbUsers, dbVideos, reports]);
+  }, [dbUsers, dbVideos, reports, presenceTick]);
 
   if (isAuthLoading) {
     return (
@@ -286,12 +319,60 @@ export default function AdminPanel() {
               <p className="text-slate-400 text-sm mt-1">Real-time infrastructure and community oversight</p>
             </header>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
               <StatCard title={language === 'ru' ? 'Пользователи' : 'Total Users'} value={stats.totalUsers} icon={Users} color="text-blue-400" bgColor="bg-blue-400/10" />
+              <StatCard title={language === 'ru' ? 'В сети' : 'Online Now'} value={stats.totalOnline} icon={Wifi} color="text-emerald-400" bgColor="bg-emerald-400/10" subValue={`${stats.totalOnline}/${stats.totalUsers}`} />
               <StatCard title={language === 'ru' ? 'Видео' : 'Total Videos'} value={stats.totalVideos} icon={Video} color="text-purple-400" bgColor="bg-purple-400/10" />
               <StatCard title={language === 'ru' ? 'Шортсы' : 'Total Shorts'} value={stats.totalShorts} icon={Activity} color="text-teal-400" bgColor="bg-teal-400/10" />
               <StatCard title={language === 'ru' ? 'Фото' : 'Total Photos'} value={stats.totalPhotos} icon={Image} color="text-purple-400" bgColor="bg-purple-400/10" />
               <StatCard title={language === 'ru' ? 'Жалобы' : 'Pending Reports'} value={stats.totalReports} icon={ShieldAlert} color="text-red-400" bgColor="bg-red-400/10" />
+            </div>
+
+            {/* Сейчас в сети — live */}
+            <div className="bg-emerald-500/[0.04] border border-emerald-500/20 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
+                  {language === 'ru' ? 'Сейчас в сети' : 'Live Presence'} — {stats.totalOnline}
+                  <span className="text-[10px] font-bold text-slate-500 normal-case tracking-normal">· {language === 'ru' ? 'обновляется каждые 3с' : 'refresh 3s'} · 2 мин порог</span>
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <Signal className="w-3 h-3 inline mr-1" /> realtime
+                </span>
+              </div>
+              {stats.totalOnline === 0 ? (
+                <div className="py-10 text-center">
+                  <Radio className="w-8 h-8 mx-auto text-slate-600 opacity-40 mb-2" />
+                  <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{language === 'ru' ? 'Никого в сети' : 'No one online'}</p>
+                  <p className="text-[11px] text-slate-600 mt-1">{language === 'ru' ? 'Когда автор откроет сайт — появится здесь' : 'Authors appear here when they open the site'}</p>
+                  {!dbUsers.some((u:any)=>u.lastSeen) && (
+                    <p className="text-[11px] text-amber-400/80 mt-3 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 inline-block">
+                      {language === 'ru' ? '⚠️ Добавьте атрибут lastSeen (datetime) в коллекции users/profiles в Appwrite, иначе статус не сохранится' : '⚠️ Add lastSeen (datetime) attribute to users/profiles collection in Appwrite'}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {stats.onlineUsers.map((u: any) => (
+                    <Link key={u.$id} to={`/channel/${u.userId}`} className="flex items-center gap-3 p-3 bg-black/30 border border-white/5 rounded-xl hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all group">
+                      <div className="relative shrink-0">
+                        <img src={u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`} alt={u.name} className="w-10 h-10 rounded-full object-cover border border-white/10" />
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-[#0a0f1e] rounded-full shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-bold text-white truncate group-hover:text-emerald-300">{u.name}</div>
+                        <div className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
+                          <Circle className="w-2 h-2 fill-emerald-500 text-emerald-500" /> {language === 'ru' ? 'в сети' : 'online'} · {formatLastSeen(u.lastSeen, language)}
+                        </div>
+                      </div>
+                      <UserCheck className="w-4 h-4 text-slate-600 group-hover:text-emerald-400 shrink-0" />
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -448,7 +529,7 @@ export default function AdminPanel() {
   );
 }
 
-function StatCard({ title, value, icon: Icon, color, bgColor }: any) {
+function StatCard({ title, value, icon: Icon, color, bgColor, subValue }: any) {
   return (
     <div className="bg-white/5 border ice-border p-5 rounded-2xl hover:border-white/10 transition-all group overflow-hidden relative">
       <div className="flex items-center justify-between mb-2 relative z-10">
@@ -459,6 +540,7 @@ function StatCard({ title, value, icon: Icon, color, bgColor }: any) {
       </div>
       <div className="flex items-baseline gap-2 relative z-10">
         <span className="text-2xl font-black text-white">{value}</span>
+        {subValue && <span className="text-[11px] font-bold text-slate-500">{subValue}</span>}
       </div>
       <Icon className={`absolute -right-4 -bottom-4 w-24 h-24 ${color} opacity-[0.03] group-hover:opacity-10 transition-all duration-500 scale-150 rotate-12`} />
     </div>
@@ -514,14 +596,24 @@ function UsersSection({ dbUsers, t, language }: any) {
   const isAdmin = isProprietor || profile?.role === 'admin';
   const [localUsers, setLocalUsers] = useState(dbUsers);
   const [searchQuery, setSearchQuery] = useState('');
+  const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
+  const [presenceTick, setPresenceTick] = useState(0);
+  useEffect(() => { const id = setInterval(() => setPresenceTick(v => v + 1), 15000); return () => clearInterval(id); }, []);
 
   useEffect(() => {
     setLocalUsers(dbUsers);
   }, [dbUsers]);
 
-  const filteredUsers = localUsers.filter((u: any) =>
-    !searchQuery || u.name?.toLowerCase().includes(searchQuery.toLowerCase()) || u.userId?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const onlineCount = useMemo(() => localUsers.filter((u: any) => isUserOnline(u.lastSeen)).length, [localUsers, presenceTick]);
+  const filteredUsers = useMemo(() => {
+    void presenceTick;
+    return localUsers.filter((u: any) => {
+      const matchesSearch = !searchQuery || u.name?.toLowerCase().includes(searchQuery.toLowerCase()) || u.userId?.toLowerCase().includes(searchQuery.toLowerCase()) || u.email?.toLowerCase().includes(searchQuery.toLowerCase());
+      const online = isUserOnline(u.lastSeen);
+      const matchesPresence = presenceFilter === 'all' || (presenceFilter === 'online' ? online : !online);
+      return matchesSearch && matchesPresence;
+    });
+  }, [localUsers, searchQuery, presenceFilter, presenceTick]);
 
   const changeUserRole = async (userId: string, newRole: string) => {
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -553,20 +645,43 @@ function UsersSection({ dbUsers, t, language }: any) {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white uppercase italic tracking-tighter">{language === 'ru' ? 'Зарегистрированные создатели' : 'Registered Creators'}</h1>
-          <p className="text-sm text-slate-400">{language === 'ru' ? `Всего: ${dbUsers.length} профилей` : `Total base: ${dbUsers.length} profiles`}</p>
+          <h1 className="text-2xl font-bold text-white uppercase italic tracking-tighter flex items-center gap-2">
+            {language === 'ru' ? 'Зарегистрированные создатели' : 'Registered Creators'}
+            <span className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[11px] font-black text-emerald-400 flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_6px_rgba(16,185,129,0.8)]"></span>
+              {onlineCount} {language === 'ru' ? 'в сети' : 'online'}
+            </span>
+          </h1>
+          <p className="text-sm text-slate-400">{language === 'ru' ? `Всего: ${dbUsers.length} профилей` : `Total base: ${dbUsers.length} profiles`} · <span className="text-emerald-400">{onlineCount} online</span> · {dbUsers.length - onlineCount} offline</p>
         </div>
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-          <input
-            type="text"
-            placeholder={language === 'ru' ? 'Поиск пользователей...' : 'Search users...'}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-[#70d6ff] w-64"
-          />
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1 p-1 bg-black/30 border border-white/5 rounded-xl">
+            {(['all','online','offline'] as const).map(f => {
+              const labels = { all: language === 'ru' ? 'Все' : 'All', online: language === 'ru' ? 'В сети' : 'Online', offline: 'Offline' };
+              const counts = { all: dbUsers.length, online: onlineCount, offline: dbUsers.length - onlineCount };
+              const active = presenceFilter === f;
+              return (
+                <button key={f} onClick={() => setPresenceFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${active ? 'bg-[#70d6ff] text-[#0a192f]' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
+                  {f === 'online' && <Wifi className="w-3 h-3" />}
+                  {f === 'offline' && <Circle className="w-3 h-3" />}
+                  {f === 'all' && <Users className="w-3 h-3" />}
+                  {labels[f]} <span className={`px-1.5 py-0.5 rounded text-[10px] ${active ? 'bg-black/15' : 'bg-white/10'}`}>{counts[f]}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              placeholder={language === 'ru' ? 'Поиск пользователей...' : 'Search users...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-[#70d6ff] w-64"
+            />
+          </div>
         </div>
       </div>
 
@@ -576,6 +691,7 @@ function UsersSection({ dbUsers, t, language }: any) {
             <thead className="bg-black/20 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b ice-border">
               <tr>
                 <th className="px-6 py-4">Profile</th>
+                <th className="px-6 py-4 flex items-center gap-1"><Wifi className="w-3 h-3" /> {language === 'ru' ? 'Статус' : 'Presence'}</th>
                 <th className="px-6 py-4">Role / Permissions</th>
                 <th className="px-6 py-4">Registered At</th>
                 <th className="px-6 py-4 text-right">Settings</th>
@@ -583,21 +699,41 @@ function UsersSection({ dbUsers, t, language }: any) {
             </thead>
             <tbody className="divide-y divide-white/5 text-slate-300">
               {filteredUsers.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-20 text-slate-500 text-xs font-bold uppercase tracking-widest">{language === 'ru' ? 'Ничего не найдено' : 'Nothing found'}</td></tr>
-              ) : filteredUsers.map((usr: any) => (
-                <tr key={usr.$id} className="hover:bg-white/5 transition-all group">
+                <tr><td colSpan={6} className="text-center py-20 text-slate-500 text-xs font-bold uppercase tracking-widest">{language === 'ru' ? 'Ничего не найдено' : 'Nothing found'}</td></tr>
+              ) : filteredUsers.map((usr: any) => {
+                const online = isUserOnline(usr.lastSeen);
+                return (
+                <tr key={usr.$id} className={`transition-all group ${online ? 'bg-emerald-500/[0.03] hover:bg-emerald-500/[0.06]' : 'hover:bg-white/5'}`}>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <img 
-                        src={usr.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(usr.name || 'U')}&background=random`} 
-                        className="w-10 h-10 rounded-full border border-white/10 shrink-0" 
-                        alt=""
-                      />
+                      <div className="relative shrink-0">
+                        <img 
+                          src={usr.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(usr.name || 'U')}&background=random`} 
+                          className={`w-10 h-10 rounded-full border shrink-0 ${online ? 'border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'border-white/10'}`}
+                          alt=""
+                        />
+                        <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0a0f1e] ${online ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]' : 'bg-slate-600'}`} title={online ? (language === 'ru' ? 'В сети' : 'Online') : formatLastSeen(usr.lastSeen, language)}></span>
+                      </div>
                       <div className="flex flex-col min-w-0">
-                        <span className="font-bold text-white truncate">{usr.name || 'Unnamed'}</span>
+                        <span className="font-bold text-white truncate flex items-center gap-1.5">{usr.name || 'Unnamed'} {online && <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse inline-block"></span>}</span>
                         <span className="text-[10px] text-slate-500 font-mono tracking-tighter truncate">UID: {usr.userId}</span>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {online ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] font-black uppercase text-emerald-400">
+                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                        {language === 'ru' ? 'В сети' : 'Online'}
+                      </span>
+                    ) : (
+                      <span className="inline-flex flex-col">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-white/5 border border-white/5 rounded-full text-[10px] font-bold text-slate-500">
+                          <Circle className="w-3 h-3" /> offline
+                        </span>
+                        <span className="text-[10px] text-slate-600 mt-1 font-mono">{formatLastSeen(usr.lastSeen, language)}</span>
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
@@ -645,7 +781,8 @@ function UsersSection({ dbUsers, t, language }: any) {
                      )}
                   </td>
                 </tr>
-              ))}
+              );
+            })}
             </tbody>
           </table>
         </div>
@@ -734,10 +871,10 @@ function ReportsSection({ reports, t, language, setReports }: any) {
                        >
                          {dismissing === report.$id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                        </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+                   </td>
+                </tr>
+               ))}
+            </tbody>
             </table>
           </div>
         )}
@@ -899,7 +1036,7 @@ function ContentSection({ dbVideos, language, t, setDbVideos }: any) {
                     </button>
                   </td>
                 </tr>
-              ))}
+               ))}
             </tbody>
           </table>
         </div>

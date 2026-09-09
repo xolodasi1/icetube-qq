@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getCurrentUser, logout, databases, withTimeout } from '../lib/appwrite';
 import { Models, Query } from 'appwrite';
 import AuthModal from './AuthModal';
+import { updatePresence } from '../lib/presence';
 
 export interface UserProfile {
     name: string;
@@ -43,6 +44,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         window.addEventListener('online', onOnline);
         return () => window.removeEventListener('online', onOnline);
     }, []);
+
+    // Presence heartbeat — раз в 30с шлём lastSeen, пауза когда вкладка скрыта
+    const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    useEffect(() => {
+        if (!user?.$id) return;
+        // сразу при логине
+        updatePresence(user.$id);
+        const tick = () => {
+            if (document.hidden) return;
+            updatePresence(user.$id);
+        };
+        heartbeatRef.current = setInterval(tick, 30_000);
+        const onVis = () => { if (!document.hidden) updatePresence(user.$id); };
+        document.addEventListener('visibilitychange', onVis);
+        window.addEventListener('focus', onVis);
+        return () => {
+            if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+            document.removeEventListener('visibilitychange', onVis);
+            window.removeEventListener('focus', onVis);
+        };
+    }, [user?.$id]);
 
     const fetchUserProfile = async (userId: string) => {
         try {
