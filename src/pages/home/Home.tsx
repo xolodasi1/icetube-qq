@@ -3,7 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import React, { useState, useEffect, useMemo } from "react";
 import { databases, withTimeout } from "../../lib/appwrite";
 import { Query } from "appwrite";
-import { Loader2, Video, Image, RefreshCw, Settings, Globe, X, Check } from "lucide-react";
+import { Loader2, Video, Image, RefreshCw } from "lucide-react";
 import { useLanguage } from "../../language/LanguageContext";
 import { getOptimizedThumbnail } from "../../lib/cloudinary";
 import { getRecommendations } from "../../lib/recommendations";
@@ -44,7 +44,19 @@ export default function Home() {
     if (saved === null) return COUNTRY_OPTIONS.map(c=>c.id);
     return saved;
   });
-  const [showCountrySettings, setShowCountrySettings] = useState(false);
+  useEffect(() => {
+    SafeStorage.set('home_country_filter', selectedCountries);
+  }, [selectedCountries]);
+  useEffect(() => {
+    const syncCountries = () => {
+      const saved = SafeStorage.get<string[] | null>('home_country_filter', null);
+      if (saved) setSelectedCountries(saved);
+    };
+    window.addEventListener('focus', syncCountries);
+    window.addEventListener('storage', syncCountries);
+    const id = setInterval(syncCountries, 1500);
+    return () => { window.removeEventListener('focus', syncCountries); window.removeEventListener('storage', syncCountries); clearInterval(id); };
+  }, []);
 
   const searchQuery = searchParams.get("search") || "";
 
@@ -213,12 +225,6 @@ export default function Home() {
             {tab.label}
           </button>
         ))}
-        <button onClick={() => setShowCountrySettings(true)} className="ml-auto shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white text-sm whitespace-nowrap">
-          <Globe className="w-4 h-4" /> {language === 'ru' ? 'Страны' : 'Countries'} <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded-full">{selectedCountries.length}/{availableCountries.length}</span>
-        </button>
-        <button onClick={() => setShowCountrySettings(true)} className="shrink-0 p-2 rounded-full bg-white/5 border border-white/10 text-slate-400 hover:text-white md:hidden">
-          <Settings className="w-4 h-4" />
-        </button>
       </div>
 
       {/* Категории — строка как на YouTube, кастомные из загрузки (п.5) */}
