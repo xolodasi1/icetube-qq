@@ -9,7 +9,7 @@ import { Query } from "appwrite";
 
 export function Sidebar({ isOpen }: { isOpen: boolean }) {
   const location = useLocation();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const [subscribedChannels, setSubscribedChannels] = useState<{id: string, name: string, avatar: string}[]>([]);
 
@@ -53,19 +53,16 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
   }, [user]);
 
   const navItems = [
-    { icon: Home, label: t('nav_home'), path: "/" },
-    { icon: List, label: t('nav_browse'), path: "/browse" },
-    { icon: Search as any, label: t('nav_search'), path: "/search" },
+    // Главная — только 3 кнопки, категории/поиск на главной (Home filterTabs) + Navbar
+    { header_text: language === 'ru' ? 'Главная' : 'Main' },
+    { icon: Film, label: language === 'ru' ? 'Видео' : 'Videos', path: "/videos" },
     { icon: Compass, label: t('nav_shorts'), path: "/shorts" },
-    { icon: Image, label: t('nav_photos'), path: "/photos" },
-    { icon: Image, label: t('nav_photo_albums'), path: "/albums" },
-    { icon: Video, label: t('nav_videos'), path: "/videos" },
-    { icon: PlaySquare, label: t('nav_subscriptions'), path: "/subscriptions" },
+    { icon: Image, label: language === 'ru' ? 'Фото' : 'Photos', path: "/photos" },
     { divider: true },
+    { header_text: language === 'ru' ? 'Вы' : 'You' },
     ...(user ? [{ header: t('nav_you'), path: `/channel/${user.$id}` }] : []),
     ...(user ? [{ icon: User, label: t('nav_your_channel'), path: `/channel/${user.$id}` }] : []),
     { icon: History, label: t('nav_history'), path: "/history", requiresAuth: true },
-    { icon: Trophy, label: t('nav_top_channels'), path: "/top-channels" },
     { icon: PlaySquare, label: t('nav_continue_watching'), path: "/continue-watching" },
     { icon: Bookmark, label: t('nav_favorites'), path: "/favorites" },
     { icon: ListVideo, label: t('nav_playlists'), path: "/playlists" },
@@ -74,10 +71,9 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
     { icon: Video, label: t('nav_your_videos'), path: "/your-videos", requiresAuth: true },
     { icon: Download, label: t('nav_downloads'), path: "/downloads", requiresAuth: true },
     { icon: Scissors, label: t('nav_clips'), path: "/clips", requiresAuth: true },
-    
+    { icon: Trophy, label: t('nav_top_channels'), path: "/top-channels" },
     { divider: true },
     { icon: Settings, label: t('nav_settings'), path: "/settings" },
-    
     { divider: true },
     { header_text: t('nav_socials') },
     { icon: Send, label: t('nav_telegram'), path: "https://t.me/SAOtop", isExternal: true, iconColor: "text-blue-400 group-hover:text-blue-300" },

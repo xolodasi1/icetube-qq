@@ -6,12 +6,13 @@ import {
   Ban, Trash2, Clock, Eye, AlertTriangle, 
   LayoutDashboard, PieChart, BarChart3, ArrowLeft, Loader2,
   ChevronRight, Calendar, Bell, Search, Filter, Film, Scissors, Image,
-  Wifi, Radio, Circle, UserCheck, Signal
+  Wifi, Radio, Circle, UserCheck, Signal, History, PlayCircle
 } from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
 import { useLanguage } from '../../language/LanguageContext';
 import { Query, ID } from 'appwrite';
 import { isUserOnline, formatLastSeen, ONLINE_THRESHOLD_MS } from '../../lib/presence';
+import { getOptimizedThumbnail } from '../../lib/cloudinary';
 
 type AdminTab = 'dashboard' | 'analytics' | 'users' | 'reports' | 'content';
 
@@ -135,10 +136,14 @@ export default function AdminPanel() {
       // Fetch Videos
       if (videosColId) {
         try {
-          const response = await databases.listDocuments(dbId, videosColId, [Query.limit(100)]);
+          const response = await databases.listDocuments(dbId, videosColId, [Query.limit(100), Query.orderDesc('$createdAt')]);
           setDbVideos(response.documents.map((doc: any) => ({
             $id: doc.$id,
             title: doc.title,
+            thumbnailUrl: doc.thumbnailUrl || '',
+            videoUrl: doc.videoUrl || '',
+            duration: doc.duration || '',
+            category: doc.category || 'All',
             uploaderId: doc.uploaderId,
             uploaderName: doc.uploaderName,
             views: doc.views || 0,
@@ -146,6 +151,8 @@ export default function AdminPanel() {
             isShort: doc.isShort,
             isShorts: doc.isShorts,
             verified: doc.verified || false,
+            $createdAt: doc.$createdAt,
+            $updatedAt: doc.$updatedAt,
           })));
         } catch (err: any) {
           console.error("Videos Fetch Error:", err);
@@ -378,13 +385,50 @@ export default function AdminPanel() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 bg-white/[0.02] border ice-border rounded-2xl p-6">
                  <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                   <Activity className="w-5 h-5 text-[#70d6ff]" />
+                   <span className="p-2 bg-[#70d6ff]/10 border border-[#70d6ff]/20 rounded-xl">
+                     <History className="w-5 h-5 text-[#70d6ff]" />
+                   </span>
                    {language === 'ru' ? 'Последняя активность' : 'Recent Activity'}
+                   <span className="ml-auto text-[10px] font-black px-2 py-1 rounded-full bg-white/5 border border-white/5 text-slate-400 uppercase tracking-widest">{dbVideos.length + reports.length} {language === 'ru' ? 'событий' : 'events'}</span>
                  </h2>
-                 <div className="space-y-4 text-center py-10 text-slate-500">
-                    <Clock className="w-8 h-8 mx-auto opacity-20 mb-2" />
-                    <p className="text-xs font-bold uppercase tracking-widest">{language === 'ru' ? 'Логи активности отключены' : 'Activity logs offline'}</p>
-                 </div>
+                 {dbVideos.length === 0 && reports.length === 0 ? (
+                   <div className="text-center py-12">
+                     <div className="w-16 h-16 mx-auto bg-white/5 border border-white/5 rounded-2xl flex items-center justify-center mb-4">
+                       <History className="w-8 h-8 text-slate-500" />
+                     </div>
+                     <p className="text-sm font-bold text-slate-300">{language === 'ru' ? 'Пока нет активности' : 'No activity yet'}</p>
+                     <p className="text-xs text-slate-500 mt-1">{language === 'ru' ? 'Новые видео и жалобы появятся здесь' : 'New videos and reports will appear here'}</p>
+                   </div>
+                 ) : (
+                   <div className="space-y-3 max-h-[320px] overflow-y-auto custom-scrollbar pr-1">
+                     {[...dbVideos].slice(0,6).map((v:any)=> (
+                       <Link key={v.$id} to={`/watch/${v.$id}`} className="flex items-center gap-3 p-2.5 bg-black/20 border border-white/5 rounded-xl hover:border-[#70d6ff]/20 hover:bg-[#70d6ff]/5 transition-all group">
+                         <div className="w-20 h-12 bg-black rounded-lg overflow-hidden shrink-0 border border-white/10 relative">
+                           {v.thumbnailUrl ? (
+                             <img src={getOptimizedThumbnail(v.thumbnailUrl) || v.thumbnailUrl} alt={v.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" referrerPolicy="no-referrer" />
+                           ) : (
+                             <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center"><PlayCircle className="w-5 h-5 text-slate-600" /></div>
+                           )}
+                           <span className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/80 rounded text-[10px] font-bold text-white leading-none">{v.contentType === 'shorts' || v.isShort || v.isShorts ? 'Short' : v.contentType === 'photo' ? 'Photo' : 'Video'}</span>
+                         </div>
+                         <div className="min-w-0 flex-1">
+                           <div className="text-sm font-bold text-white truncate group-hover:text-[#70d6ff]">{v.title || (language==='ru'?'Без названия':'Untitled')}</div>
+                           <div className="text-xs text-slate-400 truncate">{v.uploaderName || v.uploaderId?.slice(0,8)} · {formatLastSeen(v.$createdAt, language)} · {v.views || 0} views</div>
+                         </div>
+                         <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-[#70d6ff] shrink-0" />
+                       </Link>
+                     ))}
+                     {reports.slice(0,3).map((r:any)=> (
+                       <div key={r.$id} className="flex items-center gap-3 p-2.5 bg-red-500/5 border border-red-500/10 rounded-xl">
+                         <div className="w-10 h-10 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-center shrink-0"><ShieldAlert className="w-5 h-5 text-red-400" /></div>
+                         <div className="min-w-0 flex-1">
+                           <div className="text-sm font-bold text-white truncate">{r.videoTitle}</div>
+                           <div className="text-xs text-red-300/70 truncate">{r.reason} · {r.reporterName} · {formatLastSeen(r.timestamp, language)}</div>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 )}
               </div>
 
               <div className="bg-white/[0.02] border ice-border rounded-2xl p-6">
@@ -1017,9 +1061,14 @@ function ContentSection({ dbVideos, language, t, setDbVideos }: any) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-7 bg-black rounded border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                        <Eye className="w-3 h-3 text-slate-600" />
-                      </div>
+                      <Link to={v.contentType === 'photo' ? `/photos` : v.contentType === 'shorts' || v.isShort || v.isShorts ? `/shorts/${v.$id}` : `/watch/${v.$id}`} className="w-20 h-12 bg-black rounded-lg overflow-hidden shrink-0 border border-white/10 relative block group/thumb">
+                        {v.thumbnailUrl ? (
+                          <img src={getOptimizedThumbnail(v.thumbnailUrl) || v.thumbnailUrl} alt={v.title} className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform" referrerPolicy="no-referrer" loading="lazy" />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center"><Film className="w-5 h-5 text-slate-600" /></div>
+                        )}
+                        {v.duration && v.contentType !== 'photo' && <span className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/80 rounded text-[10px] font-bold text-white leading-none">{v.duration}</span>}
+                      </Link>
                       <span className="text-white font-bold text-sm truncate max-w-[200px]">{v.title || (language === 'ru' ? 'Без названия' : 'Untitled')}</span>
                     </div>
                   </td>
