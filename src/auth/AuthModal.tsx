@@ -16,6 +16,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
   const { checkUserStatus } = useAuth();
   const { t } = useLanguage();
@@ -34,6 +35,13 @@ export default function AuthModal({ onClose }: AuthModalProps) {
               } else {
                 await account.create(ID.unique(), email, password, name);
                 await account.createEmailPasswordSession(email, password);
+                // Письмо с подтверждением почты (не блокирует вход, если SMTP не настроен)
+                try {
+                  await account.createVerification(`${window.location.origin}/verify`);
+                  setNotice(t('auth_verify_sent_desc'));
+                } catch (verifyErr) {
+                  console.warn('Verification email not sent:', verifyErr);
+                }
               }
             } catch (authErr: any) {
               // If a session is already active, we don't need to do anything, we can just proceed.
@@ -155,6 +163,10 @@ export default function AuthModal({ onClose }: AuthModalProps) {
               <p className="text-red-400 text-sm text-center">{error}</p>
             )}
 
+            {notice && (
+              <p className="text-emerald-300 text-sm text-center bg-emerald-500/10 border border-emerald-400/20 rounded-lg px-3 py-2">{notice}</p>
+            )}
+
             <button
               type="submit"
               disabled={loading}
@@ -191,6 +203,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
               onClick={() => {
                 setIsLogin(!isLogin);
                 setError('');
+                setNotice('');
               }}
               className="text-[#00f5d4] hover:underline"
             >

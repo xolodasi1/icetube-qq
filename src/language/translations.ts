@@ -235,7 +235,16 @@ export const translations: Translations = {
     photo_albums_add_to: 'Add to album',
     photo_albums_empty: 'No albums yet. Create your first album!',
     photo_albums_select: 'Select an album from the list on the left',
-    photo_albums_no_photos: 'This album is empty. Add photos from the Photos page.'
+    photo_albums_no_photos: 'This album is empty. Add photos from the Photos page.',
+    auth_verify_needed: 'Please verify your email to continue. A link was sent to your email.',
+    auth_verify_banner: 'Confirm your email — the link was sent to your inbox. Likes, comments and uploads are limited until then.',
+    auth_verify_resend: 'Resend',
+    auth_verify_sent: 'Sent!',
+    auth_verify_sent_desc: 'Account created! We sent a confirmation link to your email — open it to unlock all features.',
+    auth_verify_success: 'Email confirmed!',
+    auth_verify_success_desc: 'Your email is verified. All Icetube features are now unlocked.',
+    auth_verify_fail: 'Confirmation failed',
+    auth_verify_fail_desc: 'The link is invalid or expired. Request a new one from the banner in the app.'
   },
   ru: {
     nav_home: 'Главная',
@@ -465,7 +474,16 @@ export const translations: Translations = {
     photo_albums_add_to: 'Добавить в альбом',
     photo_albums_empty: 'Альбомов пока нет. Создайте свой первый альбом!',
     photo_albums_select: 'Выберите альбом из списка слева',
-    photo_albums_no_photos: 'Этот альбом пуст. Добавьте фото со страницы "Фото".'
+    photo_albums_no_photos: 'Этот альбом пуст. Добавьте фото со страницы "Фото".',
+    auth_verify_needed: 'Подтвердите почту, чтобы продолжить. Ссылка отправлена на ваш email.',
+    auth_verify_banner: 'Подтвердите почту — ссылка уже в вашем ящике. До тех пор лайки, комментарии и загрузки ограничены.',
+    auth_verify_resend: 'Отправить снова',
+    auth_verify_sent: 'Отправлено!',
+    auth_verify_sent_desc: 'Аккаунт создан! Мы отправили ссылку подтверждения на вашу почту — откройте её, чтобы разблокировать все функции.',
+    auth_verify_success: 'Почта подтверждена!',
+    auth_verify_success_desc: 'Ваша почта подтверждена. Все функции Icetube разблокированы.',
+    auth_verify_fail: 'Не удалось подтвердить',
+    auth_verify_fail_desc: 'Ссылка неверна или истекла. Запросите новую через баннер в приложении.'
   },
   es: {
     nav_home: 'Inicio',

@@ -3,6 +3,7 @@ import { Navbar } from "./Navbar";
 import { Sidebar } from "../devices/desktop/Sidebar";
 import { StudioSidebar } from "../studio/StudioSidebar";
 import { BottomNav } from "../devices/mobile/BottomNav";
+import EmailVerifyBanner from "../components/EmailVerifyBanner";
 import { useLocation } from "react-router-dom";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -52,6 +53,7 @@ export function Layout({ children }: { children: ReactNode }) {
           )}
           {/* Adjusted padding: Main layout has padding bottom for mobile nav */}
           <main className={`flex-1 overflow-y-auto custom-scrollbar transition-all duration-300 ${!isAdminView && sidebarOpen ? 'sm:ml-64' : 'ml-0'} pb-[calc(80px+env(safe-area-inset-bottom))] sm:pb-6 lg:pb-6`}>
+            {!isAdminView && <EmailVerifyBanner />}
             <div className="mx-auto max-w-[2000px] p-0 sm:p-4 lg:p-6 xl:p-8">
               {children}
             </div>

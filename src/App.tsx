@@ -28,6 +28,7 @@ import Live from "./pages/discover/Live";
 import MusicPage from "./pages/discover/Music";
 import SearchPage from "./pages/discover/Search";
 import Browse from "./pages/discover/Browse";
+import Verify from "./pages/auth/Verify";
 
 export default function App() {
   return (
@@ -64,6 +65,7 @@ export default function App() {
           <Route path="/yt-music" element={<MusicPage />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/verify" element={<Verify />} />
           {/* Catch-all route to redirect back to home for unhandled tabs */}
           <Route path="*" element={<Home />} />
         </Routes>

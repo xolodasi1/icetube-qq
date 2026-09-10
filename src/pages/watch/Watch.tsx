@@ -9,6 +9,8 @@ import { useLanguage } from "../../language/LanguageContext";
 import { createNotification } from "../../lib/notifications";
 import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENTS_PER_VIDEO } from "../../lib/storage";
 import { getRecommendations } from "../../lib/recommendations";
+import { shouldCountView, markViewCounted, viewThreshold } from "../../lib/viewcount";
+import { needVerification } from "../../lib/verified";
 
 import { getOptimizedThumbnail, getOptimizedVideoUrl, getQualityVideoUrl } from '../../lib/cloudinary';
 import type { VideoQuality } from '../../lib/cloudinary';
@@ -69,6 +71,10 @@ export default function Watch() {
 
   const lastTimeUpdateRef = useRef(0);
   const lastProgressSaveRef = useRef(0);
+  // Честный подсчёт просмотров: копим секунды реального воспроизведения
+  const watchedSecRef = useRef(0);
+  const lastTickRef = useRef(0);
+  const viewCountedRef = useRef<string | null>(null);
 
   const formatDuration = (seconds: number) => {
     if (!seconds || isNaN(seconds)) return '0:00';
@@ -661,24 +667,11 @@ export default function Watch() {
             setSuggestedVideos([]);
           }
 
-          // Increment View Count (Live mode only)
-          const runUpdate = async () => {
-            try {
-              const increment = Math.floor(Math.random() * 3) + 1;
-              await databases.updateDocument(dbId, colId, currentVideo.id, {
-                views: (currentVideo.views || 0) + increment
-              });
-
-              if (profilesCol && uploaderProfile) {
-                await databases.updateDocument(dbId, profilesCol, uploaderProfile.$id, {
-                  viewsCount: (uploaderProfile.viewsCount || 0) + increment
-                });
-              }
-            } catch (viewErr) {
-              console.error("View increment background update failed:", viewErr);
-            }
-          };
-          runUpdate();
+          // Просмотр засчитывается только за реальный досмотр (см. handleTimeUpdate).
+          // Сбрасываем счётчики честного просмотра для нового видео.
+          watchedSecRef.current = 0;
+          lastTickRef.current = 0;
+          viewCountedRef.current = null;
 
         } else {
           setVideo(null);
@@ -729,6 +722,7 @@ export default function Watch() {
       if (!user) alert(language === 'ru' ? 'Вам нужно войти в аккаунт, чтобы ставить оценки' : 'You must log in to rate videos');
       return;
     }
+    if (needVerification(user, t, language)) return;
     if (likeInFlight.current) return;
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const likesCol = import.meta.env.VITE_APPWRITE_LIKES_COLLECTION_ID;
@@ -847,6 +841,7 @@ export default function Watch() {
       alert(language === 'ru' ? 'Вам нужно войти в аккаунт, чтобы ставить снежинки' : 'You must log in to give snowflakes');
       return;
     }
+    if (needVerification(user, t, language)) return;
     if (isSnowflaking || !video) return;
     
     // Restriction: Author cannot flake their own video
@@ -905,6 +900,7 @@ export default function Watch() {
       alert(language === 'ru' ? 'Вам нужно войти в аккаунт, чтобы подписаться' : 'You must log in to subscribe');
       return;
     }
+    if (needVerification(user, t, language)) return;
     if (isSubbing || !video) return;
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const subsCol = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
@@ -954,6 +950,7 @@ export default function Watch() {
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim() || isCommenting) return;
+    if (user && needVerification(user, t, language)) return;
     
     if (!user) {
       const anonCount = getAnonCommentCount(id!);
@@ -1266,11 +1263,44 @@ export default function Watch() {
     );
   }
 
+  // Засчитать ОДИН честный просмотр: ровно +1, по свежему значению из базы.
+  const countRealView = async () => {
+    if (!video) return;
+    try {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+      if (!dbId || !colId) return;
+      const fresh = await databases.getDocument(dbId, colId, video.id).catch(() => null);
+      const base = fresh ? ((fresh as any).views || 0) : (video.views || 0);
+      await databases.updateDocument(dbId, colId, video.id, { views: base + 1 });
+      setVideo((prev: any) => (prev && prev.id === video.id ? { ...prev, views: base + 1 } : prev));
+      updateProfileStat(video.uploaderId, 'viewsCount', 1);
+    } catch (viewErr) {
+      console.error("View increment background update failed:", viewErr);
+    }
+  };
+
   const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     if (!video) return;
     const target = e.target as HTMLVideoElement;
     const now = Date.now();
     const progress = target.duration ? target.currentTime / target.duration : 0;
+
+    // Копим только реальное воспроизведение: пауза не капает, перемотка не капает
+    try {
+      const dt = target.currentTime - lastTickRef.current;
+      if (!target.paused && dt > 0 && dt < 2) watchedSecRef.current += dt;
+      lastTickRef.current = target.currentTime;
+      if (
+        viewCountedRef.current !== video.id &&
+        watchedSecRef.current >= viewThreshold(target.duration || 0) &&
+        shouldCountView(video.id)
+      ) {
+        viewCountedRef.current = video.id;
+        markViewCounted(video.id);
+        countRealView();
+      }
+    } catch { /* ignore */ }
 
     if (now - lastTimeUpdateRef.current > 1000) {
       lastTimeUpdateRef.current = now;

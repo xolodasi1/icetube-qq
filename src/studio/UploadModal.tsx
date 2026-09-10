@@ -8,6 +8,7 @@ import { ID, Query } from 'appwrite';
 import { UploadCloud, X, Loader2, AlertCircle, PlayCircle, ChevronDown } from 'lucide-react';
 import { useLanguage } from '../language/LanguageContext';
 import { createNotification } from '../lib/notifications';
+import { needVerification } from '../lib/verified';
 import clsx from 'clsx';
 
 interface UploadModalProps {
@@ -181,6 +182,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file || !title || !user) return;
+    if (needVerification(user, t, language)) return;
     
     setIsUploading(true);
     setError(null);

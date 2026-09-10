@@ -74,7 +74,7 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
   ];
 
   return (
-    <aside className={clsx("fixed left-0 top-16 bottom-0 w-[264px] bg-[#05070a]/98 backdrop-blur-2xl border-r border-white/[0.06] overflow-y-auto px-3 pt-4 pb-6 z-[40] custom-scrollbar transition-transform duration-300 lg:z-40", isOpen ? "translate-x-0" : "-translate-x-full")}>
+    <aside className={clsx("fixed left-0 top-16 bottom-0 w-[264px] bg-[#05070a]/98 backdrop-blur-2xl border-r border-white/[0.06] overflow-y-auto px-3 pt-4 pb-6 z-[60] custom-scrollbar transition-transform duration-300 lg:z-40", isOpen ? "translate-x-0" : "-translate-x-full")}>
       <div className="flex flex-col gap-1">
         {navItems.map((item, i) => {
           if (item.divider) return <div key={i} className="my-3 h-px bg-white/[0.06] mx-2" />;

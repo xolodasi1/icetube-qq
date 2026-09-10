@@ -6,6 +6,7 @@ import { databases, account } from '../lib/appwrite';
 import { useLanguage } from '../language/LanguageContext';
 import { Wand2, Save, X, Loader2, Image as ImageIcon, User, AlignLeft, AlertCircle, CheckCircle2, Upload, Tag, Globe, Search, Languages } from 'lucide-react';
 import { Query, ID } from 'appwrite';
+import { needVerification } from '../lib/verified';
 
 export default function ChannelEditor() {
   const { user, login, refreshProfile } = useAuth();
@@ -173,6 +174,7 @@ export default function ChannelEditor() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (needVerification(user, t, language)) return;
 
     setError(null);
     setSuccess(false);

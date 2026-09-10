@@ -8,6 +8,8 @@ import { useLanguage } from '../../language/LanguageContext';
 import { createNotification } from '../../lib/notifications';
 import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENTS_PER_VIDEO } from '../../lib/storage';
 import { getOptimizedThumbnail, getOptimizedVideoUrl } from '../../lib/cloudinary';
+import { shouldCountView, markViewCounted, viewThreshold } from '../../lib/viewcount';
+import { needVerification } from '../../lib/verified';
 
 
 export default function Shorts() {
@@ -39,6 +41,10 @@ export default function Shorts() {
   const [videoProgress, setVideoProgress] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const lastTapRef = useRef(0);
+  // Честный подсчёт просмотров шортсов
+  const watchedSecRef = useRef(0);
+  const lastTickRef = useRef(0);
+  const viewCountedRef = useRef<string | null>(null);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
@@ -275,25 +281,28 @@ export default function Shorts() {
       console.error("Failed to save to history", e);
     }
 
-    // Increment view count (read fresh value to avoid stale overwrite)
-    const runViewUpdate = async () => {
-      try {
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
-        if (dbId && colId) {
-          const fresh = await databases.getDocument(dbId, colId, current.$id).catch(() => null);
-          const base = fresh ? (fresh as any).views : current.views;
-          const increment = Math.floor(Math.random() * 3) + 1;
-          await databases.updateDocument(dbId, colId, current.$id, {
-            views: (base || 0) + increment
-          });
-        }
-      } catch (e) {
-        console.error("View increment failed:", e);
-      }
-    };
-    runViewUpdate();
+    // Просмотр засчитается только за реальный досмотр (см. onTimeUpdate ниже).
+    watchedSecRef.current = 0;
+    lastTickRef.current = 0;
+    viewCountedRef.current = null;
   }, [currentVideoIndex]);
+
+  // Ровно +1 просмотр по свежему значению из базы (без случайных накруток)
+  const countRealView = async (videoId: string, fallbackViews: number) => {
+    try {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+      if (dbId && colId) {
+        const fresh = await databases.getDocument(dbId, colId, videoId).catch(() => null);
+        const base = fresh ? (fresh as any).views : fallbackViews;
+        await databases.updateDocument(dbId, colId, videoId, {
+          views: (base || 0) + 1
+        });
+      }
+    } catch (e) {
+      console.error("View increment failed:", e);
+    }
+  };
 
   useEffect(() => {
     if (showComments && videos.length > 0) {
@@ -346,6 +355,7 @@ export default function Shorts() {
       alert(language === 'ru' ? 'Вам нужно войти в аккаунт, чтобы ставить оценки' : 'You must log in to rate videos');
       return;
     }
+    if (needVerification(user, t, language)) return;
     if (videos.length === 0 || likeInFlight.current) return;
     const current = videos[currentVideoIndex];
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -422,6 +432,7 @@ export default function Shorts() {
       alert(language === 'ru' ? 'Вам нужно войти в аккаунт, чтобы подписаться' : 'You must log in to subscribe');
       return;
     }
+    if (needVerification(user, t, language)) return;
     if (isSubbing || videos.length === 0) return;
     const current = videos[currentVideoIndex];
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -467,6 +478,7 @@ export default function Shorts() {
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim() || isCommenting || videos.length === 0) return;
+    if (user && needVerification(user, t, language)) return;
     
     const current = videos[currentVideoIndex];
 
@@ -548,6 +560,7 @@ export default function Shorts() {
 
   const handleAddReply = async (parentId: string) => {
     if (!replyText.trim() || isCommenting || videos.length === 0) return;
+    if (user && needVerification(user, t, language)) return;
     const current = videos[currentVideoIndex];
 
     if (!user) {
@@ -700,6 +713,21 @@ export default function Shorts() {
           onTimeUpdate={(e)=> {
             const v = e.currentTarget;
             if (v.duration) setVideoProgress((v.currentTime / v.duration) * 100);
+            try {
+              const dt = v.currentTime - lastTickRef.current;
+              if (!v.paused && dt > 0 && dt < 2) watchedSecRef.current += dt;
+              lastTickRef.current = v.currentTime;
+              const vid = current.$id;
+              if (
+                viewCountedRef.current !== vid &&
+                watchedSecRef.current >= viewThreshold(v.duration || 0) &&
+                shouldCountView(vid)
+              ) {
+                viewCountedRef.current = vid;
+                markViewCounted(vid);
+                countRealView(vid, current.views || 0);
+              }
+            } catch { /* ignore */ }
           }}
           onError={(e) => {
             const videoEl = e.target as HTMLVideoElement;
