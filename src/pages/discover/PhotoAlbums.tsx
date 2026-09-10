@@ -87,7 +87,7 @@ export default function PhotoAlbums() {
   };
 
   return (
-    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative mt-16 sm:mt-0 flex flex-col lg:flex-row gap-6">
+    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative  flex flex-col lg:flex-row gap-6">
 
       {/* Sidebar - Album List */}
       <div className="w-full lg:w-80 border ice-border rounded-2xl bg-[#0a192f] overflow-hidden flex flex-col shrink-0 lg:h-[calc(100vh-120px)] lg:sticky top-24">

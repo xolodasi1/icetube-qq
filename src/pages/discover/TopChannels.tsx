@@ -119,7 +119,7 @@ export default function TopChannels() {
   const Icon = currentCategory.icon;
 
   return (
-    <div className="flex-1 w-full max-w-[1200px] mx-auto px-4 sm:px-6 py-6 mb-20 sm:mb-6 mt-16 sm:mt-0 animate-in fade-in duration-300">
+    <div className="flex-1 w-full max-w-[1200px] mx-auto px-4 sm:px-6 py-6 mb-20 sm:mb-6  animate-in fade-in duration-300">
       <header className="flex flex-col gap-6 mb-10">
         <div className="flex items-center gap-4">
            <div className="p-3 bg-white/5 rounded-2xl border ice-border">

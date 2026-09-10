@@ -93,7 +93,7 @@ export default function SearchPage() {
   ];
 
   return (
-    <div className="flex-1 w-full max-w-[1200px] mx-auto px-4 sm:px-6 py-6 mb-20 sm:mb-6 mt-16 sm:mt-0 animate-in fade-in duration-300">
+    <div className="flex-1 w-full max-w-[1200px] mx-auto px-4 sm:px-6 py-6 mb-20 sm:mb-6  animate-in fade-in duration-300">
       <form onSubmit={handleSearch} className="relative group max-w-2xl mx-auto mb-8">
         <button type="submit" className="absolute inset-y-0 left-0 pl-4 flex items-center">
           <SearchIcon className="w-5 h-5 text-slate-500 group-focus-within:text-[#70d6ff] transition-colors" />
@@ -112,8 +112,8 @@ export default function SearchPage() {
         )}
       </form>
 
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="flex items-center justify-between gap-2 mb-6">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide hide-scrollbar min-w-0 flex-1">
           {filters.map(f => (
             <button
               key={f.key}
@@ -129,7 +129,7 @@ export default function SearchPage() {
             </button>
           ))}
         </div>
-        <div className="relative">
+        <div className="relative shrink-0">
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white bg-white/5 border ice-border transition-all"

@@ -49,7 +49,7 @@ export default function MusicPage() {
   const filtered = useMemo(() => videos.filter((v) => v.contentType !== "shorts" && v.contentType !== "photo"), [videos]);
 
   return (
-    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative mt-16 sm:mt-0">
+    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative ">
       <div className="flex items-center gap-4 mb-8">
         <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-[#70d6ff]">
           <Music className="w-6 h-6" />

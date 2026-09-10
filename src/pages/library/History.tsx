@@ -46,7 +46,7 @@ export default function History() {
 
   if (!user) {
     return (
-      <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative mt-16 sm:mt-0">
+      <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative ">
         <div className="flex flex-col items-center justify-center text-slate-400 py-20 px-4 mt-10 rounded-2xl border border-dashed border-white/10 ice-panel">
           <HistoryIcon className="w-16 h-16 mb-4 text-[#70d6ff] opacity-80" />
           <h2 className="text-2xl font-bold text-white mb-2 font-display">{t('history_title')}</h2>
@@ -63,7 +63,7 @@ export default function History() {
   );
 
   return (
-    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative mt-16 sm:mt-0 animate-in fade-in duration-300">
+    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative  animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-[#70d6ff]">

@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock, AlertTriangle, MessageCircle, Send, Settings } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock, AlertTriangle, MessageCircle, Send } from "lucide-react";
 import { VideoCard } from "../../components/VideoCard";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { databases, Permission, Role, withTimeout } from "../../lib/appwrite";
@@ -61,7 +61,6 @@ export default function Watch() {
   const [quality, setQuality] = useState<VideoQuality>(() => {
     try { return (SafeStorage.get('preferred_quality', 'auto') as VideoQuality); } catch { return 'auto'; }
   });
-  const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [commentSort, setCommentSort] = useState<'newest' | 'oldest' | 'top'>('newest');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
@@ -1459,43 +1458,6 @@ export default function Watch() {
               } catch(err) {}
             }}
           />
-          {/* Duration Badge */}
-          <div className="absolute bottom-2 left-2 z-40 flex items-center gap-2">
-            <span className="px-1.5 py-0.5 text-[10px] font-black font-mono bg-black/70 backdrop-blur border border-white/10 rounded text-white">
-              {formatDuration(currentPlayTime)} / {formatDuration(videoDuration || parseDuration(video?.duration || '0:00'))}
-            </span>
-          </div>
-          {/* Quality Selector */}
-          <div className="absolute bottom-2 right-2 z-40">
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowQualityMenu(!showQualityMenu); }}
-              className="px-2 py-1 text-[10px] font-black uppercase tracking-wider bg-black/60 backdrop-blur border border-white/10 rounded-lg text-slate-300 hover:text-white hover:bg-black/80 transition-all flex items-center gap-1"
-              title={language === 'ru' ? 'Качество' : 'Quality'}
-            >
-              <Settings className="w-3 h-3" />
-              {quality === 'auto' ? 'Auto' : quality}
-            </button>
-            {showQualityMenu && (
-              <div className="absolute bottom-8 right-0 bg-[#0a192f] border ice-border rounded-xl p-1 shadow-2xl z-50 min-w-[120px]" onClick={(e) => e.stopPropagation()}>
-                {(['auto', '1080p', '720p', '480p', '360p'] as VideoQuality[]).map(q => (
-                  <button
-                    key={q}
-                    onClick={() => {
-                      setQuality(q);
-                      try { SafeStorage.set('preferred_quality', q); } catch {}
-                      setShowQualityMenu(false);
-                    }}
-                    className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-bold transition-all text-left ${
-                      quality === q ? 'bg-[#70d6ff]/10 text-[#70d6ff]' : 'text-slate-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    {q === 'auto' ? (language === 'ru' ? 'Авто' : 'Auto') : q}
-                    {quality === q && <span className="ml-auto text-[#70d6ff]">✓</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
 
         <div className="mt-4 flex flex-col gap-3 px-4 sm:px-0">
@@ -1550,9 +1512,22 @@ export default function Watch() {
                   </span>
                 </div>
               </div>
+              {video.uploaderId !== user?.$id && (
+                <button
+                  onClick={handleSubscribe}
+                  disabled={isSubbing}
+                  className={`shrink-0 px-4 sm:px-5 py-2 rounded-full text-sm font-bold transition-all active:scale-95 ${
+                    isSubscribed
+                      ? 'bg-white/10 text-slate-200 border border-white/10 hover:bg-white/15'
+                      : 'bg-white text-black hover:bg-zinc-200 shadow-sm'
+                  } ${isSubbing ? 'opacity-60' : ''}`}
+                >
+                  {isSubscribed ? (language === 'ru' ? 'Вы подписаны' : 'Subscribed') : (language === 'ru' ? 'Подписаться' : 'Subscribe')}
+                </button>
+              )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible hide-scrollbar custom-scrollbar pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
               {/* Like/Dislike group */}
               <div className="flex items-center bg-white/5 border ice-border rounded-full overflow-hidden shrink-0">
                 <button 
@@ -1643,7 +1618,27 @@ export default function Watch() {
                 </button>
 
                 {showMoreMenu && (
-                  <div className="absolute top-11 right-0 w-48 bg-[#0a192f] backdrop-blur-2xl border ice-border rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] z-[100] py-2 overflow-hidden ring-1 ring-white/10">
+                  <div className="absolute top-11 right-0 w-52 bg-[#0a192f] backdrop-blur-2xl border ice-border rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] z-[100] py-2 overflow-hidden ring-1 ring-white/10">
+                    <div className="px-4 pt-1 pb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      {language === 'ru' ? 'Качество' : 'Quality'} · {quality === 'auto' ? (language === 'ru' ? 'Авто' : 'Auto') : quality}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 px-3 pb-2">
+                      {(['auto', '1080p', '720p', '480p', '360p'] as VideoQuality[]).map(q => (
+                        <button
+                          key={q}
+                          onClick={() => {
+                            setQuality(q);
+                            try { SafeStorage.set('preferred_quality', q); } catch {}
+                          }}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            quality === q ? 'bg-[#70d6ff] text-black' : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
+                          }`}
+                        >
+                          {q === 'auto' ? (language === 'ru' ? 'Авто' : 'Auto') : q}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mx-3 h-px bg-white/10" />
                     <button 
                       onClick={() => {
                         window.open(video.videoUrl, '_blank');

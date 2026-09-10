@@ -32,7 +32,7 @@ export default function Favorites() {
   };
 
   return (
-    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative mt-16 sm:mt-0 animate-in fade-in duration-300">
+    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative  animate-in fade-in duration-300">
       <div className="flex items-center gap-4 mb-8">
         <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-[#70d6ff]">
           <Bookmark className="w-6 h-6 fill-current" />

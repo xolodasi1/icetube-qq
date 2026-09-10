@@ -20,7 +20,7 @@ export default function Library() {
   ];
 
   return (
-    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative mt-16 sm:mt-0">
+    <div className="flex-1 w-full max-w-[2000px] mx-auto px-4 sm:px-6 md:px-8 py-6 relative ">
       <h1 className="text-2xl sm:text-3xl font-bold text-white font-display mb-8">
         {language === "ru" ? "Библиотека" : "Library"}
       </h1>
