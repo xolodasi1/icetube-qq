@@ -3,6 +3,26 @@ import { Moon, Sun, Globe, Check, Settings as SettingsIcon, X } from 'lucide-rea
 import { useLanguage } from '../../language/LanguageContext';
 import { useTheme } from '../../theme/ThemeContext';
 import { SafeStorage } from '../../lib/storage';
+import type { Language } from '../../language/translations';
+
+const LANG_OPTIONS: { id: Language, label: string, flag: string }[] = [
+  { id: 'ru', label: 'Русский', flag: '🇷🇺' },
+  { id: 'uk', label: 'Українська', flag: '🇺🇦' },
+  { id: 'be', label: 'Беларуская', flag: '🇧🇾' },
+  { id: 'kk', label: 'Қазақша', flag: '🇰🇿' },
+  { id: 'en', label: 'English', flag: '🇺🇸' },
+  { id: 'de', label: 'Deutsch', flag: '🇩🇪' },
+  { id: 'fr', label: 'Français', flag: '🇫🇷' },
+  { id: 'es', label: 'Español', flag: '🇲🇽' },
+  { id: 'it', label: 'Italiano', flag: '🇮🇹' },
+  { id: 'tr', label: 'Türkçe', flag: '🇹🇷' },
+  { id: 'pl', label: 'Polski', flag: '🇵🇱' },
+  { id: 'pt', label: 'Português', flag: '🇧🇷' },
+  { id: 'zh', label: '中文', flag: '🇨🇳' },
+  { id: 'ja', label: '日本語', flag: '🇯🇵' },
+  { id: 'ko', label: '한국어', flag: '🇰🇷' },
+  { id: 'hi', label: 'हिन्दी', flag: '🇮🇳' },
+];
 
 const COUNTRY_OPTIONS: { id: string, label: string, flag: string }[] = [
   { id: 'RU', label: 'Россия', flag: '🇷🇺' },
@@ -104,49 +124,24 @@ export default function Settings() {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <button
-              onClick={() => setLanguage('ru')}
-              className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
-                language === 'ru' 
-                  ? 'border-[#70d6ff] bg-[#70d6ff]/5 text-[#70d6ff]' 
-                  : 'border-white/10 bg-black/20 text-slate-400 hover:border-white/20'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-lg">🇷🇺</span>
-                <span className="font-medium">{t('settings_ru')}</span>
-              </div>
-              {language === 'ru' && <Check className="w-4 h-4 text-[#70d6ff]" />}
-            </button>
-            <button
-              onClick={() => setLanguage('en')}
-              className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
-                language === 'en' 
-                  ? 'border-[#70d6ff] bg-[#70d6ff]/5 text-[#70d6ff]' 
-                  : 'border-white/10 bg-black/20 text-slate-400 hover:border-white/20'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-lg">🇺🇸</span>
-                <span className="font-medium">{t('settings_en')}</span>
-              </div>
-              {language === 'en' && <Check className="w-4 h-4 text-[#70d6ff]" />}
-            </button>
-            <button
-              onClick={() => setLanguage('es')}
-              className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
-                language === 'es' 
-                  ? 'border-[#70d6ff] bg-[#70d6ff]/5 text-[#70d6ff]' 
-                  : 'border-white/10 bg-black/20 text-slate-400 hover:border-white/20'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-lg">🇲🇽</span>
-                <span className="font-medium">{t('settings_es')}</span>
-              </div>
-              {language === 'es' && <Check className="w-4 h-4 text-[#70d6ff]" />}
-            </button>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
+            {LANG_OPTIONS.map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => setLanguage(opt.id)}
+                className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                  language === opt.id
+                    ? 'border-[#70d6ff] bg-[#70d6ff]/5 text-[#70d6ff]'
+                    : 'border-white/10 bg-black/20 text-slate-400 hover:border-white/20'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="text-lg shrink-0">{opt.flag}</span>
+                  <span className="font-medium truncate">{opt.label}</span>
+                </div>
+                {language === opt.id && <Check className="w-4 h-4 text-[#70d6ff] shrink-0" />}
+              </button>
+            ))}
           </div>
         </div>
 

@@ -22,7 +22,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const t = useCallback((key: string) => {
-    return translations[language][key] || key;
+    return translations[language]?.[key] || translations.en[key] || key;
   }, [language]);
 
   const value = useMemo(() => ({ language, setLanguage, t }), [language, setLanguage, t]);
