@@ -49,23 +49,6 @@ export default function Home() {
   useEffect(() => {
     SafeStorage.set('home_country_filter', selectedCountries);
   }, [selectedCountries]);
-  const [dbChannels, setDbChannels] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchChannels = async () => {
-      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-      const profilesCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
-      if (!dbId || !profilesCol) return;
-      try {
-        const result = await withTimeout(databases.listDocuments(dbId, profilesCol, [Query.orderDesc('$createdAt'), Query.limit(50)]), 5000);
-        setDbChannels(result.documents);
-      } catch (err) {
-        console.warn("Could not fetch channels:", err);
-      }
-    };
-    fetchChannels();
-  }, []);
-
   useEffect(() => {
     const syncCountries = () => {
       const saved = SafeStorage.get<string[] | null>('home_country_filter', null);
@@ -357,21 +340,6 @@ export default function Home() {
                                 <p className="absolute bottom-2.5 left-2.5 right-2.5 text-white text-xs font-medium truncate">{photo.title}</p>
                               </div>
                             </Link>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {dbChannels.length > 0 && (
-                    <div className="mb-10">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {dbChannels.map(channel => (
-                          <div key={channel.$id || channel.id} className="border-white/5 border rounded-xl p-3 hover:border-[#70d6ff]/20 transition-colors">
-                            <img src={channel.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.name || 'Channel')}`} alt={channel.name} className="w-full h-48 object-cover rounded-t-xl mb-3" />
-                            <div className="text-center">
-                              <h3 className="text-sm font-bold text-white truncate">{channel.name || 'Channel'}</h3>
-                              <p className="text-xs text-slate-400">{channel.handle || ''}</p>
-                            </div>
                           </div>
                         ))}
                       </div>
