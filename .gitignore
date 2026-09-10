@@ -6,3 +6,13 @@ coverage/
 *.log
 .env*
 !.env.example
+# Android local build outputs (APK собирается локально через gradlew)
+android/build/
+android/app/build/
+android/app/release/
+android/capacitor-cordova-android-plugins/build/
+android/.gradle/
+android/local.properties
+android/.idea/
+# Скопированные веб-ассеты (пересоздаются командой npx cap sync)
+android/app/src/main/assets/
