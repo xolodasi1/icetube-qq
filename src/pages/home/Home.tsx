@@ -184,9 +184,9 @@ export default function Home() {
     dbVideos.forEach(v => {
       const c = (v.category || '').trim();
       const lc = c.toLowerCase();
-      if (c && lc !== 'all' && lc !== 'все' && lc !== 'new' && lc !== 'новые') set.add(c);
+      if (c && lc !== 'all' && lc !== 'все' && lc !== 'new' && lc !== 'новые' && lc !== 'popular' && lc !== 'популярные' && lc !== 'популярное') set.add(c);
     });
-    return ['All', 'New', ...Array.from(set).sort((a,b)=>a.localeCompare(b))];
+    return ['All', 'New', 'Popular', ...Array.from(set).sort((a,b)=>a.localeCompare(b))];
   }, [dbVideos]);
 
   const availableCountries = useMemo(() => {
@@ -216,7 +216,7 @@ export default function Home() {
       if (activeFilter === 'video') matchesFilter = !isShort(video) && !isPhoto(video);
       else if (activeFilter === 'shorts') matchesFilter = isShort(video);
       else if (activeFilter === 'photo') matchesFilter = isPhoto(video);
-      const matchesCategory = activeCategory === 'All' || activeCategory === 'New' || (video.category || 'All') === activeCategory;
+      const matchesCategory = activeCategory === 'All' || activeCategory === 'New' || activeCategory === 'Popular' || (video.category || 'All') === activeCategory;
       const cc = video.channelCountry || '';
       const matchesCountry = selectedCountries.includes(cc) || (cc === '' && selectedCountries.includes('WW'));
       return matchesSearch && matchesFilter && matchesCategory && matchesCountry;
@@ -226,6 +226,10 @@ export default function Home() {
       return result.sort((a, b) =>
         new Date(b.createdAt || b.uploadDate || 0).getTime() - new Date(a.createdAt || a.uploadDate || 0).getTime()
       );
+    }
+    // «Популярные» — сначала с большим числом просмотров
+    if (activeCategory === 'Popular') {
+      return result.sort((a, b) => (b.views || 0) - (a.views || 0));
     }
     return result;
   }, [dbVideos, searchQuery, activeFilter, activeCategory, selectedCountries]);
@@ -264,10 +268,10 @@ export default function Home() {
             onClick={() => setActiveCategory(cat)}
             className={`whitespace-nowrap px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${activeCategory === cat ? "bg-[#70d6ff] text-black border-[#70d6ff] shadow-sm" : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"}`}
           >
-            {cat === 'All' ? (language === 'ru' ? 'Все' : 'All') : cat === 'New' ? (language === 'ru' ? 'Новые' : 'New') : cat}
+            {cat === 'All' ? (language === 'ru' ? 'Все' : 'All') : cat === 'New' ? (language === 'ru' ? 'Новые' : 'New') : cat === 'Popular' ? (language === 'ru' ? 'Популярные' : 'Popular') : cat}
           </button>
         ))}
-        {allCategories.length <= 2 && (
+        {allCategories.length <= 3 && (
           <span className="text-xs text-slate-500 whitespace-nowrap ml-2">{language === 'ru' ? 'Категории появятся когда авторы укажут их при загрузке' : 'Categories appear when authors set them on upload'}</span>
         )}
       </div>
