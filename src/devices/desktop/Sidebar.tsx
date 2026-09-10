@@ -71,11 +71,6 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
     { icon: Download, label: t('nav_downloads'), path: "/downloads", requiresAuth: true },
     { icon: Scissors, label: t('nav_clips'), path: "/clips", requiresAuth: true },
     { icon: Trophy, label: t('nav_top_channels'), path: "/top-channels" },
-    { divider: true },
-    { icon: Settings, label: t('nav_settings'), path: "/settings" },
-    { divider: true },
-    { header_text: t('nav_socials') },
-    { icon: Send, label: t('nav_telegram'), path: "https://t.me/SAOtop", isExternal: true, iconColor: "text-blue-400" },
   ];
 
   return (
@@ -117,6 +112,25 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
             ))}
           </>
         )}
+
+        {/* Соцсети — выше настроек, ниже подписок */}
+        <div className="my-3 h-px bg-white/[0.06] mx-2" />
+        <div className="px-3 pt-2 pb-1 text-[11px] font-bold tracking-widest uppercase text-white/40">{t('nav_socials')}</div>
+        <a href="https://t.me/SAOtop" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-3 py-[9px] rounded-xl text-[13.5px] font-medium transition-all text-zinc-400 hover:text-white hover:bg-white/[0.06]">
+          <Send className="w-[18px] h-[18px] shrink-0 text-blue-400" />
+          <span className="truncate">{t('nav_telegram')}</span>
+        </a>
+
+        {/* Настройки — самый низ */}
+        <div className="my-3 h-px bg-white/[0.06] mx-2" />
+        <Link
+          to="/settings"
+          className={clsx("flex items-center gap-3 px-3 py-[9px] rounded-xl text-[13.5px] font-medium transition-all", location.pathname === "/settings" ? "bg-white text-black shadow-sm" : "text-zinc-400 hover:text-white hover:bg-white/[0.06]")}
+        >
+          <Settings className={clsx("w-[18px] h-[18px] shrink-0", location.pathname === "/settings" ? "text-black" : "text-zinc-500")} />
+          <span className="truncate">{t('nav_settings')}</span>
+        </Link>
+
         <div className="mt-6 px-3 text-[11px] leading-relaxed text-white/25">© 2025 Icetube • Сделано для холода ❄️</div>
       </div>
     </aside>

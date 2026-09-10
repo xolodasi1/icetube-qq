@@ -75,7 +75,7 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
     fetchUserData();
   }, [user]);
 
-  const navItems = [
+  const navItems: any[] = [
     { header_text: language === 'ru' ? 'Главная' : 'Main' },
     { icon: Home, label: t('nav_home'), path: "/" },
     { icon: Film, label: language === 'ru' ? 'Видео' : 'Videos', path: "/videos" },
@@ -94,11 +94,6 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
     { icon: Download, label: t('nav_downloads'), path: "/downloads", requiresAuth: true },
     { icon: Scissors, label: t('nav_clips'), path: "/clips", requiresAuth: true },
     { icon: Trophy, label: t('nav_top_channels'), path: "/top-channels" },
-    { divider: true },
-    { icon: Settings, label: t('nav_settings'), path: "/settings" },
-    { divider: true },
-    { header_text: t('nav_socials') },
-    { icon: Send, label: t('nav_telegram'), path: "https://t.me/SAOtop", isExternal: true, iconColor: "text-blue-400 group-hover:text-blue-300" },
   ];
 
   return (
@@ -161,6 +156,47 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
             </LinkComponent>
           );
         })}
+
+        {subscribedChannels.length > 0 && (
+          <>
+            <hr className="my-4 ice-border opacity-20 mx-2" />
+            <div className="px-3 py-2 text-white font-bold text-base">Подписки</div>
+            {subscribedChannels.map(s=>(
+              <Link key={s.id} to={`/channel/${s.id}`} className="sidebar-item flex items-center gap-4 p-3 rounded-xl transition-all duration-200 cursor-pointer group hover:bg-white/5 text-slate-400 hover:text-white">
+                <img
+                  src={s.avatar}
+                  alt={s.name}
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                  onError={(e)=>{ (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name || 'U')}`; }}
+                  className="w-5 h-5 rounded-full object-cover bg-white/5 shrink-0"
+                />
+                <span className="text-sm truncate">{s.name}</span>
+              </Link>
+            ))}
+          </>
+        )}
+
+        <hr className="my-4 ice-border opacity-20 mx-2" />
+        <div className="px-3 py-2 text-white font-bold text-base">{t('nav_socials')}</div>
+        <a href="https://t.me/SAOtop" target="_blank" rel="noopener noreferrer" className="sidebar-item flex items-center gap-4 p-3 rounded-xl transition-all duration-200 cursor-pointer group hover:bg-white/5 text-slate-400 hover:text-white">
+          <Send className="w-5 h-5 transition-colors text-blue-400 group-hover:text-blue-300" />
+          <span className="text-sm">{t('nav_telegram')}</span>
+        </a>
+
+        <hr className="my-4 ice-border opacity-20 mx-2" />
+        <Link
+          to="/settings"
+          className={clsx(
+            "sidebar-item flex items-center gap-4 p-3 rounded-xl transition-all duration-200 cursor-pointer group hover:bg-white/5",
+            location.pathname === "/settings"
+              ? "bg-[rgba(112,214,255,0.08)] text-[#70d6ff] font-medium"
+              : "text-slate-400 hover:text-white"
+          )}
+        >
+          <Settings className={clsx("w-5 h-5 transition-colors", location.pathname === "/settings" ? "text-[#70d6ff]" : "text-slate-500 group-hover:text-white")} />
+          <span className="text-sm">{t('nav_settings')}</span>
+        </Link>
 
       </div>
     </aside>
