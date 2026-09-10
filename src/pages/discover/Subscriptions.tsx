@@ -50,18 +50,32 @@ export default function Subscriptions() {
 
         if (subscribedChannelIds.length > 0 && usersColId) {
           const chanResults = await Promise.all(
-            chunkIds(subscribedChannelIds, 50).map(ids =>
+            chunkIds(subscribedChannelIds, 50).flatMap(ids => [
               databases.listDocuments(dbId, usersColId, [
                 Query.equal('$id', ids)
-              ])
-            )
+              ]).catch(()=>({documents:[]} as any)),
+              databases.listDocuments(dbId, usersColId, [
+                Query.equal('userId', ids)
+              ]).catch(()=>({documents:[]} as any)),
+            ])
           );
           const chanDocs = chanResults.flatMap(r => r.documents);
-          setChannels(chanDocs.map((doc: any) => ({
-            id: doc.$id,
-            name: doc.name,
-            avatar: doc.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.name)}`
-          })));
+          const merged = new Map<string, any>();
+          chanDocs.forEach((doc: any) => {
+            const key = doc.userId || doc.$id;
+            const avatar = doc.avatar || doc.photoUrl || '';
+            const prev = merged.get(key);
+            if (!prev || (!prev.avatar && !prev.photoUrl && avatar)) merged.set(key, doc);
+          });
+          setChannels(subscribedChannelIds.map((cid: string) => {
+            const doc: any = merged.get(cid) || chanDocs.find((d: any) => d.$id === cid);
+            if (!doc) return null;
+            return {
+              id: doc.$id,
+              name: doc.name || 'Channel',
+              avatar: doc.avatar || doc.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.name || 'U')}`
+            };
+          }).filter(Boolean));
         }
 
         // 3. Fetch videos from these channels
@@ -144,8 +158,15 @@ export default function Subscriptions() {
                 to={`/channel/${ch.id}`}
                 className="flex flex-col items-center gap-2 shrink-0 group"
               >
-                <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-transparent group-hover:border-[#70d6ff] transition-all">
-                  <img src={ch.avatar} alt={ch.name} className="w-full h-full object-cover" />
+                <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-transparent group-hover:border-[#70d6ff] transition-all bg-white/5">
+                  <img
+                    src={ch.avatar}
+                    alt={ch.name}
+                    referrerPolicy="no-referrer"
+                    loading="lazy"
+                    onError={(e)=>{ (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(ch.name || 'U')}`; }}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <span className="text-[10px] text-slate-400 truncate max-w-[60px] text-center group-hover:text-white transition-colors">{ch.name}</span>
               </Link>

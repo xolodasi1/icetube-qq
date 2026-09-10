@@ -36,11 +36,34 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
               Query.limit(10) // Limit to top 10 for sidebar
             ]);
             
-            setSubscribedChannels(chanRes.documents.map((doc: any) => ({
-              id: doc.$id,
-              name: doc.name,
-              avatar: doc.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.name)}`
-            })));
+            const merged = new Map<string, any>();
+            chanRes.documents.forEach((doc: any) => {
+              const key = doc.userId || doc.$id;
+              if (!merged.has(key)) merged.set(key, doc);
+            });
+            // добираем legacy-профили, где $id != userId
+            try {
+              const missing = channelIds.filter((cid: string) => !merged.has(cid));
+              if (missing.length > 0) {
+                const extra = await databases.listDocuments(dbId, usersColId, [
+                  Query.equal('userId', missing.slice(0, 10)),
+                  Query.limit(10)
+                ]).catch(()=>({documents:[]} as any));
+                extra.documents.forEach((doc: any) => {
+                  const key = doc.userId || doc.$id;
+                  if (!merged.has(key)) merged.set(key, doc);
+                });
+              }
+            } catch {}
+            setSubscribedChannels(channelIds.map((cid: string) => {
+              const doc: any = merged.get(cid) || [...merged.values()].find((d: any) => d.$id === cid);
+              if (!doc) return null;
+              return {
+                id: doc.$id,
+                name: doc.name || 'Channel',
+                avatar: doc.avatar || doc.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.name || 'U')}`
+              };
+            }).filter(Boolean) as {id: string, name: string, avatar: string}[]);
           }
         }
       } catch (err) {
