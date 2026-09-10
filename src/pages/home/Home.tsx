@@ -181,8 +181,12 @@ export default function Home() {
 
   const allCategories = useMemo(() => {
     const set = new Set<string>();
-    dbVideos.forEach(v => { const c = (v.category || '').trim(); if (c && c.toLowerCase() !== 'all' && c.toLowerCase() !== 'все') set.add(c); });
-    return ['All', ...Array.from(set).sort((a,b)=>a.localeCompare(b))];
+    dbVideos.forEach(v => {
+      const c = (v.category || '').trim();
+      const lc = c.toLowerCase();
+      if (c && lc !== 'all' && lc !== 'все' && lc !== 'new' && lc !== 'новые') set.add(c);
+    });
+    return ['All', 'New', ...Array.from(set).sort((a,b)=>a.localeCompare(b))];
   }, [dbVideos]);
 
   const availableCountries = useMemo(() => {
@@ -196,7 +200,7 @@ export default function Home() {
 
   const filteredVideos = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return dbVideos.filter(video => {
+    const result = dbVideos.filter(video => {
       const title = (video.title || '').toLowerCase();
       const chName = (video.channelName || '').toLowerCase();
       const chHandle = (video.channelHandle || '').toLowerCase();
@@ -212,11 +216,18 @@ export default function Home() {
       if (activeFilter === 'video') matchesFilter = !isShort(video) && !isPhoto(video);
       else if (activeFilter === 'shorts') matchesFilter = isShort(video);
       else if (activeFilter === 'photo') matchesFilter = isPhoto(video);
-      const matchesCategory = activeCategory === 'All' || (video.category || 'All') === activeCategory;
+      const matchesCategory = activeCategory === 'All' || activeCategory === 'New' || (video.category || 'All') === activeCategory;
       const cc = video.channelCountry || '';
       const matchesCountry = selectedCountries.includes(cc) || (cc === '' && selectedCountries.includes('WW'));
       return matchesSearch && matchesFilter && matchesCategory && matchesCountry;
     });
+    // «Новые» — сначала самые свежие по дате загрузки
+    if (activeCategory === 'New') {
+      return result.sort((a, b) =>
+        new Date(b.createdAt || b.uploadDate || 0).getTime() - new Date(a.createdAt || a.uploadDate || 0).getTime()
+      );
+    }
+    return result;
   }, [dbVideos, searchQuery, activeFilter, activeCategory, selectedCountries]);
 
   const filterTabs = [
@@ -253,10 +264,10 @@ export default function Home() {
             onClick={() => setActiveCategory(cat)}
             className={`whitespace-nowrap px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${activeCategory === cat ? "bg-[#70d6ff] text-black border-[#70d6ff] shadow-sm" : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"}`}
           >
-            {cat === 'All' ? (language === 'ru' ? 'Все' : 'All') : cat}
+            {cat === 'All' ? (language === 'ru' ? 'Все' : 'All') : cat === 'New' ? (language === 'ru' ? 'Новые' : 'New') : cat}
           </button>
         ))}
-        {allCategories.length <= 1 && (
+        {allCategories.length <= 2 && (
           <span className="text-xs text-slate-500 whitespace-nowrap ml-2">{language === 'ru' ? 'Категории появятся когда авторы укажут их при загрузке' : 'Categories appear when authors set them on upload'}</span>
         )}
       </div>
