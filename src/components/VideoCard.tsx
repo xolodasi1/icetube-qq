@@ -59,7 +59,8 @@ export const VideoCard = memo(function VideoCard({ video, layout = "grid", hideD
   const isList = layout === "list";
   const isClip = layout === "clip";
   const isShortContentType = video.contentType === 'shorts' || video.title?.toLowerCase().includes('#shorts') || video.description?.toLowerCase().includes('#shorts');
-  const targetUrl = (isClip || isShortContentType) ? `/shorts/${video.id}` : `/watch/${video.id}`;
+  const isPhotoContentType = video.contentType === 'photo';
+  const targetUrl = isPhotoContentType ? `/photos` : (isClip || isShortContentType) ? `/shorts/${video.id}` : `/watch/${video.id}`;
 
   if (isClip) {
     return (

@@ -612,10 +612,16 @@ export default function Watch() {
           };
 
           // Redirect shorts to the shorts player
-          if (currentVideo.contentType === 'shorts' || 
-              currentDoc.title?.toLowerCase().includes('#shorts') || 
+          if (currentVideo.contentType === 'shorts' ||
+              currentDoc.title?.toLowerCase().includes('#shorts') ||
               currentDoc.description?.toLowerCase().includes('#shorts')) {
              navigate(`/shorts/${currentDoc.$id}`, { replace: true });
+             return;
+          }
+
+          // Фото нельзя играть в видеоплеере — отправляем на страницу фото
+          if (currentVideo.contentType === 'photo') {
+             navigate(`/photos`, { replace: true });
              return;
           }
 
