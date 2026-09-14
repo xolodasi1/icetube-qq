@@ -7,9 +7,10 @@ import { useLanguage } from '../language/LanguageContext';
 import { Wand2, Save, X, Loader2, Image as ImageIcon, User, AlignLeft, AlertCircle, CheckCircle2, Upload, Tag, Globe, Search, Languages } from 'lucide-react';
 import { Query, ID } from 'appwrite';
 import { needVerification } from '../lib/verified';
+import { needUnbanned } from '../lib/banned';
 
 export default function ChannelEditor() {
-  const { user, login, refreshProfile } = useAuth();
+  const { user, profile, login, refreshProfile } = useAuth();
   const { t, language } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -175,6 +176,7 @@ export default function ChannelEditor() {
     e.preventDefault();
     if (!user) return;
     if (needVerification(user, t, language)) return;
+    if (needUnbanned(profile, t)) return;
 
     setError(null);
     setSuccess(false);

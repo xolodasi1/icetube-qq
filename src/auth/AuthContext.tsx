@@ -9,6 +9,10 @@ export interface UserProfile {
     avatar: string;
     description: string;
     role?: string;
+    isBanned?: boolean;
+    banUntil?: string | null;
+    banReason?: string;
+    muteUntil?: string | null;
 }
 
 interface AuthContextType {
@@ -80,7 +84,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                         name: doc.name || doc.displayName || '',
                         avatar: doc.avatar || doc.photoUrl || '',
                         description: doc.description || doc.bio || '',
-                        role: doc.role || 'user'
+                        role: doc.role || 'user',
+                        isBanned: !!doc.isBanned,
+                        banUntil: doc.banUntil || null,
+                        banReason: doc.banReason || '',
+                        muteUntil: doc.muteUntil || null
                     });
                 }
             }
@@ -128,7 +136,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     name: doc.name || doc.displayName || u.name || 'User',
                     avatar: doc.avatar || doc.photoUrl || '',
                     description: doc.description || doc.bio || '',
-                    role: doc.role || 'user'
+                    role: doc.role || 'user',
+                    isBanned: !!doc.isBanned,
+                    banUntil: doc.banUntil || null,
+                    banReason: doc.banReason || '',
+                    muteUntil: doc.muteUntil || null
                 });
                 return;
             } catch (err: any) {
@@ -147,7 +159,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     name: doc.name || doc.displayName || u.name || 'User',
                     avatar: doc.avatar || doc.photoUrl || '',
                     description: doc.description || doc.bio || '',
-                    role: doc.role || 'user'
+                    role: doc.role || 'user',
+                    isBanned: !!doc.isBanned,
+                    banUntil: doc.banUntil || null,
+                    banReason: doc.banReason || '',
+                    muteUntil: doc.muteUntil || null
                 });
                 
                 // If we have duplicates or the ID is not the userId, we should ideally fix it

@@ -55,7 +55,7 @@ export default function Channel() {
           Query.limit(5000)
         ]);
 
-        const formattedVideos = videosRes.documents.map(v => {
+        const formattedVideos = videosRes.documents.filter((v: any) => !(v as any).hidden).map(v => {
           const ct = v.contentType || 'video';
           const isShortLike = ct === 'shorts' || v.title?.toLowerCase().includes('#shorts');
           const rawDur = v.duration as string | undefined;

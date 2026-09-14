@@ -11,6 +11,7 @@ import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENT
 import { getRecommendations } from "../../lib/recommendations";
 import { shouldCountView, markViewCounted, viewThreshold } from "../../lib/viewcount";
 import { needVerification } from "../../lib/verified";
+import { needUnbanned } from "../../lib/banned";
 
 import { getOptimizedThumbnail, getOptimizedVideoUrl, getQualityVideoUrl } from '../../lib/cloudinary';
 import type { VideoQuality } from '../../lib/cloudinary';
@@ -640,7 +641,7 @@ export default function Watch() {
             ]), 2500);
             
             const suggested = suggestedRes.documents
-              .filter(v => v.$id !== id && (!v.contentType || v.contentType === 'video'))
+              .filter((v: any) => v.$id !== id && !(v as any).hidden && (!v.contentType || v.contentType === 'video'))
               .map(v => ({
                 id: v.$id,
                 uploaderId: v.uploaderId,
@@ -729,6 +730,7 @@ export default function Watch() {
       return;
     }
     if (needVerification(user, t, language)) return;
+    if (needUnbanned(profile, t)) return;
     if (likeInFlight.current) return;
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const likesCol = import.meta.env.VITE_APPWRITE_LIKES_COLLECTION_ID;
@@ -848,6 +850,7 @@ export default function Watch() {
       return;
     }
     if (needVerification(user, t, language)) return;
+    if (needUnbanned(profile, t)) return;
     if (isSnowflaking || !video) return;
     
     // Restriction: Author cannot flake their own video
@@ -907,6 +910,7 @@ export default function Watch() {
       return;
     }
     if (needVerification(user, t, language)) return;
+    if (needUnbanned(profile, t)) return;
     if (isSubbing || !video) return;
     if (video.uploaderId === user.$id) return; // на себя подписаться нельзя
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -958,6 +962,7 @@ export default function Watch() {
     e.preventDefault();
     if (!newComment.trim() || isCommenting) return;
     if (user && needVerification(user, t, language)) return;
+    if (needUnbanned(profile, t, { commentsOnly: true })) return;
     
     if (!user) {
       const anonCount = getAnonCommentCount(id!);
@@ -1057,6 +1062,7 @@ export default function Watch() {
 
   const handleCommentLike = async (commentId: string, isLike: boolean) => {
     if (!user || isCommenting) return;
+    if (needUnbanned(profile, t)) return;
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const commsCol = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
     if (!dbId || !commsCol) return;
@@ -1118,6 +1124,7 @@ export default function Watch() {
 
   const handleAddReply = async (parentId: string) => {
     if (!replyText.trim() || isCommenting) return;
+    if (needUnbanned(profile, t, { commentsOnly: true })) return;
     
     if (!user) {
       const anonCount = getAnonCommentCount(id!);
@@ -1217,6 +1224,7 @@ export default function Watch() {
 
   const handleUpdateComment = async (commentId: string) => {
     if (!editingText.trim() || isCommenting) return;
+    if (needUnbanned(profile, t, { commentsOnly: true })) return;
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const commsCol = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
     if (!dbId || !commsCol) return;

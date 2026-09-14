@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useAuth } from '../../auth/AuthContext';
 import { databases, client } from '../../lib/appwrite';
 import { 
-  ShieldCheck, ShieldAlert, Users, Video, Activity, MoreHorizontal, 
-  Ban, Trash2, Clock, Eye, AlertTriangle, 
+  ShieldCheck, ShieldAlert, Users, Video, Activity, MoreHorizontal,
+  Ban, Trash2, Clock, Eye, EyeOff, AlertTriangle, Gavel, Wrench,
   LayoutDashboard, PieChart, BarChart3, ArrowLeft, Loader2,
   ChevronRight, Calendar, Bell, Search, Filter, Film, Scissors, Image,
   Wifi, Radio, Circle, UserCheck, Signal, History, PlayCircle, Globe
@@ -13,6 +13,10 @@ import { useLanguage } from '../../language/LanguageContext';
 import { Query, ID } from 'appwrite';
 import { isUserOnline, formatLastSeen, ONLINE_THRESHOLD_MS } from '../../lib/presence';
 import { getOptimizedThumbnail } from '../../lib/cloudinary';
+import { getStaffRole, allowedTabs, logAdminAction } from '../../lib/admin';
+import ModerationSection from './Moderation';
+import ManageSection from './Manage';
+import AdminLogSection from './AdminLog';
 
 const COUNTRY_META: Record<string, {flag: string, label: string}> = {
   RU: {flag: '🇷🇺', label: 'Россия'},
@@ -37,7 +41,7 @@ const COUNTRY_META: Record<string, {flag: string, label: string}> = {
 };
 const getCountryMeta = (code: string) => COUNTRY_META[code] || {flag: '🏳️', label: code || 'Не указана'};
 
-type AdminTab = 'dashboard' | 'analytics' | 'users' | 'reports' | 'content';
+type AdminTab = 'dashboard' | 'analytics' | 'users' | 'reports' | 'content' | 'moderation' | 'manage' | 'log';
 
 const SidebarItem = ({ id, label, icon: Icon, activeTab, onSelect }: { id: AdminTab, label: string, icon: any, activeTab: AdminTab, onSelect: (id: AdminTab) => void }) => (
   <button
@@ -60,6 +64,7 @@ export default function AdminPanel() {
   const { user, profile, isLoading: isAuthLoading } = useAuth();
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+  const [dynDays, setDynDays] = useState<7 | 30>(7);
   
   const [dbUsers, setDbUsers] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
@@ -75,6 +80,13 @@ export default function AdminPanel() {
     const id = setInterval(() => setPresenceTick(t => t + 1), 15_000);
     return () => clearInterval(id);
   }, []);
+
+  const myRole = getStaffRole(user, profile);
+  const myTabs = allowedTabs(myRole);
+  useEffect(() => {
+    if (!myTabs.includes(activeTab)) setActiveTab('dashboard');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myRole]);
 
   const fetchData = useCallback(async (silent = false) => {
     if (isFetchingRef.current) return;
@@ -128,6 +140,10 @@ export default function AdminPanel() {
             viewsCount: doc.viewsCount,
             videosCount: doc.videosCount,
             snowflakesCount: doc.snowflakesCount,
+            isBanned: !!doc.isBanned,
+            banUntil: doc.banUntil || null,
+            banReason: doc.banReason || '',
+            muteUntil: doc.muteUntil || null,
             lastSeen: doc.lastSeen || doc.lastActive || null,
             country: doc.country || doc.channelCountry || '',
             aliases: doc.aliases || doc.searchAliases || '',
@@ -176,6 +192,7 @@ export default function AdminPanel() {
             isShort: doc.isShort,
             isShorts: doc.isShorts,
             verified: doc.verified || false,
+            hidden: !!(doc as any).hidden,
             $createdAt: doc.$createdAt,
             $updatedAt: doc.$updatedAt,
           })));
@@ -245,6 +262,72 @@ export default function AdminPanel() {
       photos: [...dbUsers].map(u => ({ $id: u.$id, name: u.name, avatar: u.avatar, photosCount: dbVideos.filter(v => v.contentType === 'photo' && (v.uploaderId === u.userId)).length })).sort((a, b) => (b.photosCount || 0) - (a.photosCount || 0)).slice(0, 5),
     };
 
+    // Динамика по дням (30 дней): регистрации и новый контент — из $createdAt
+    const dayKey = (ts: any) => {
+      try {
+        const d = new Date(ts);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      } catch { return ''; }
+    };
+    const dailyMap = new Map<string, { users: number; videos: number }>();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      dailyMap.set(dayKey(d.getTime()), { users: 0, videos: 0 });
+    }
+    dbUsers.forEach((u: any) => {
+      const k = dayKey(u.$createdAt);
+      if (dailyMap.has(k)) dailyMap.get(k)!.users++;
+    });
+    dbVideos.forEach((v: any) => {
+      const k = dayKey(v.$createdAt);
+      if (dailyMap.has(k)) dailyMap.get(k)!.videos++;
+    });
+    const daily = [...dailyMap.entries()].map(([key, val]) => ({
+      key,
+      label: key.slice(5),
+      users: val.users,
+      videos: val.videos,
+    }));
+    const maxDaily = Math.max(1, ...daily.map(d => Math.max(d.users, d.videos)));
+
+    // Топ видео/шортсов по просмотрам
+    const topVideos = [...dbVideos].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 8);
+
+    // Воронка: зарегистрировались → загрузили ≥1 → активны 7 дней
+    const uploaderIds = new Set(dbVideos.map((v: any) => v.uploaderId).filter(Boolean));
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const active7 = dbUsers.filter((u: any) => {
+      try { return u.lastSeen && new Date(u.lastSeen).getTime() > weekAgo; } catch { return false; }
+    }).length;
+    const funnel = {
+      registered: dbUsers.length,
+      uploaded: dbUsers.filter((u: any) => u.userId && uploaderIds.has(u.userId)).length,
+      active7,
+    };
+
+    // Длительности обычных видео
+    const parseDur = (s: any): number => {
+      if (!s || typeof s !== 'string') return 0;
+      const parts = s.split(':').map(Number);
+      if (parts.some(isNaN)) return 0;
+      if (parts.length === 2) return parts[0] * 60 + parts[1];
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      return 0;
+    };
+    const regDurations = dbVideos
+      .filter(v => v.contentType !== 'shorts' && v.contentType !== 'photo' && !v.isShort && !v.isShorts)
+      .map(v => parseDur(v.duration))
+      .filter(x => x > 0);
+    const durBuckets = [
+      { label: '<1 ' + (language === 'ru' ? 'мин' : 'min'), count: regDurations.filter(x => x < 60).length },
+      { label: '1–5 ' + (language === 'ru' ? 'мин' : 'min'), count: regDurations.filter(x => x >= 60 && x < 300).length },
+      { label: '5–15 ' + (language === 'ru' ? 'мин' : 'min'), count: regDurations.filter(x => x >= 300 && x < 900).length },
+      { label: '15+ ' + (language === 'ru' ? 'мин' : 'min'), count: regDurations.filter(x => x >= 900).length },
+    ];
+    const maxDur = Math.max(1, ...durBuckets.map(b => b.count));
+    const avgDur = regDurations.length ? Math.round(regDurations.reduce((a, b) => a + b, 0) / regDurations.length) : 0;
+
     // Топ стран — для какой страны больше каналов (п. analytics)
     const countryCounts: Record<string, number> = {};
     dbUsers.forEach((u: any) => {
@@ -272,7 +355,14 @@ export default function AdminPanel() {
       serverStatus: 'Online',
       uptime: '99.98%',
       leaderboards,
-      topCountries
+      topCountries,
+      daily,
+      maxDaily,
+      topVideos,
+      funnel,
+      durBuckets,
+      maxDur,
+      avgDur
     };
   }, [dbUsers, dbVideos, reports, presenceTick, language]);
 
@@ -318,11 +408,14 @@ export default function AdminPanel() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <SidebarItem id="dashboard" label={language === 'ru' ? 'Дашборд' : 'Dashboard'} icon={LayoutDashboard} activeTab={activeTab} onSelect={setActiveTab} />
-          <SidebarItem id="analytics" label={language === 'ru' ? 'Аналитика' : 'Analytics'} icon={BarChart3} activeTab={activeTab} onSelect={setActiveTab} />
-          <SidebarItem id="users" label={language === 'ru' ? 'Пользователи' : 'Users'} icon={Users} activeTab={activeTab} onSelect={setActiveTab} />
-          <SidebarItem id="reports" label={language === 'ru' ? 'Жалобы' : 'Reports'} icon={ShieldAlert} activeTab={activeTab} onSelect={setActiveTab} />
-          <SidebarItem id="content" label={language === 'ru' ? 'Контент' : 'Content'} icon={Video} activeTab={activeTab} onSelect={setActiveTab} />
+          {myTabs.includes('dashboard') && <SidebarItem id="dashboard" label={language === 'ru' ? 'Дашборд' : 'Dashboard'} icon={LayoutDashboard} activeTab={activeTab} onSelect={setActiveTab} />}
+          {myTabs.includes('analytics') && <SidebarItem id="analytics" label={language === 'ru' ? 'Аналитика' : 'Analytics'} icon={BarChart3} activeTab={activeTab} onSelect={setActiveTab} />}
+          {myTabs.includes('users') && <SidebarItem id="users" label={language === 'ru' ? 'Пользователи' : 'Users'} icon={Users} activeTab={activeTab} onSelect={setActiveTab} />}
+          {myTabs.includes('reports') && <SidebarItem id="reports" label={language === 'ru' ? 'Жалобы' : 'Reports'} icon={ShieldAlert} activeTab={activeTab} onSelect={setActiveTab} />}
+          {myTabs.includes('content') && <SidebarItem id="content" label={language === 'ru' ? 'Контент' : 'Content'} icon={Video} activeTab={activeTab} onSelect={setActiveTab} />}
+          {myTabs.includes('moderation') && <SidebarItem id="moderation" label={language === 'ru' ? 'Модерация' : 'Moderation'} icon={Gavel} activeTab={activeTab} onSelect={setActiveTab} />}
+          {myTabs.includes('manage') && <SidebarItem id="manage" label={language === 'ru' ? 'Управление' : 'Manage'} icon={Wrench} activeTab={activeTab} onSelect={setActiveTab} />}
+          {myTabs.includes('log') && <SidebarItem id="log" label={language === 'ru' ? 'Журнал' : 'Audit Log'} icon={History} activeTab={activeTab} onSelect={setActiveTab} />}
         </div>
 
         <div className="mt-6 px-4">
@@ -513,26 +606,36 @@ export default function AdminPanel() {
                   <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
                      <BarChart3 className="w-32 h-32 text-[#70d6ff]" />
                   </div>
-                  <h3 className="text-slate-400 text-xs font-black uppercase tracking-widest mb-2">Registration Base</h3>
-                  <div className="flex items-end gap-3 mb-8">
-                     <span className="text-5xl font-black text-white tracking-tighter">{stats.totalUsers}</span>
-                     <span className="text-sm font-bold text-green-400 mb-2">Users Enrolled</span>
-                  </div>
-                  
-                  <div className="flex items-end justify-between h-40 gap-2">
-                    {[30, 45, 25, 60, 40, 80, 55, 70, 90, 45, 30, 65].map((h, i) => (
-                      <div 
-                        key={i} 
-                        className="flex-1 bg-[#70d6ff]/20 hover:bg-[#70d6ff] transition-all rounded-t-lg relative group/bar"
-                        style={{ height: `${h}%` }}
-                      />
-                    ))}
-                  </div>
-                  <div className="flex justify-between mt-4 text-[10px] text-slate-500 font-black uppercase tracking-widest px-1">
-                     <span>Jan</span>
-                     <span>Jun</span>
-                     <span>Dec</span>
-                  </div>
+                   <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                     <h3 className="text-slate-400 text-xs font-black uppercase tracking-widest">{language === 'ru' ? 'Динамика (реальные данные)' : 'Growth (real data)'}</h3>
+                     <div className="flex gap-1 p-0.5 bg-black/30 rounded-lg">
+                       {([7, 30] as const).map(n => (
+                         <button key={n} onClick={() => setDynDays(n)} className={`px-2.5 py-1 rounded-md text-[11px] font-black ${dynDays === n ? 'bg-[#70d6ff] text-black' : 'text-slate-400 hover:text-white'}`}>{n}{language === 'ru' ? 'д' : 'd'}</button>
+                       ))}
+                     </div>
+                   </div>
+                   <div className="flex items-end gap-3 mb-2">
+                      <span className="text-5xl font-black text-white tracking-tighter">{stats.totalUsers}</span>
+                      <span className="text-sm font-bold text-green-400 mb-2">Users Enrolled</span>
+                   </div>
+                   <div className="flex items-center gap-4 mb-4 text-[10px] font-bold text-slate-400">
+                     <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[#70d6ff] inline-block" /> {language === 'ru' ? 'Видео' : 'Videos'}</span>
+                     <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-400 inline-block" /> {language === 'ru' ? 'Юзеры' : 'Users'}</span>
+                   </div>
+
+                   <div className="flex items-end justify-between h-40 gap-[3px]">
+                     {stats.daily.slice(-dynDays).map((d) => (
+                       <div key={d.key} className="flex-1 flex items-end gap-[2px] h-full" title={`${d.key}: +${d.videos} video, +${d.users} users`}>
+                         <div className="flex-1 bg-[#70d6ff]/30 hover:bg-[#70d6ff] transition-all rounded-t-sm min-h-[2px]" style={{ height: `${Math.max(2, (d.videos / stats.maxDaily) * 100)}%` }} />
+                         <div className="flex-1 bg-emerald-400/30 hover:bg-emerald-400 transition-all rounded-t-sm min-h-[2px]" style={{ height: `${Math.max(2, (d.users / stats.maxDaily) * 100)}%` }} />
+                       </div>
+                     ))}
+                   </div>
+                   <div className="flex justify-between mt-4 text-[10px] text-slate-500 font-black uppercase tracking-widest px-1">
+                      <span>{stats.daily.slice(-dynDays)[0]?.label || ''}</span>
+                      <span>{language === 'ru' ? 'по выборке ≤100' : 'sample ≤100'}</span>
+                      <span>{stats.daily[stats.daily.length - 1]?.label || ''}</span>
+                   </div>
                </div>
 
                <div className="space-y-6">
@@ -621,21 +724,90 @@ export default function AdminPanel() {
                   <div className="text-[10px] text-slate-500 font-bold uppercase">{language === 'ru' ? 'На основе текущего состояния БД' : 'Based on current database state'}</div>
                </div>
                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                   <LeaderboardColumn title={language === 'ru' ? 'По подписчикам' : 'By Subscribers'} icon={Users} data={stats.leaderboards.subscribers} metric="subscribersCount" />
-                   <LeaderboardColumn title={language === 'ru' ? 'По лайкам' : 'By Likes'} icon={ShieldCheck} data={stats.leaderboards.likes} metric="likesCount" />
-                   <LeaderboardColumn title={language === 'ru' ? 'По просмотрам' : 'By Views'} icon={Eye} data={stats.leaderboards.views} metric="viewsCount" />
-                   <LeaderboardColumn title={language === 'ru' ? 'По контенту' : 'By Content'} icon={Video} data={stats.leaderboards.videos} metric="videosCount" />
-                   <LeaderboardColumn title={language === 'ru' ? 'По фото' : 'By Photos'} icon={Image} data={stats.leaderboards.photos} metric="photosCount" />
-                   <LeaderboardColumn title={language === 'ru' ? 'По снежинкам' : 'By Snowflakes'} icon={Activity} data={stats.leaderboards.snowflakes} metric="snowflakesCount" />
-                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                    <LeaderboardColumn title={language === 'ru' ? 'По подписчикам' : 'By Subscribers'} icon={Users} data={stats.leaderboards.subscribers} metric="subscribersCount" />
+                    <LeaderboardColumn title={language === 'ru' ? 'По лайкам' : 'By Likes'} icon={ShieldCheck} data={stats.leaderboards.likes} metric="likesCount" />
+                    <LeaderboardColumn title={language === 'ru' ? 'По просмотрам' : 'By Views'} icon={Eye} data={stats.leaderboards.views} metric="viewsCount" />
+                    <LeaderboardColumn title={language === 'ru' ? 'По контенту' : 'By Content'} icon={Video} data={stats.leaderboards.videos} metric="videosCount" />
+                    <LeaderboardColumn title={language === 'ru' ? 'По фото' : 'By Photos'} icon={Image} data={stats.leaderboards.photos} metric="photosCount" />
+                    <LeaderboardColumn title={language === 'ru' ? 'По снежинкам' : 'By Snowflakes'} icon={Activity} data={stats.leaderboards.snowflakes} metric="snowflakesCount" />
+                 </div>
             </div>
-          </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white/[0.02] border ice-border rounded-3xl p-6">
+                <h2 className="text-xl font-bold text-white uppercase italic tracking-tighter flex items-center gap-2 mb-1">
+                  <Eye className="w-5 h-5 text-[#70d6ff]" />
+                  {language === 'ru' ? 'Топ видео' : 'Top videos'}
+                </h2>
+                <p className="text-xs text-slate-500 mb-4">{language === 'ru' ? 'Что тащит платформу по просмотрам' : 'What drives views'}</p>
+                <div className="space-y-2">
+                  {stats.topVideos.length === 0 && <div className="text-sm text-slate-500 py-6 text-center">—</div>}
+                  {stats.topVideos.map((v: any, i: number) => (
+                    <Link key={v.$id} to={v.contentType === 'photo' ? '/photos' : v.contentType === 'shorts' ? `/shorts/${v.$id}` : `/watch/${v.$id}`} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors group">
+                      <span className="text-xs font-black text-slate-600 w-5 italic">#{i + 1}</span>
+                      <div className="w-16 h-9 bg-black rounded-lg overflow-hidden shrink-0 border border-white/10">
+                        {v.thumbnailUrl ? <img src={getOptimizedThumbnail(v.thumbnailUrl) || v.thumbnailUrl} alt="" className="w-full h-full object-cover" loading="lazy" /> : null}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-white truncate group-hover:text-[#70d6ff]">{v.title || 'Untitled'}</div>
+                        <div className="text-[11px] text-slate-500 truncate">{v.uploaderName || ''}</div>
+                      </div>
+                      <span className="text-sm font-black text-[#70d6ff] shrink-0">{v.views || 0}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-white/[0.02] border ice-border rounded-3xl p-6">
+                  <h2 className="text-xl font-bold text-white uppercase italic tracking-tighter mb-1">{language === 'ru' ? 'Воронка' : 'Funnel'}</h2>
+                  <p className="text-xs text-slate-500 mb-4">{language === 'ru' ? 'Регистрация → первый контент → актив за 7 дней' : 'Signup → first upload → active in 7d'}</p>
+                  {[
+                    { label: language === 'ru' ? 'Зарегистрировались' : 'Registered', value: stats.funnel.registered },
+                    { label: language === 'ru' ? 'Загрузили ≥1' : 'Uploaded ≥1', value: stats.funnel.uploaded },
+                    { label: language === 'ru' ? 'Активны 7 дней' : 'Active 7d', value: stats.funnel.active7 },
+                  ].map((f, i, arr) => (
+                    <div key={f.label} className="mb-3 last:mb-0">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-slate-300 font-bold">{i + 1}. {f.label}</span>
+                        <span className="text-white font-black">{f.value}{i > 0 && arr[0].value > 0 ? <span className="text-slate-500 font-bold"> · {Math.round((f.value / arr[0].value) * 100)}%</span> : null}</span>
+                      </div>
+                      <div className="w-full bg-black/40 rounded-full h-2.5 overflow-hidden">
+                        <div className="bg-gradient-to-r from-[#70d6ff] to-emerald-400 h-2.5 rounded-full transition-all" style={{ width: `${arr[0].value ? Math.max(3, (f.value / arr[0].value) * 100) : 0}%` }}></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-white/[0.02] border ice-border rounded-3xl p-6">
+                  <h2 className="text-xl font-bold text-white uppercase italic tracking-tighter mb-1">{language === 'ru' ? 'Длительность видео' : 'Video length'}</h2>
+                  <p className="text-xs text-slate-500 mb-4">
+                    {language === 'ru' ? `Средняя: ${Math.floor(stats.avgDur / 60)}:${String(stats.avgDur % 60).padStart(2, '0')} · всего с длительностью: ${stats.durBuckets.reduce((a: number, b: any) => a + b.count, 0)}` : `Avg: ${Math.floor(stats.avgDur / 60)}:${String(stats.avgDur % 60).padStart(2, '0')}`}
+                  </p>
+                  <div className="space-y-2.5">
+                    {stats.durBuckets.map((b: any) => (
+                      <div key={b.label}>
+                        <div className="flex justify-between text-xs mb-1"><span className="text-slate-300 font-bold">{b.label}</span><span className="text-white font-black">{b.count}</span></div>
+                        <div className="w-full bg-black/40 rounded-full h-2 overflow-hidden">
+                          <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${(b.count / stats.maxDur) * 100}%` }}></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-slate-600 mt-3">{language === 'ru' ? 'Точное удержание (% досмотра) требует серверных событий — пока ориентируемся на длину и просмотры.' : 'Exact retention needs server-side events.'}</p>
+                </div>
+              </div>
+            </div>
+           </div>
         )}
 
         {activeTab === 'users' && <UsersSection dbUsers={dbUsers} t={t} language={language} />}
-        {activeTab === 'reports' && <ReportsSection reports={reports} t={t} language={language} setReports={setReports} />}
+        {activeTab === 'reports' && <ReportsSection reports={reports} t={t} language={language} setReports={setReports} dbVideos={dbVideos} setDbVideos={setDbVideos} />}
         {activeTab === 'content' && <ContentSection dbVideos={dbVideos} language={language} t={t} setDbVideos={setDbVideos} />}
+        {activeTab === 'moderation' && <ModerationSection dbVideos={dbVideos} setDbVideos={setDbVideos} dbUsers={dbUsers} reports={reports} setReports={setReports} language={language} />}
+        {activeTab === 'manage' && <ManageSection dbVideos={dbVideos} setDbVideos={setDbVideos} dbUsers={dbUsers} language={language} />}
+        {activeTab === 'log' && <AdminLogSection language={language} />}
       </main>
     </div>
   );
@@ -726,6 +898,54 @@ function UsersSection({ dbUsers, t, language }: any) {
       return matchesSearch && matchesPresence;
     });
   }, [localUsers, searchQuery, presenceFilter, presenceTick]);
+
+  const [banTarget, setBanTarget] = useState<any | null>(null);
+  const [banType, setBanType] = useState<'forever' | 'temp' | 'mute' | 'clear'>('temp');
+  const [banReason, setBanReason] = useState('');
+  const [banUntil, setBanUntil] = useState('');
+  const [banBusy, setBanBusy] = useState(false);
+  const [banSchemaHint, setBanSchemaHint] = useState(false);
+
+  const openBan = (u: any) => {
+    setBanTarget(u);
+    setBanType('temp');
+    setBanReason(u.banReason || '');
+    setBanUntil('');
+  };
+
+  const applyBan = async () => {
+    if (!banTarget) return;
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const usersColId = import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+    if (!dbId || !usersColId) return;
+    setBanBusy(true);
+    try {
+      let patch: any = { isBanned: false, banUntil: null, banReason: '', muteUntil: null };
+      let action = 'user.unban';
+      if (banType === 'forever') {
+        patch = { isBanned: true, banUntil: null, banReason, muteUntil: null };
+        action = 'user.ban';
+      } else if (banType === 'temp') {
+        if (!banUntil) { alert(language === 'ru' ? 'Укажи дату окончания.' : 'Pick an end date.'); setBanBusy(false); return; }
+        patch = { isBanned: false, banUntil: new Date(banUntil).toISOString(), banReason, muteUntil: null };
+        action = 'user.ban';
+      } else if (banType === 'mute') {
+        if (!banUntil) { alert(language === 'ru' ? 'Укажи дату окончания.' : 'Pick an end date.'); setBanBusy(false); return; }
+        patch = { isBanned: false, banUntil: null, banReason: '', muteUntil: new Date(banUntil).toISOString() };
+        action = 'user.mute';
+      }
+      await databases.updateDocument(dbId, usersColId, banTarget.$id, patch);
+      setLocalUsers(localUsers.map((u: any) => (u.$id === banTarget.$id ? { ...u, ...patch } : u)));
+      await logAdminAction(user, { action, target: banTarget.$id, targetName: banTarget.name, details: `${banType}${banReason ? ' · ' + banReason : ''}${banUntil && banType !== 'forever' ? ' · ' + banUntil : ''}` });
+      setBanTarget(null);
+    } catch (err: any) {
+      console.error('Ban failed:', err);
+      if (String(err?.message || '').toLowerCase().includes('unknown attribute')) setBanSchemaHint(true);
+      else alert('Failed: ' + (err?.message || err));
+    } finally {
+      setBanBusy(false);
+    }
+  };
 
   const changeUserRole = async (userId: string, newRole: string) => {
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -865,6 +1085,16 @@ function UsersSection({ dbUsers, t, language }: any) {
                           Req Verify
                         </span>
                       )}
+                      {(usr.isBanned || (usr.banUntil && new Date(usr.banUntil).getTime() > Date.now())) && (
+                        <span className="px-2 py-0.5 bg-red-500/10 border border-red-500/30 text-red-400 text-[9px] font-black uppercase rounded flex items-center gap-1">
+                          <Ban className="w-2.5 h-2.5" /> Ban
+                        </span>
+                      )}
+                      {!(usr.isBanned || (usr.banUntil && new Date(usr.banUntil).getTime() > Date.now())) && usr.muteUntil && new Date(usr.muteUntil).getTime() > Date.now() && (
+                        <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[9px] font-black uppercase rounded">
+                          Mute
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-xs font-mono text-slate-500">
@@ -873,6 +1103,13 @@ function UsersSection({ dbUsers, t, language }: any) {
                   <td className="px-6 py-4 text-right">
             {isAdmin && usr.email !== 'xolodtop889@gmail.com' ? (
               <div className="flex items-center gap-2 justify-end">
+                <button
+                  onClick={() => openBan(usr)}
+                  title={language === 'ru' ? 'Бан / мут' : 'Ban / mute'}
+                  className={`p-1.5 rounded-lg transition-all ${(usr.isBanned || usr.muteUntil) ? 'bg-red-500/15 text-red-400 border border-red-500/30' : 'bg-slate-500/10 text-slate-400 border border-transparent hover:border-white/10'}`}
+                >
+                  <Ban className="w-3.5 h-3.5" />
+                </button>
                 <button
                   onClick={() => toggleVerification(usr.$id, !usr.verified)}
                   className={`p-1.5 rounded-lg transition-all text-[10px] font-bold flex items-center gap-1 ${
@@ -907,6 +1144,50 @@ function UsersSection({ dbUsers, t, language }: any) {
           </table>
         </div>
       </div>
+
+      {banSchemaHint && (
+        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-sm text-amber-200">
+          <b>Appwrite → Databases → IcetubeDB → users → Columns → +:</b>{' '}
+          <code className="bg-black/40 px-1.5 py-0.5 rounded font-mono">isBanned</code> (Boolean, default false),{' '}
+          <code className="bg-black/40 px-1.5 py-0.5 rounded font-mono">banUntil</code> (Datetime),{' '}
+          <code className="bg-black/40 px-1.5 py-0.5 rounded font-mono">banReason</code> (String, 500),{' '}
+          <code className="bg-black/40 px-1.5 py-0.5 rounded font-mono">muteUntil</code> (Datetime).
+        </div>
+      )}
+
+      {banTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setBanTarget(null)}>
+          <div className="bg-[#0a192f] border ice-border w-full max-w-sm rounded-2xl p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-white font-bold mb-1">{language === 'ru' ? 'Ограничение' : 'Restriction'}: {banTarget.name}</h3>
+            <p className="text-xs text-slate-500 mb-4 font-mono">{banTarget.userId}</p>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {(['temp', 'mute', 'forever', 'clear'] as const).map(tp => (
+                <button key={tp} onClick={() => setBanType(tp)}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${banType === tp ? 'bg-red-500/20 border-red-500/40 text-red-200' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}>
+                  {tp === 'temp' ? (language === 'ru' ? 'Бан до даты' : 'Temp ban') : tp === 'mute' ? (language === 'ru' ? 'Мут комментов' : 'Mute comments') : tp === 'forever' ? (language === 'ru' ? 'Навсегда' : 'Forever') : (language === 'ru' ? 'Снять всё' : 'Clear all')}
+                </button>
+              ))}
+            </div>
+            {(banType === 'temp' || banType === 'mute') && (
+              <input type="datetime-local" value={banUntil} onChange={e => setBanUntil(e.target.value)}
+                className="w-full bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white mb-3 [color-scheme:dark]" />
+            )}
+            {banType !== 'clear' && (
+              <input value={banReason} onChange={e => setBanReason(e.target.value)}
+                placeholder={language === 'ru' ? 'Причина (видно только админам)' : 'Reason (admins only)'}
+                className="w-full bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white mb-4 focus:outline-none focus:border-red-400/50" />
+            )}
+            <div className="flex gap-2">
+              <button onClick={() => setBanTarget(null)} className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-slate-300 hover:bg-white/10">
+                {language === 'ru' ? 'Отмена' : 'Cancel'}
+              </button>
+              <button onClick={applyBan} disabled={banBusy} className="flex-1 py-2.5 bg-red-500/80 text-white rounded-xl text-sm font-bold hover:bg-red-500 disabled:opacity-50">
+                {banBusy ? '…' : (language === 'ru' ? 'Применить' : 'Apply')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1012,6 +1293,21 @@ function ContentSection({ dbVideos, language, t, setDbVideos }: any) {
   const photos = dbVideos.filter((v: any) => v.contentType === 'photo');
   const currentList = contentTab === 'videos' ? videos : contentTab === 'shorts' ? shorts : photos;
 
+  const [hideHint, setHideHint] = useState(false);
+
+  const handleToggleHidden = async (v: any) => {
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
+    if (!dbId || !videosColId) return;
+    try {
+      await databases.updateDocument(dbId, videosColId, v.$id, { hidden: !v.hidden } as any);
+      setDbVideos(dbVideos.map((x: any) => (x.$id === v.$id ? { ...x, hidden: !v.hidden } : x)));
+    } catch (err: any) {
+      if (String(err?.message || '').toLowerCase().includes('unknown attribute')) setHideHint(true);
+      else alert('Failed: ' + (err?.message || err));
+    }
+  };
+
   const handleDeleteVideo = async (videoId: string) => {
     if (!window.confirm(language === 'ru' ? 'Удалить это видео навсегда?' : 'Delete this video permanently?')) return;
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -1059,6 +1355,11 @@ function ContentSection({ dbVideos, language, t, setDbVideos }: any) {
           <p className="text-sm text-slate-400">
             {language === 'ru' ? `Всего: ${dbVideos.length}` : `${dbVideos.length} total`}
           </p>
+          {hideHint && (
+            <p className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 mt-2">
+              Appwrite → videos → Columns → + <code className="font-mono">hidden</code> (Boolean, default false)
+            </p>
+          )}
         </div>
         {selectedVideos.size > 0 && (
           <button
@@ -1156,9 +1457,15 @@ function ContentSection({ dbVideos, language, t, setDbVideos }: any) {
                   </td>
                   <td className="px-4 py-3 text-right text-xs font-mono text-slate-400">{v.views || 0}</td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => handleDeleteVideo(v.$id)} className="p-2 hover:bg-red-500/10 text-red-400 rounded-xl transition-all">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1 justify-end">
+                      <button onClick={() => handleToggleHidden(v)} title={v.hidden ? (language === 'ru' ? 'Показать' : 'Unhide') : (language === 'ru' ? 'Скрыть' : 'Hide')}
+                        className={`p-2 rounded-xl transition-all ${v.hidden ? 'bg-slate-500/15 text-slate-400' : 'hover:bg-white/10 text-slate-300'}`}>
+                        {v.hidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                      <button onClick={() => handleDeleteVideo(v.$id)} className="p-2 hover:bg-red-500/10 text-red-400 rounded-xl transition-all">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
                ))}

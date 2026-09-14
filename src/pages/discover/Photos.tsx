@@ -53,7 +53,7 @@ export default function Photos() {
         Query.limit(100)
       ]);
 
-      setPhotos(response.documents.map(doc => ({
+      setPhotos(response.documents.filter((doc: any) => !(doc as any).hidden).map(doc => ({
         id: doc.$id,
         title: doc.title || 'Untitled',
         imageUrl: doc.videoUrl || doc.thumbnailUrl || '',

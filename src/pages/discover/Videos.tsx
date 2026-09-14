@@ -61,7 +61,7 @@ export default function Videos() {
             console.warn("Could not fetch profiles for latest avatars", pErr);
           }
 
-          const formatted = response.documents.map(v => {
+          const formatted = response.documents.filter((v: any) => !(v as any).hidden).map(v => {
               const profile = profilesMap[v.uploaderId];
               return {
                 id: v.$id,

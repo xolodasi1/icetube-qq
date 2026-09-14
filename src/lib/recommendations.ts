@@ -16,6 +16,8 @@ export interface RecommendOptions {
   preferCategory?: string;
   preferUploader?: string;
   preferContentType?: string;
+  /** ID видео из промо-слотов админки — всегда первые, в заданном порядке */
+  pinnedIds?: string[];
 }
 
 export function getRecommendations(videos: VideoLike[], options: RecommendOptions = {}): VideoLike[] {
@@ -26,6 +28,7 @@ export function getRecommendations(videos: VideoLike[], options: RecommendOption
     preferCategory,
     preferUploader,
     preferContentType,
+    pinnedIds = [],
   } = options;
 
   if (videos.length === 0) return [];
@@ -37,10 +40,21 @@ export function getRecommendations(videos: VideoLike[], options: RecommendOption
   const excludeSet = new Set(excludeIds);
   if (currentId) excludeSet.add(currentId);
 
-  const maxViews = Math.max(...videos.map(v => v.views || 0), 1);
+  // Промо из админки — первыми, в заданном порядке (с учётом exclude)
+  const pinnedOrder = (pinnedIds || []).filter(id => id && !excludeSet.has(id));
+  const pinnedSet = new Set(pinnedOrder);
+  const pinned = pinnedOrder
+    .map(id => videos.find(v => v.id === id))
+    .filter((v): v is VideoLike => !!v && !excludeSet.has(v.id as string));
+
+  const pool = videos.filter(v => !pinnedSet.has(v.id));
+  if (pool.length === 0) return pinned.slice(0, limit);
+
+  const maxViews = Math.max(...pool.map(v => v.views || 0), 1);
 
   const uploaderCounts = new Map<string, number>();
-  const topCategory = videos
+  const scoped = pool.filter(v => !excludeSet.has(v.id));
+  const topCategory = scoped
     .filter(v => v.category && v.category !== 'All')
     .reduce<Map<string, number>>((acc, v) => {
       acc.set(v.category, (acc.get(v.category) || 0) + 1);
@@ -48,8 +62,7 @@ export function getRecommendations(videos: VideoLike[], options: RecommendOption
     }, new Map());
   const topCategoryName = [...topCategory.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
 
-  const scored = videos
-    .filter(v => !excludeSet.has(v.id))
+  const scored = scoped
     .map(v => {
       let score = 0;
       const views = v.views || 0;
@@ -90,8 +103,9 @@ export function getRecommendations(videos: VideoLike[], options: RecommendOption
       return { video: v, score };
     });
 
-  return scored
+  const rest = scored
     .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
+    .slice(0, Math.max(0, limit - pinned.length))
     .map(s => s.video);
+  return [...pinned, ...rest];
 }

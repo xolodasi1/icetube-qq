@@ -10,6 +10,7 @@ import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENT
 import { getOptimizedThumbnail, getOptimizedVideoUrl } from '../../lib/cloudinary';
 import { shouldCountView, markViewCounted, viewThreshold } from '../../lib/viewcount';
 import { needVerification } from '../../lib/verified';
+import { needUnbanned } from '../../lib/banned';
 
 
 export default function Shorts() {
@@ -108,7 +109,7 @@ export default function Shorts() {
         } catch (queryErr: any) {
           console.warn("Query by contentType failed, fetching all and filtering manually");
           const allRes = await databases.listDocuments(dbId, colId, [Query.limit(100), Query.orderDesc('$createdAt')]);
-          const filtered = allRes.documents.filter((d: any) => d.contentType === 'shorts' || d.title?.toLowerCase().includes('#shorts') || d.description?.toLowerCase().includes('#shorts'));
+          const filtered = allRes.documents.filter((d: any) => !(d as any).hidden && (d.contentType === 'shorts' || d.title?.toLowerCase().includes('#shorts') || d.description?.toLowerCase().includes('#shorts')));
           
           const existingIds = new Set(docs.map(d => d.$id));
           filtered.forEach(doc => {
@@ -356,6 +357,7 @@ export default function Shorts() {
       return;
     }
     if (needVerification(user, t, language)) return;
+    if (needUnbanned(profile, t)) return;
     if (videos.length === 0 || likeInFlight.current) return;
     const current = videos[currentVideoIndex];
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -433,6 +435,7 @@ export default function Shorts() {
       return;
     }
     if (needVerification(user, t, language)) return;
+    if (needUnbanned(profile, t)) return;
     if (isSubbing || videos.length === 0) return;
     const current = videos[currentVideoIndex];
     if (current.uploaderId === user.$id) return; // на себя подписаться нельзя
@@ -480,6 +483,7 @@ export default function Shorts() {
     e.preventDefault();
     if (!newComment.trim() || isCommenting || videos.length === 0) return;
     if (user && needVerification(user, t, language)) return;
+    if (needUnbanned(profile, t, { commentsOnly: true })) return;
     
     const current = videos[currentVideoIndex];
 
@@ -562,6 +566,7 @@ export default function Shorts() {
   const handleAddReply = async (parentId: string) => {
     if (!replyText.trim() || isCommenting || videos.length === 0) return;
     if (user && needVerification(user, t, language)) return;
+    if (needUnbanned(profile, t, { commentsOnly: true })) return;
     const current = videos[currentVideoIndex];
 
     if (!user) {

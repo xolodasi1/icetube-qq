@@ -36,7 +36,7 @@ export default function SearchPage() {
         const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
         if (dbId && colId) {
           const res = await databases.listDocuments(dbId, colId, [Query.orderDesc('$createdAt'), Query.limit(100)]);
-          setDbVideos(res.documents);
+          setDbVideos(res.documents.filter((d: any) => !(d as any).hidden));
         }
       } catch (err) {
         console.error("Search fetch failed:", err);

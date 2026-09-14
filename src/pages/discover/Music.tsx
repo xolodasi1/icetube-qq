@@ -22,7 +22,7 @@ export default function MusicPage() {
           Query.orderDesc("$createdAt"),
           Query.limit(50),
         ]);
-        const formatted = res.documents.map((v: any) => ({
+        const formatted = res.documents.filter((v: any) => !(v as any).hidden).map((v: any) => ({
           id: v.$id,
           uploaderId: v.uploaderId,
           title: v.title,

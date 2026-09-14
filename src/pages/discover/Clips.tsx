@@ -26,7 +26,7 @@ export default function Clips() {
         ]);
         
         const formatted = response.documents
-          .filter(v => v.contentType === 'shorts')
+          .filter((v: any) => !(v as any).hidden && v.contentType === 'shorts')
           .map(v => ({
             id: v.$id,
             uploaderId: v.uploaderId,

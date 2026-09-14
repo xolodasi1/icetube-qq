@@ -8,6 +8,7 @@ import { useLanguage } from "../../language/LanguageContext";
 import { getOptimizedThumbnail } from "../../lib/cloudinary";
 import { getRecommendations } from "../../lib/recommendations";
 import { SafeStorage } from "../../lib/storage";
+import { getSetting } from "../../lib/siteSettings";
 import { useNavigate } from "react-router-dom";
 
 const COUNTRY_OPTIONS: { id: string, label: string, flag: string }[] = [
@@ -41,6 +42,13 @@ export default function Home() {
   const [activeFilter, setActiveFilter] = useState<'all' | 'video' | 'shorts' | 'photo'>('all');
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  // Настройки категорий из админки (скрытие/порядок/переименования)
+  const [siteCats, setSiteCats] = useState<{ hidden: string[]; order: string[]; renames: Record<string, string> } | null>(null);
+  useEffect(() => {
+    getSetting('categories').then(c => {
+      if (c) setSiteCats({ hidden: c.hidden || [], order: c.order || [], renames: c.renames || {} });
+    }).catch(() => {});
+  }, []);
   const [selectedCountries, setSelectedCountries] = useState<string[]>(() => {
     const saved = SafeStorage.get<string[] | null>('home_country_filter', null);
     if (saved === null) return COUNTRY_OPTIONS.map(c=>c.id);
@@ -137,10 +145,16 @@ export default function Home() {
             category: cat,
             contentType: v.contentType || 'video',
             verified: v.verified || false,
-            description: v.description || ''
+            description: v.description || '',
+            hidden: !!(v as any).hidden
           };
       });
-      const ranked = getRecommendations(formatted, { limit: 200 });
+      let pinnedIds: string[] = [];
+      try {
+        const promo = await getSetting('promo');
+        if (promo?.videoIds) pinnedIds = promo.videoIds;
+      } catch {}
+      const ranked = getRecommendations(formatted, { limit: 200, pinnedIds });
       setDbVideos(ranked);
     } catch (err) {
        console.warn("Appwrite network/timeout error:", err);
@@ -169,8 +183,24 @@ export default function Home() {
       const lc = c.toLowerCase();
       if (c && lc !== 'all' && lc !== 'все' && lc !== 'new' && lc !== 'новые' && lc !== 'popular' && lc !== 'популярные' && lc !== 'популярное') set.add(c);
     });
-    return ['All', 'New', 'Popular', ...Array.from(set).sort((a,b)=>a.localeCompare(b))];
-  }, [dbVideos]);
+    let customs = Array.from(set);
+    if (siteCats) {
+      customs = customs.filter(c => !siteCats.hidden.includes(c));
+      const ordered = siteCats.order.filter(c => customs.includes(c));
+      const rest = customs.filter(c => !siteCats.order.includes(c)).sort((a, b) => a.localeCompare(b));
+      customs = [...ordered, ...rest];
+    } else {
+      customs = customs.sort((a, b) => a.localeCompare(b));
+    }
+    return ['All', 'New', 'Popular', ...customs];
+  }, [dbVideos, siteCats]);
+
+  const catLabel = (cat: string) => {
+    if (cat === 'All') return language === 'ru' ? 'Все' : 'All';
+    if (cat === 'New') return language === 'ru' ? 'Новые' : 'New';
+    if (cat === 'Popular') return language === 'ru' ? 'Популярные' : 'Popular';
+    return siteCats?.renames[cat] || cat;
+  };
 
   const availableCountries = useMemo(() => {
     const set = new Set<string>();
@@ -184,6 +214,7 @@ export default function Home() {
   const filteredVideos = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const result = dbVideos.filter(video => {
+      if ((video as any).hidden) return false;
       const title = (video.title || '').toLowerCase();
       const chName = (video.channelName || '').toLowerCase();
       const chHandle = (video.channelHandle || '').toLowerCase();
@@ -251,7 +282,7 @@ export default function Home() {
             onClick={() => setActiveCategory(cat)}
             className={`whitespace-nowrap px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${activeCategory === cat ? "bg-[#70d6ff] text-black border-[#70d6ff] shadow-sm" : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"}`}
           >
-            {cat === 'All' ? (language === 'ru' ? 'Все' : 'All') : cat === 'New' ? (language === 'ru' ? 'Новые' : 'New') : cat === 'Popular' ? (language === 'ru' ? 'Популярные' : 'Popular') : cat}
+            {catLabel(cat)}
           </button>
         ))}
         {allCategories.length <= 3 && (

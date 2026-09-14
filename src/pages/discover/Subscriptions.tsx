@@ -93,7 +93,7 @@ export default function Subscriptions() {
           );
           const videoDocs = videoResults.flatMap(r => r.documents);
           // свои видео в ленте подписок не показываем
-          setVideos(videoDocs.filter((v: any) => v.uploaderId !== user.$id).map((v: any) => ({
+          setVideos(videoDocs.filter((v: any) => v.uploaderId !== user.$id && !(v as any).hidden).map((v: any) => ({
             id: v.$id,
             uploaderId: v.uploaderId,
             title: v.title,

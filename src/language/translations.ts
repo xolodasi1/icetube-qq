@@ -244,7 +244,9 @@ export const translations: Translations = {
     auth_verify_success: 'Email confirmed!',
     auth_verify_success_desc: 'Your email is verified. All Icetube features are now unlocked.',
     auth_verify_fail: 'Confirmation failed',
-    auth_verify_fail_desc: 'The link is invalid or expired. Request a new one from the banner in the app.'
+    auth_verify_fail_desc: 'The link is invalid or expired. Request a new one from the banner in the app.',
+    ban_blocked_msg: 'Your account is restricted by administration.',
+    mute_blocked_msg: 'Comments are temporarily disabled for your account.'
   },
   ru: {
     nav_home: 'Главная',
@@ -483,7 +485,9 @@ export const translations: Translations = {
     auth_verify_success: 'Почта подтверждена!',
     auth_verify_success_desc: 'Ваша почта подтверждена. Все функции Icetube разблокированы.',
     auth_verify_fail: 'Не удалось подтвердить',
-    auth_verify_fail_desc: 'Ссылка неверна или истекла. Запросите новую через баннер в приложении.'
+    auth_verify_fail_desc: 'Ссылка неверна или истекла. Запросите новую через баннер в приложении.',
+    ban_blocked_msg: 'Ваш аккаунт ограничен администрацией.',
+    mute_blocked_msg: 'Комментарии временно отключены для вашего аккаунта.'
   },
   es: {
     nav_home: 'Inicio',

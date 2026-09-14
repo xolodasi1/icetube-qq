@@ -9,6 +9,7 @@ import { UploadCloud, X, Loader2, AlertCircle, PlayCircle, ChevronDown } from 'l
 import { useLanguage } from '../language/LanguageContext';
 import { createNotification } from '../lib/notifications';
 import { needVerification } from '../lib/verified';
+import { needUnbanned } from '../lib/banned';
 import clsx from 'clsx';
 
 interface UploadModalProps {
@@ -19,7 +20,7 @@ interface UploadModalProps {
 }
 
 export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUploadSuccess, initialType }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { t, language } = useLanguage();
   
   const [file, setFile] = useState<File | null>(null);
@@ -183,6 +184,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
     e.preventDefault();
     if (!file || !title || !user) return;
     if (needVerification(user, t, language)) return;
+    if (needUnbanned(profile, t)) return;
     
     setIsUploading(true);
     setError(null);
