@@ -196,7 +196,7 @@ export default function SearchPage() {
                   <img
                     src={getOptimizedThumbnail(v.thumbnailUrl || v.videoUrl, 320)}
                     alt={v.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    className={`w-full h-full group-hover:scale-105 transition-transform duration-500 ${v.contentType === 'photo' ? 'object-contain bg-black' : 'object-cover'}`}
                     loading="lazy"
                   />
                   {(v.contentType === 'shorts' || v.isShort) && (

@@ -335,7 +335,7 @@ export default function Home() {
                           <div key={photo.id} className="w-[168px] sm:w-[180px] shrink-0 snap-start">
                             <Link to="/photos" className="block relative group aspect-square rounded-xl overflow-hidden bg-slate-900 border border-white/5 hover:border-white/15 transition-all">
                               <img src={getOptimizedThumbnail(photo.thumbnailUrl) || photo.thumbnailUrl} alt={photo.title}
-                                className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" referrerPolicy="no-referrer" loading="lazy" />
+                                className="w-full h-full object-contain bg-black group-hover:scale-[1.03] transition-transform duration-500" referrerPolicy="no-referrer" loading="lazy" />
                               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                                 <p className="absolute bottom-2.5 left-2.5 right-2.5 text-white text-xs font-medium truncate">{photo.title}</p>
                               </div>
