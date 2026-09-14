@@ -28,6 +28,9 @@ import Live from "./pages/discover/Live";
 import MusicPage from "./pages/discover/Music";
 import SearchPage from "./pages/discover/Search";
 import Browse from "./pages/discover/Browse";
+import Feed from "./pages/discover/Feed";
+import Messages from "./pages/messages/Messages";
+import PublicPlaylist from "./pages/library/PublicPlaylist";
 import Verify from "./pages/auth/Verify";
 
 export default function App() {
@@ -37,6 +40,9 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/browse" element={<Browse />} />
+          <Route path="/feed" element={<Feed />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/playlists/:id" element={<PublicPlaylist />} />
           <Route path="/videos" element={<Videos />} />
           <Route path="/photos" element={<Photos />} />
           <Route path="/albums" element={<PhotoAlbums />} />

@@ -10,6 +10,7 @@ import { useLanguage } from '../language/LanguageContext';
 import { createNotification } from '../lib/notifications';
 import { needVerification } from '../lib/verified';
 import { needUnbanned } from '../lib/banned';
+import { loadDbPlaylists, createDbPlaylist, setDbPlaylistVideos } from '../lib/playlists';
 import clsx from 'clsx';
 
 interface UploadModalProps {
@@ -41,8 +42,50 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [duration, setDuration] = useState('');
+  // Публикация: сразу / черновик / отложка
+  const [publishMode, setPublishMode] = useState<'now' | 'draft' | 'scheduled'>('now');
+  const [publishAt, setPublishAt] = useState('');
+  // Своя обложка из кадра видео
+  const [customThumb, setCustomThumb] = useState<string | null>(null);
+  const [thumbBusy, setThumbBusy] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Захватить текущий кадр превью в обложку
+  const captureFrame = async () => {
+    const v = previewVideoRef.current;
+    if (!v || !previewUrl || isImage) return;
+    setThumbBusy(true);
+    setError(null);
+    try {
+      await new Promise<void>((res, rej) => {
+        if (v.readyState >= 2) res();
+        else {
+          const to = setTimeout(() => rej(new Error('timeout')), 8000);
+          v.onloadeddata = () => { clearTimeout(to); res(); };
+          v.onerror = () => { clearTimeout(to); rej(new Error('load')); };
+        }
+      });
+      const w = v.videoWidth || 1280;
+      const h = v.videoHeight || 720;
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('canvas');
+      ctx.drawImage(v, 0, 0, w, h);
+      const blob: Blob | null = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.9));
+      if (!blob) throw new Error('encode');
+      const url = await uploadImageToCloudinary(new File([blob], 'cover.jpg', { type: 'image/jpeg' }));
+      setCustomThumb(url);
+    } catch (err: any) {
+      console.error('Frame capture failed:', err);
+      setError(language === 'ru' ? 'Не удалось сделать кадр. Поставьте видео на паузу на нужном моменте и попробуйте снова.' : 'Could not capture frame. Pause on the moment and retry.');
+    } finally {
+      setThumbBusy(false);
+    }
+  };
 
   const formatDuration = (sec: number) => {
     if (!sec || isNaN(sec) || !isFinite(sec)) return '';
@@ -88,24 +131,13 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
 
   useEffect(() => {
     if (!user) return;
-    const playlistsCol = import.meta.env.VITE_APPWRITE_PLAYLISTS_COLLECTION_ID;
-    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     (async () => {
       try {
-        if (dbId && playlistsCol) {
-          const res = await databases.listDocuments(dbId, playlistsCol, [
-            Query.equal('userId', user.$id)
-          ]);
-          setPlaylists(res.documents.map((doc: any) => ({
-            id: doc.$id,
-            name: doc.name,
-            videos: doc.videos || [],
-            _appwrite: true
-          })));
-          return;
-        }
-      } catch (e) {
-        console.warn('Appwrite playlist load failed, falling back to localStorage', e);
+        const dbLists = await loadDbPlaylists(user.$id);
+        setPlaylists(dbLists);
+        return;
+      } catch (e: any) {
+        if (!e?.missing) console.warn('Appwrite playlist load failed, falling back to localStorage', e);
       }
       try {
         setPlaylists(SafeStorage.get('user_playlists', []));
@@ -164,6 +196,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         return;
       }
       setFile(selectedFile);
+      setCustomThumb(null);
       setIsImage(isImageFile);
       if (isImageFile) {
         setContentType('photo');
@@ -194,7 +227,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
       const fileUrl = isImage
         ? await uploadImageToCloudinary(file, (p) => setProgress(p))
         : await uploadVideoToCloudinary(file, (p) => setProgress(p));
-      const thumbnailUrl = isImage ? fileUrl : (getOptimizedThumbnail(fileUrl) || fileUrl.replace(/\.[^/.]+$/, ".jpg"));
+      const thumbnailUrl = customThumb || (isImage ? fileUrl : (getOptimizedThumbnail(fileUrl) || fileUrl.replace(/\.[^/.]+$/, ".jpg")));
 
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
       const videosColId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
@@ -222,6 +255,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         try { finalDuration = await getVideoDuration(file); if (finalDuration) setDuration(finalDuration); } catch {}
       }
       
+      // Черновик / отложка: нужны колонки status (String) и publishAt (Datetime) в videos
+      const wantStatus = publishMode === 'draft' ? 'draft' : publishMode === 'scheduled' ? 'scheduled' : 'published';
+      const wantPublishAt = publishMode === 'scheduled' && publishAt ? new Date(publishAt).toISOString() : undefined;
+
       const uploadData: any = {
         title: title,
         description: isPhoto ? finalDescription : (isShorts ? (finalDescription.toLowerCase().includes('#shorts') ? finalDescription : `${finalDescription}\n\n#shorts`.trim()) : finalDescription),
@@ -238,6 +275,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         hashtags: tags.length > 0 ? tags : undefined,
         language: videoLanguage || undefined,
         playlistId: (playlistId && playlistId !== '__new__') ? playlistId : undefined,
+        status: wantStatus,
+        publishAt: wantPublishAt,
         verified: false
       };
 
@@ -260,6 +299,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         uploaderAvatar: uploadData.uploaderAvatar,
         views: uploadData.views,
         contentType: uploadData.contentType,
+        status: uploadData.status,
+        publishAt: uploadData.publishAt,
         verified: false
       };
       if (uploadData.category) fallbackData.category = uploadData.category;
@@ -298,18 +339,16 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         if (playlistId === '__new__') {
           const name = newPlaylistName.trim();
           if (!name) return;
-          const playlistsCol = import.meta.env.VITE_APPWRITE_PLAYLISTS_COLLECTION_ID;
-          const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
           try {
-            if (dbId && playlistsCol && user) {
-              const doc = await databases.createDocument(dbId, playlistsCol, ID.unique(), {
-                userId: user.$id,
-                name,
-                videos: [],
-                createdAt: new Date().toISOString()
-              });
-              targetPlaylistId = doc.$id;
-              setPlaylists(prev => [...prev, { id: doc.$id, name, videos: [], _appwrite: true }]);
+            if (user) {
+              try {
+                const created = await createDbPlaylist(user.$id, name);
+                targetPlaylistId = created.id;
+                setPlaylists(prev => [...prev, created]);
+              } catch (e: any) {
+                if (e?.missing) throw e;
+                throw e;
+              }
             } else {
               const localPlaylists = SafeStorage.get('user_playlists', []);
               const newPl = { id: 'pl_' + Date.now().toString(), name, videos: [] };
@@ -317,9 +356,17 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
               setPlaylists(prev => [...prev, newPl]);
               targetPlaylistId = newPl.id;
             }
-          } catch (e) {
-            console.warn('Failed to create playlist', e);
-            return;
+          } catch (e: any) {
+            if (e?.missing) {
+              const localPlaylists = SafeStorage.get('user_playlists', []);
+              const newPl = { id: 'pl_' + Date.now().toString(), name, videos: [] };
+              SafeStorage.set('user_playlists', [...localPlaylists, newPl]);
+              setPlaylists(prev => [...prev, newPl]);
+              targetPlaylistId = newPl.id;
+            } else {
+              console.warn('Failed to create playlist', e);
+              return;
+            }
           }
         }
         const videoRef: any = {
@@ -335,12 +382,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
           timestamp: Date.now()
         };
         try {
-          const playlistsCol = import.meta.env.VITE_APPWRITE_PLAYLISTS_COLLECTION_ID;
-          const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
           const target = playlists.find(pl => pl.id === targetPlaylistId);
           const newVideos = [videoRef, ...(target?.videos || []).filter((v: any) => v.id !== videoRef.id)];
-          if (dbId && playlistsCol && user && target?._appwrite) {
-            await databases.updateDocument(dbId, playlistsCol, targetPlaylistId, { videos: newVideos });
+          if (target?._appwrite) {
+            await setDbPlaylistVideos(target as any, newVideos.map((v: any) => v.id));
           } else {
             const localPlaylists = SafeStorage.get('user_playlists', []);
             SafeStorage.set('user_playlists', localPlaylists.map((pl: any) => pl.id === targetPlaylistId ? { ...pl, videos: newVideos } : pl));
@@ -353,7 +398,17 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
       // Fire and forget
       if (playlistId) attachToPlaylist();
 
+      // Если просили черновик/отложку, а колонок нет — док ушёл сразу в ленту: честно предупреждаем
+      if (wantStatus !== 'published' && createdVideoDoc && !(createdVideoDoc as any).status) {
+        setError(language === 'ru'
+          ? 'Загружено, но СРАЗУ опубликовано: создайте в Appwrite → videos → Columns: status (String) и publishAt (Datetime), иначе черновики/отложка не работают.'
+          : 'Uploaded but published immediately: create Appwrite videos columns status (String) and publishAt (Datetime) for drafts/scheduling.');
+      }
+
       setFile(null);
+      setCustomThumb(null);
+      setPublishMode('now');
+      setPublishAt('');
       setTitle('');
       setDescription('');
       setCategory('');
@@ -363,7 +418,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
       setPlaylistId('');
       setNewPlaylistName('');
       onUploadSuccess?.();
-      onClose();
+      if (!(wantStatus !== 'published' && createdVideoDoc && !(createdVideoDoc as any).status)) onClose();
 
       // Increment videosCount in profile (don't block the UI)
       const updateStats = async () => {
@@ -490,13 +545,13 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
           ) : (
             <div className="flex flex-col gap-3 bg-white/5 p-3 rounded-xl border border-white/10">
               <div className="relative w-full rounded-lg overflow-hidden bg-black flex items-center justify-center max-h-[260px]">
-                {previewUrl ? (
-                  isImage ? (
-                    <img src={previewUrl} alt="preview" className="w-full h-auto max-h-[260px] object-contain" />
+                  {previewUrl ? (
+                    isImage ? (
+                      <img src={previewUrl} alt="preview" className="w-full h-auto max-h-[260px] object-contain" />
+                    ) : (
+                      <video ref={previewVideoRef} src={previewUrl} controls muted playsInline className={`w-full max-h-[260px] ${contentType === 'shorts' ? 'aspect-[9/16] max-w-[200px] mx-auto object-cover' : 'object-contain'}`} />
+                    )
                   ) : (
-                    <video src={previewUrl} controls muted playsInline className={`w-full max-h-[260px] ${contentType === 'shorts' ? 'aspect-[9/16] max-w-[200px] mx-auto object-cover' : 'object-contain'}`} />
-                  )
-                ) : (
                   <div className="w-12 h-12 bg-[#70d6ff]/20 rounded-lg flex items-center justify-center my-6">
                     {isImage ? <UploadCloud className="w-6 h-6 text-[#70d6ff]" /> : <PlayCircle className="w-6 h-6 text-[#70d6ff]" />}
                   </div>
@@ -513,6 +568,26 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
                   {isImage ? (language === 'ru' ? 'Фото' : 'Photo') : contentType === 'shorts' ? 'Shorts' : 'Видео'} • {(file.size / (1024 * 1024)).toFixed(2)} MB
                 </div>
               </div>
+              {!isImage && previewUrl && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={captureFrame}
+                    disabled={thumbBusy || isUploading}
+                    className="flex-1 py-2 bg-white/5 border border-white/10 rounded-lg text-xs font-bold text-slate-200 hover:bg-white/10 disabled:opacity-50 transition-colors"
+                  >
+                    {thumbBusy ? (language === 'ru' ? 'Делаем кадр…' : 'Capturing…') : (language === 'ru' ? '🎬 Кадр в обложку (пауза на моменте)' : '🎬 Use paused frame as cover')}
+                  </button>
+                  {customThumb && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <img src={customThumb} alt="cover" className="w-14 h-9 object-cover rounded-md border border-[#70d6ff]/40" />
+                      <button type="button" onClick={() => setCustomThumb(null)} className="text-[11px] text-slate-400 hover:text-white">
+                        {language === 'ru' ? 'Сброс' : 'Reset'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex items-center gap-3 px-1">
                 <div className="w-8 h-8 rounded-lg bg-[#70d6ff]/20 flex items-center justify-center shrink-0">
                   {isImage ? <UploadCloud className="w-4 h-4 text-[#70d6ff]" /> : <PlayCircle className="w-4 h-4 text-[#70d6ff]" />}
@@ -663,6 +738,46 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
                     <option value="es">Español</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-slate-200">{language === 'ru' ? 'Публикация' : 'Publishing'}</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { id: 'now', label: language === 'ru' ? 'Сразу' : 'Now' },
+                    { id: 'draft', label: language === 'ru' ? 'Черновик' : 'Draft' },
+                    { id: 'scheduled', label: language === 'ru' ? 'Отложка' : 'Schedule' },
+                  ] as const).map(o => (
+                    <button
+                      key={o.id}
+                      type="button"
+                      onClick={() => setPublishMode(o.id)}
+                      disabled={isUploading}
+                      className={clsx(
+                        "px-3 py-2 text-xs sm:text-sm rounded-lg border transition-colors",
+                        publishMode === o.id ? "bg-[#70d6ff]/20 border-[#70d6ff] text-white" : "bg-black/40 border-white/10 text-slate-400 hover:border-white/20"
+                      )}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                {publishMode === 'scheduled' && (
+                  <input
+                    type="datetime-local"
+                    value={publishAt}
+                    onChange={e => setPublishAt(e.target.value)}
+                    disabled={isUploading}
+                    className="bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#70d6ff]/50 w-full [color-scheme:dark]"
+                  />
+                )}
+                {publishMode !== 'now' && (
+                  <p className="text-[11px] text-slate-500">
+                    {language === 'ru'
+                      ? 'Нужны колонки videos: status (String) и publishAt (Datetime), иначе выйдет сразу.'
+                      : 'Needs videos columns status (String) and publishAt (Datetime), else publishes immediately.'}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col gap-2">

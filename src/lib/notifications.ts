@@ -6,10 +6,11 @@ export const createNotification = async (params: {
   actorId: string; // The person doing the action
   actorName: string;
   actorAvatar?: string;
-  type: 'like' | 'snowflake' | 'comment' | 'reply' | 'subscribe' | 'upload' | 'verify';
+  type: 'like' | 'snowflake' | 'comment' | 'reply' | 'subscribe' | 'upload' | 'verify' | 'mention';
   videoId?: string;
   videoTitle?: string;
   contentType?: 'video' | 'shorts' | 'photo';
+  commentId?: string;
 }) => {
   if (params.userId === params.actorId) return; // Don't notify yourself
 
@@ -29,7 +30,7 @@ export const createNotification = async (params: {
       Permission.delete(Role.any())
     ];
 
-    await databases.createDocument(dbId, notifCol, ID.unique(), {
+    const base: any = {
       userId: params.userId,
       actorId: params.actorId,
       actorName: params.actorName,
@@ -39,7 +40,17 @@ export const createNotification = async (params: {
       videoTitle: params.videoTitle,
       contentType: params.contentType || 'video',
       isRead: false
-    }, permissions);
+    };
+    try {
+      // commentId — опциональная колонка; если её нет, пишем без неё
+      await databases.createDocument(dbId, notifCol, ID.unique(), params.commentId ? { ...base, commentId: params.commentId } : base, permissions);
+    } catch (err: any) {
+      if (params.commentId && String(err?.message || '').toLowerCase().includes('unknown attribute')) {
+        await databases.createDocument(dbId, notifCol, ID.unique(), base, permissions);
+      } else {
+        throw err;
+      }
+    }
     try { window.dispatchEvent(new Event('icetube_refresh_notifications')); } catch {}
   } catch (err) {
     console.warn("Failed to create notification (Appwrite permissions block):", err);

@@ -2,6 +2,7 @@ import { VideoCard } from "../../components/VideoCard";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import React, { useState, useEffect, useCallback } from "react";
 import { databases, withTimeout } from "../../lib/appwrite";
+import { isVisibleStatus } from "../../lib/publishing";
 import { Query } from "appwrite";
 import { Loader2, ServerCrash, Video, RefreshCw } from "lucide-react";
 import { useLanguage } from "../../language/LanguageContext";
@@ -61,7 +62,7 @@ export default function Videos() {
             console.warn("Could not fetch profiles for latest avatars", pErr);
           }
 
-          const formatted = response.documents.filter((v: any) => !(v as any).hidden).map(v => {
+          const formatted = response.documents.filter((v: any) => !(v as any).hidden && isVisibleStatus(v)).map(v => {
               const profile = profilesMap[v.uploaderId];
               return {
                 id: v.$id,

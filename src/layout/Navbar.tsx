@@ -109,6 +109,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
       case 'snowflake': return t('notif_snowflake') || 'gave a snowflake to your video';
       case 'comment': return t('notif_comment') || 'commented on your video';
       case 'reply': return t('notif_reply') || 'replied to your comment';
+      case 'mention': return t('notif_mention') || 'mentioned you in a comment';
       case 'subscribe': return t('notif_subscribe') || 'subscribed to your channel';
       case 'upload': 
         if (notif.contentType === 'shorts') {
@@ -250,7 +251,7 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
                     {notifications.map((notif: any) => (
                       <Link 
                         key={notif.$id} 
-                        to={notif.videoId ? (notif.contentType === 'shorts' ? `/shorts/${notif.videoId}` : `/watch/${notif.videoId}`) : `/channel/${notif.actorId}`}
+                        to={notif.videoId ? ((notif.contentType === 'shorts' ? `/shorts/${notif.videoId}` : `/watch/${notif.videoId}`) + (notif.commentId ? `#comment-${notif.commentId}` : '')) : `/channel/${notif.actorId}`}
                         onClick={() => setShowNotification(false)}
                         className={`block p-4 hover:bg-white/5 transition-colors ${!notif.isRead ? 'bg-blue-500/5' : ''}`}
                       >

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { databases } from "../../lib/appwrite";
+import { isVisibleStatus } from "../../lib/publishing";
 import { Loader2, ServerCrash, Compass } from "lucide-react";
 import { useLanguage } from "../../language/LanguageContext";
 import { VideoCard } from "../../components/VideoCard";
@@ -21,7 +22,7 @@ export default function Browse() {
         const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
         if (dbId && colId) {
           const response = await databases.listDocuments(dbId, colId);
-          const formatted = response.documents.filter((v: any) => !(v as any).hidden).map((v: any) => ({
+          const formatted = response.documents.filter((v: any) => !(v as any).hidden && isVisibleStatus(v)).map((v: any) => ({
             id: v.$id,
             uploaderId: v.uploaderId,
             title: v.title,

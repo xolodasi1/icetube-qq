@@ -9,6 +9,7 @@ import { getOptimizedThumbnail } from "../../lib/cloudinary";
 import { getRecommendations } from "../../lib/recommendations";
 import { SafeStorage } from "../../lib/storage";
 import { getSetting } from "../../lib/siteSettings";
+import { isVisibleStatus, publishDue } from "../../lib/publishing";
 import { useNavigate } from "react-router-dom";
 
 const COUNTRY_OPTIONS: { id: string, label: string, flag: string }[] = [
@@ -125,6 +126,8 @@ export default function Home() {
         console.warn("Could not fetch profiles for latest avatars", pErr);
       }
 
+      // Отложка со сроком в прошлом — публикуем лениво, чтобы появилась в лентах
+      publishDue(response.documents).catch(() => {});
       const formatted = response.documents.map(v => {
           const profile = profilesMap[v.uploaderId];
           const cat = v.category || 'All';
@@ -146,7 +149,8 @@ export default function Home() {
             contentType: v.contentType || 'video',
             verified: v.verified || false,
             description: v.description || '',
-            hidden: !!(v as any).hidden
+            hidden: !!(v as any).hidden,
+            status: (v as any).status || 'published'
           };
       });
       let pinnedIds: string[] = [];
@@ -215,6 +219,7 @@ export default function Home() {
     const q = searchQuery.trim().toLowerCase();
     const result = dbVideos.filter(video => {
       if ((video as any).hidden) return false;
+      if (!isVisibleStatus(video)) return false;
       const title = (video.title || '').toLowerCase();
       const chName = (video.channelName || '').toLowerCase();
       const chHandle = (video.channelHandle || '').toLowerCase();

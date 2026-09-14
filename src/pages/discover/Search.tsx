@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { databases } from '../../lib/appwrite';
+import { isVisibleStatus } from '../../lib/publishing';
 import { Query } from 'appwrite';
 import { Search as SearchIcon, Loader2, SlidersHorizontal, X, Image, Film, Scissors, Eye, Clock, ArrowUpDown } from 'lucide-react';
 import { useLanguage } from '../../language/LanguageContext';
@@ -36,7 +37,7 @@ export default function SearchPage() {
         const colId = import.meta.env.VITE_APPWRITE_VIDEOS_COLLECTION_ID;
         if (dbId && colId) {
           const res = await databases.listDocuments(dbId, colId, [Query.orderDesc('$createdAt'), Query.limit(100)]);
-          setDbVideos(res.documents.filter((d: any) => !(d as any).hidden));
+          setDbVideos(res.documents.filter((d: any) => !(d as any).hidden && isVisibleStatus(d)));
         }
       } catch (err) {
         console.error("Search fetch failed:", err);

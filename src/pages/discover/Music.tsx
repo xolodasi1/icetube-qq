@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { VideoCard } from "../../components/VideoCard";
 import { Loader2, Music } from "lucide-react";
 import { databases } from "../../lib/appwrite";
+import { isVisibleStatus } from "../../lib/publishing";
 import { Query } from "appwrite";
 import { useLanguage } from "../../language/LanguageContext";
 
@@ -22,7 +23,7 @@ export default function MusicPage() {
           Query.orderDesc("$createdAt"),
           Query.limit(50),
         ]);
-        const formatted = res.documents.filter((v: any) => !(v as any).hidden).map((v: any) => ({
+        const formatted = res.documents.filter((v: any) => !(v as any).hidden && isVisibleStatus(v)).map((v: any) => ({
           id: v.$id,
           uploaderId: v.uploaderId,
           title: v.title,

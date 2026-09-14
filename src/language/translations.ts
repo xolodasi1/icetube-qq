@@ -246,7 +246,9 @@ export const translations: Translations = {
     auth_verify_fail: 'Confirmation failed',
     auth_verify_fail_desc: 'The link is invalid or expired. Request a new one from the banner in the app.',
     ban_blocked_msg: 'Your account is restricted by administration.',
-    mute_blocked_msg: 'Comments are temporarily disabled for your account.'
+    mute_blocked_msg: 'Comments are temporarily disabled for your account.',
+    nav_feed: 'Feed',
+    notif_mention: 'mentioned you in a comment'
   },
   ru: {
     nav_home: 'Главная',
@@ -487,7 +489,9 @@ export const translations: Translations = {
     auth_verify_fail: 'Не удалось подтвердить',
     auth_verify_fail_desc: 'Ссылка неверна или истекла. Запросите новую через баннер в приложении.',
     ban_blocked_msg: 'Ваш аккаунт ограничен администрацией.',
-    mute_blocked_msg: 'Комментарии временно отключены для вашего аккаунта.'
+    mute_blocked_msg: 'Комментарии временно отключены для вашего аккаунта.',
+    nav_feed: 'Лента',
+    notif_mention: 'упомянул вас в комментарии'
   },
   es: {
     nav_home: 'Inicio',

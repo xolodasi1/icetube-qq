@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../language/LanguageContext';
 import { useAuth } from '../../auth/AuthContext';
 import { databases } from '../../lib/appwrite';
+import { isVisibleStatus } from '../../lib/publishing';
 import { Query } from 'appwrite';
 import { cleanupSelfSubscriptions, isOwnChannelDoc } from '../../lib/subscriptions';
 import { VideoCard } from '../../components/VideoCard';
@@ -93,7 +94,7 @@ export default function Subscriptions() {
           );
           const videoDocs = videoResults.flatMap(r => r.documents);
           // свои видео в ленте подписок не показываем
-          setVideos(videoDocs.filter((v: any) => v.uploaderId !== user.$id && !(v as any).hidden).map((v: any) => ({
+          setVideos(videoDocs.filter((v: any) => v.uploaderId !== user.$id && !(v as any).hidden && isVisibleStatus(v)).map((v: any) => ({
             id: v.$id,
             uploaderId: v.uploaderId,
             title: v.title,

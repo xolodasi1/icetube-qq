@@ -9,8 +9,10 @@ import { createNotification } from '../../lib/notifications';
 import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENTS_PER_VIDEO } from '../../lib/storage';
 import { getOptimizedThumbnail, getOptimizedVideoUrl } from '../../lib/cloudinary';
 import { shouldCountView, markViewCounted, viewThreshold } from '../../lib/viewcount';
+import { isVisibleStatus } from '../../lib/publishing';
 import { needVerification } from '../../lib/verified';
 import { needUnbanned } from '../../lib/banned';
+import { RichText } from '../../components/RichText';
 
 
 export default function Shorts() {
@@ -109,7 +111,7 @@ export default function Shorts() {
         } catch (queryErr: any) {
           console.warn("Query by contentType failed, fetching all and filtering manually");
           const allRes = await databases.listDocuments(dbId, colId, [Query.limit(100), Query.orderDesc('$createdAt')]);
-          const filtered = allRes.documents.filter((d: any) => !(d as any).hidden && (d.contentType === 'shorts' || d.title?.toLowerCase().includes('#shorts') || d.description?.toLowerCase().includes('#shorts')));
+          const filtered = allRes.documents.filter((d: any) => !(d as any).hidden && isVisibleStatus(d) && (d.contentType === 'shorts' || d.title?.toLowerCase().includes('#shorts') || d.description?.toLowerCase().includes('#shorts')));
           
           const existingIds = new Set(docs.map(d => d.$id));
           filtered.forEach(doc => {
@@ -930,7 +932,7 @@ export default function Shorts() {
                           <span className="text-xs font-bold text-white">@{c.author}</span>
                           <span className="text-[10px] text-slate-500">{c.ts}</span>
                         </div>
-                        <p className="text-sm text-slate-200 leading-relaxed break-words">{c.text}</p>
+                        <p className="text-sm text-slate-200 leading-relaxed break-words"><RichText text={c.text} maxChars={280} language={language} /></p>
       
                         <button 
                           onClick={() => setReplyingToId(replyingToId === c.id ? null : c.id)}
@@ -984,7 +986,7 @@ export default function Shorts() {
                                 <span className="text-[11px] font-bold text-white">@{reply.author}</span>
                                 <span className="text-[9px] text-slate-500">{reply.ts}</span>
                               </div>
-                              <p className="text-xs text-slate-300 leading-relaxed break-words">{reply.text}</p>
+                              <p className="text-xs text-slate-300 leading-relaxed break-words"><RichText text={reply.text} maxChars={280} language={language} /></p>
                             </div>
                           </div>
                         ))}

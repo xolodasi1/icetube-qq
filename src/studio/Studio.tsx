@@ -107,13 +107,13 @@ export default function Studio() {
         description: v.description,
         category: v.category,
         contentType: v.contentType,
+        status: (v as any).status || 'published',
         verified: v.verified || false,
         game: v.game,
         thumbnailUrl: v.thumbnailUrl,
         views: v.views || 0,
         uploadDate: new Date(v.$createdAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'),
-        createdAt: v.$createdAt,
-        status: 'Published'
+        createdAt: v.$createdAt
       }));
 
       setVideos(userVids);
@@ -446,7 +446,14 @@ export default function Studio() {
                           <img src={v.thumbnailUrl} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-white font-medium line-clamp-1 break-all">{v.title}</p>
+                          <p className="text-sm text-white font-medium line-clamp-1 break-all">
+                            {v.status && v.status !== 'published' && (
+                              <span className="mr-1.5 px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-400/30 text-amber-300 text-[9px] font-black uppercase align-middle">
+                                {v.status === 'draft' ? (language === 'ru' ? 'Черновик' : 'Draft') : (language === 'ru' ? 'Отложено' : 'Scheduled')}
+                              </span>
+                            )}
+                            {v.title}
+                          </p>
                           <p className="text-[10px] text-slate-500"><Eye className="w-3 h-3 inline mr-1" />{v.views}</p>
                         </div>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${v.contentType === 'shorts' ? 'bg-teal-500/10 text-teal-400' : v.contentType === 'photo' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-purple-500/10 text-purple-400'}`}>
@@ -489,6 +496,90 @@ export default function Studio() {
                   </div>
                 </div>
               </div>
+
+              {/* Author analytics: uploads/day + top + categories */}
+              {(() => {
+                const dayKey = (ts: any) => {
+                  try {
+                    const d = new Date(ts);
+                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                  } catch { return ''; }
+                };
+                const days: { key: string; label: string; count: number; views: number }[] = [];
+                for (let i = 29; i >= 0; i--) {
+                  const d = new Date();
+                  d.setDate(d.getDate() - i);
+                  days.push({ key: dayKey(d.getTime()), label: `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`, count: 0, views: 0 });
+                }
+                const byKey = new Map(days.map(d => [d.key, d]));
+                videos.forEach(v => {
+                  const k = dayKey((v as any).createdAt);
+                  const cell = byKey.get(k);
+                  if (cell) { cell.count++; cell.views += (v.views || 0); }
+                });
+                const maxC = Math.max(1, ...days.map(d => d.count));
+                const top = [...videos].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5);
+                const catMap = new Map<string, number>();
+                videos.forEach(v => {
+                  const c = ((v.category || 'All') as string).trim() || 'All';
+                  catMap.set(c, (catMap.get(c) || 0) + 1);
+                });
+                const cats = [...catMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+                const maxCat = Math.max(1, ...cats.map(c => c[1]));
+                return (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6">
+                      <h3 className="text-sm font-bold text-white mb-1 flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-[#70d6ff]" />
+                        {language === 'ru' ? 'Загрузки по дням (30 дней)' : 'Uploads per day (30d)'}
+                      </h3>
+                      <p className="text-[11px] text-slate-500 mb-4">{language === 'ru' ? 'Высота — число загрузок, в подсказке — просмотры этих видео' : 'Height — uploads, tooltip — their views'}</p>
+                      <div className="flex items-end gap-[3px] h-32">
+                        {days.map(d => (
+                          <div key={d.key} title={`${d.label}: +${d.count}, ${d.views} views`} className="flex-1 bg-[#70d6ff]/25 hover:bg-[#70d6ff] rounded-t-sm transition-all min-h-[2px]" style={{ height: `${Math.max(3, (d.count / maxC) * 100)}%` }} />
+                        ))}
+                      </div>
+                      <div className="flex justify-between mt-2 text-[10px] text-slate-500 font-bold">
+                        <span>{days[0]?.label}</span><span>{days[days.length - 1]?.label}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-6">
+                      <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6">
+                        <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-green-400" />
+                          {language === 'ru' ? 'Топ ваших видео' : 'Your top videos'}
+                        </h3>
+                        <div className="space-y-2">
+                          {top.length === 0 && <p className="text-xs text-slate-500 text-center py-4">—</p>}
+                          {top.map((v, i) => (
+                            <div key={v.id} className="flex items-center gap-3">
+                              <span className="text-[11px] font-black text-slate-600 w-5 italic">#{i + 1}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-white font-medium truncate">{v.title}</p>
+                              </div>
+                              <span className="text-xs font-black text-[#70d6ff] shrink-0">{v.views || 0}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-6">
+                        <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                          <PieChart className="w-4 h-4 text-purple-400" />
+                          {language === 'ru' ? 'По категориям' : 'By category'}
+                        </h3>
+                        <div className="space-y-2">
+                          {cats.map(([c, n]) => (
+                            <div key={c}>
+                              <div className="flex justify-between text-xs mb-1"><span className="text-slate-300 font-medium truncate">{c}</span><span className="text-white font-bold">{n}</span></div>
+                              <div className="w-full bg-white/5 rounded-full h-1.5"><div className="h-full bg-purple-500/70 rounded-full" style={{ width: `${(n / maxCat) * 100}%` }} /></div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 

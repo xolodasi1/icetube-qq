@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { databases } from "../../lib/appwrite";
-import { Query, ID } from "appwrite";
-import { Loader2, User, AlertCircle, Video, TrendingUp, Image } from "lucide-react";
+import { Query, ID, Permission, Role } from "appwrite";
+import { Loader2, User, AlertCircle, Video, TrendingUp, Image, MessageCircle } from "lucide-react";
 import { useLanguage } from "../../language/LanguageContext";
 import { useAuth } from "../../auth/AuthContext";
+import { needVerification } from "../../lib/verified";
+import { needUnbanned } from "../../lib/banned";
+import { isVisibleStatus } from "../../lib/publishing";
 import { VideoCard } from "../../components/VideoCard";
 import { createNotification } from "../../lib/notifications";
 import { getRecommendations } from "../../lib/recommendations";
@@ -12,7 +15,56 @@ import { getRecommendations } from "../../lib/recommendations";
 export default function Channel() {
   const { id: paramId } = useParams();
   const { t, language } = useLanguage();
-  const { user } = useAuth();
+  const { user, profile: myProfile } = useAuth();
+  const navigate = useNavigate();
+  const [msgBusy, setMsgBusy] = useState(false);
+
+  // Найти или создать диалог с автором канала
+  const handleMessage = async () => {
+    if (!user || !id || user.$id === id) {
+      if (!user) alert(language === 'ru' ? 'Войдите, чтобы писать сообщения' : 'Sign in to send messages');
+      return;
+    }
+    if (needVerification(user, t, language)) return;
+    if (needUnbanned(myProfile, t)) return;
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const convosCol = import.meta.env.VITE_APPWRITE_CONVERSATIONS_COLLECTION_ID || 'conversations';
+    if (!dbId) return;
+    setMsgBusy(true);
+    try {
+      const existing = await databases.listDocuments(dbId, convosCol, [
+        Query.contains('participantIds', user.$id),
+        Query.limit(100),
+      ]).catch(() => ({ documents: [] as any[] }));
+      const found = existing.documents.find((c: any) => (c.participantIds || []).includes(id));
+      if (found) {
+        navigate(`/messages?cid=${found.$id}`);
+        return;
+      }
+      const doc = await databases.createDocument(dbId, convosCol, ID.unique(), {
+        participantIds: [user.$id, id],
+        lastText: '',
+      }, [
+        Permission.read(Role.user(user.$id)),
+        Permission.read(Role.user(id)),
+        Permission.update(Role.user(user.$id)),
+        Permission.update(Role.user(id)),
+        Permission.delete(Role.user(user.$id)),
+      ]);
+      navigate(`/messages?cid=${doc.$id}`);
+    } catch (err: any) {
+      console.error('Message thread failed:', err);
+      if (err?.code === 404) {
+        alert(language === 'ru'
+          ? 'Создайте в Appwrite коллекции conversations (participantIds: String[], lastText: String 500) и messages (conversationId, senderId, text: String 1000).'
+          : 'Create Appwrite collections conversations and messages.');
+      } else {
+        alert('Error: ' + (err?.message || err));
+      }
+    } finally {
+      setMsgBusy(false);
+    }
+  };
   
   const id = paramId === 'me' && user ? user.$id : paramId;
 
@@ -55,7 +107,7 @@ export default function Channel() {
           Query.limit(5000)
         ]);
 
-        const formattedVideos = videosRes.documents.filter((v: any) => !(v as any).hidden).map(v => {
+        const formattedVideos = videosRes.documents.filter((v: any) => !(v as any).hidden && isVisibleStatus(v)).map(v => {
           const ct = v.contentType || 'video';
           const isShortLike = ct === 'shorts' || v.title?.toLowerCase().includes('#shorts');
           const rawDur = v.duration as string | undefined;
@@ -316,15 +368,25 @@ export default function Channel() {
           </p>
 
           {user && user.$id !== id && (
-            <button 
-              disabled={isSubbing}
-              onClick={handleSubscribe}
-              className={`font-bold px-6 py-2.5 rounded-full transition-colors flex items-center justify-center gap-2 ${
-                 isSubscribed ? 'bg-white/10 text-slate-200 hover:bg-white/20 border border-white/10' : 'bg-[#70d6ff] text-black hover:bg-[#5bc0e6]'
-              }`}
-            >
-              {isSubscribed ? t('video_subscribed') : t('video_subscribe')}
-            </button>
+            <div className="flex gap-2 flex-wrap justify-center md:justify-start">
+              <button
+                disabled={isSubbing}
+                onClick={handleSubscribe}
+                className={`font-bold px-6 py-2.5 rounded-full transition-colors flex items-center justify-center gap-2 ${
+                   isSubscribed ? 'bg-white/10 text-slate-200 hover:bg-white/20 border border-white/10' : 'bg-[#70d6ff] text-black hover:bg-[#5bc0e6]'
+                }`}
+              >
+                {isSubscribed ? t('video_subscribed') : t('video_subscribe')}
+              </button>
+              <button
+                disabled={msgBusy}
+                onClick={handleMessage}
+                className="font-bold px-6 py-2.5 rounded-full transition-colors flex items-center justify-center gap-2 bg-white/10 text-slate-200 hover:bg-white/20 border border-white/10 disabled:opacity-50"
+              >
+                <MessageCircle className="w-4 h-4" />
+                {language === 'ru' ? 'Написать' : 'Message'}
+              </button>
+            </div>
           )}
 
           {user && user.$id === id && (

@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock, AlertTriangle, MessageCircle, Send } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, MessageSquare, Loader2, Video, User, Edit2, Trash2, Snowflake, ShieldAlert, X, Bookmark, ListFilter, Check, Clock, AlertTriangle, MessageCircle, Send, Pin, Gauge, MonitorPlay, TimerOff, ListVideo } from "lucide-react";
 import { VideoCard } from "../../components/VideoCard";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { databases, Permission, Role, withTimeout } from "../../lib/appwrite";
@@ -10,8 +10,11 @@ import { createNotification } from "../../lib/notifications";
 import { SafeStorage, getAnonCommentCount, registerAnonComment, MAX_ANON_COMMENTS_PER_VIDEO } from "../../lib/storage";
 import { getRecommendations } from "../../lib/recommendations";
 import { shouldCountView, markViewCounted, viewThreshold } from "../../lib/viewcount";
+import { isVisibleStatus } from "../../lib/publishing";
 import { needVerification } from "../../lib/verified";
 import { needUnbanned } from "../../lib/banned";
+import { RichText, extractMentions } from "../../components/RichText";
+import { loadDbPlaylists, createDbPlaylist, setDbPlaylistVideos } from "../../lib/playlists";
 
 import { getOptimizedThumbnail, getOptimizedVideoUrl, getQualityVideoUrl } from '../../lib/cloudinary';
 import type { VideoQuality } from '../../lib/cloudinary';
@@ -57,6 +60,9 @@ export default function Watch() {
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [repostText, setRepostText] = useState('');
+  const [reposting, setReposting] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
@@ -64,6 +70,135 @@ export default function Watch() {
   const [quality, setQuality] = useState<VideoQuality>(() => {
     try { return (SafeStorage.get('preferred_quality', 'auto') as VideoQuality); } catch { return 'auto'; }
   });
+  // Настройки плеера
+  const [playbackRate, setPlaybackRate] = useState<number>(() => {
+    try { return Number(SafeStorage.get('playback_speed', 1)) || 1; } catch { return 1; }
+  });
+  const [skipSilence, setSkipSilence] = useState<boolean>(() => {
+    try { return !!SafeStorage.get('skip_silence', false); } catch { return false; }
+  });
+  const [autoplayNext, setAutoplayNext] = useState<boolean>(() => {
+    try { return SafeStorage.get<boolean>('autoplay_next', true) !== false; } catch { return true; }
+  });
+  const [autoCountdown, setAutoCountdown] = useState<number | null>(null);
+  const silenceTimerRef = useRef<any>(null);
+  const silenceAudioRef = useRef<{ ctx: AudioContext; analyser: AnalyserNode } | null>(null);
+  const silenceStreakRef = useRef(0);
+
+  const getPlayer = (): HTMLVideoElement | null => {
+    try { return document.getElementById('main-video-player') as HTMLVideoElement | null; } catch { return null; }
+  };
+
+  const applySpeed = (r: number) => {
+    setPlaybackRate(r);
+    try { SafeStorage.set('playback_speed', r); } catch {}
+    const v = getPlayer();
+    if (v) { try { v.playbackRate = r; } catch {} }
+  };
+
+  const togglePiP = async () => {
+    try {
+      const v = getPlayer();
+      if (!v) return;
+      if ((document as any).pictureInPictureElement) {
+        await (document as any).exitPictureInPicture().catch(() => {});
+      } else if ((v as any).requestPictureInPicture) {
+        await (v as any).requestPictureInPicture();
+      } else {
+        alert(language === 'ru' ? 'Картинка-в-картинке не поддерживается этим браузером.' : 'Picture-in-picture is not supported by this browser.');
+      }
+    } catch { /* ignore */ }
+  };
+
+  const stopSilenceEngine = () => {
+    if (silenceTimerRef.current) { clearInterval(silenceTimerRef.current); silenceTimerRef.current = null; }
+    try { silenceAudioRef.current?.ctx.suspend(); } catch {}
+  };
+
+  const toggleSilence = async () => {
+    const v = getPlayer();
+    if (!v) return;
+    if (skipSilence) {
+      setSkipSilence(false);
+      try { SafeStorage.set('skip_silence', false); } catch {}
+      stopSilenceEngine();
+      return;
+    }
+    const wasPaused = v.paused;
+    const pos = v.currentTime || 0;
+    try {
+      v.crossOrigin = 'anonymous';
+      v.load();
+      await new Promise<void>((res, rej) => {
+        const to = setTimeout(() => rej(new Error('timeout')), 9000);
+        (v as any).oncanplay = () => { clearTimeout(to); res(); };
+        (v as any).onerror = () => { clearTimeout(to); rej(new Error('load')); };
+      });
+      try { v.currentTime = pos; } catch {}
+      if (!wasPaused) v.play().catch(() => {});
+      if (!silenceAudioRef.current) {
+        const AC = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AC) throw new Error('no webaudio');
+        const ctx: AudioContext = new AC();
+        try { await ctx.resume(); } catch {}
+        const src = ctx.createMediaElementSource(v);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 512;
+        src.connect(analyser);
+        analyser.connect(ctx.destination);
+        silenceAudioRef.current = { ctx, analyser };
+      } else {
+        try { await silenceAudioRef.current.ctx.resume(); } catch {}
+      }
+      const analyser = silenceAudioRef.current.analyser;
+      const buf = new Uint8Array(analyser.fftSize);
+      silenceStreakRef.current = 0;
+      if (silenceTimerRef.current) clearInterval(silenceTimerRef.current);
+      silenceTimerRef.current = setInterval(() => {
+        try {
+          if (v.paused || v.ended) { silenceStreakRef.current = 0; return; }
+          analyser.getByteTimeDomainData(buf);
+          let peak = 0;
+          for (let i = 0; i < buf.length; i += 4) {
+            const d = Math.abs(buf[i] - 128) / 128;
+            if (d > peak) peak = d;
+          }
+          if (peak < 0.02) {
+            silenceStreakRef.current++;
+            if (silenceStreakRef.current >= 3 && v.duration && v.currentTime < v.duration - 3) {
+              v.currentTime = Math.min(v.duration - 1, v.currentTime + 2);
+              silenceStreakRef.current = 0;
+            }
+          } else {
+            silenceStreakRef.current = 0;
+          }
+        } catch {}
+      }, 200);
+      setSkipSilence(true);
+      try { SafeStorage.set('skip_silence', true); } catch {}
+    } catch {
+      try { v.removeAttribute('crossorigin'); (v as any).crossOrigin = null; v.load(); } catch {}
+      alert(language === 'ru' ? 'Не удалось включить пропуск тишины для этого видео.' : 'Could not enable silence skipping for this video.');
+    }
+  };
+
+  // Чистим движок тишины при уходе со страницы
+  useEffect(() => {
+    return () => {
+      if (silenceTimerRef.current) clearInterval(silenceTimerRef.current);
+      try { silenceAudioRef.current?.ctx.close(); } catch {}
+      silenceAudioRef.current = null;
+    };
+  }, []);
+
+  // Сброс флага конца при смене видео
+  useEffect(() => {
+    setIsVideoEnded(false);
+    setAutoCountdown(null);
+    silenceStreakRef.current = 0;
+  }, [id]);
+
+
   const [commentSort, setCommentSort] = useState<'newest' | 'oldest' | 'top'>('newest');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
@@ -123,12 +258,116 @@ export default function Watch() {
 
   const sortedComments = useMemo(() => {
     return [...comments.filter(c => !c.parentId)].sort((a, b) => {
+      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
       if (commentSort === 'newest') return new Date(b.$createdAt || 0).getTime() - new Date(a.$createdAt || 0).getTime();
       if (commentSort === 'oldest') return new Date(a.$createdAt || 0).getTime() - new Date(b.$createdAt || 0).getTime();
       if (commentSort === 'top') return (b.likes || 0) - (a.likes || 0);
       return 0;
     });
   }, [comments, commentSort]);
+
+  // Уведомления упомянутым @handle (резолвим handle -> userId)
+  const notifyMentions = async (text: string, commentId?: string) => {
+    if (!video || !user) return;
+    try {
+      const handles = extractMentions(text);
+      if (handles.length === 0) return;
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const usersCol = import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID || import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
+      if (!dbId || !usersCol) return;
+      const selfName = (profile?.name || user.name || '').toLowerCase();
+      for (const h of handles) {
+        try {
+          if (h === selfName) continue;
+          let target: any = null;
+          for (const variant of [h, h.toLowerCase()]) {
+            try {
+              const r = await databases.listDocuments(dbId, usersCol, [Query.equal('handle', variant), Query.limit(1)]);
+              if (r.documents.length > 0) { target = r.documents[0]; break; }
+            } catch {}
+          }
+          if (!target) continue;
+          const targetUserId = target.userId || target.$id;
+          if (!targetUserId || targetUserId === user.$id) continue;
+          createNotification({
+            userId: targetUserId,
+            actorId: user.$id,
+            actorName: profile?.name || user.name || 'User',
+            actorAvatar: profile?.avatar,
+            type: 'mention',
+            videoId: video.id,
+            videoTitle: video.title,
+            contentType: video.contentType,
+            commentId,
+          }).catch(() => {});
+        } catch {}
+      }
+    } catch {}
+  };
+
+  // Перемотка плеера по клику на таймкод
+  const seekTo = (seconds: number) => {
+    try {
+      const v = document.getElementById('main-video-player') as HTMLVideoElement | null;
+      if (!v) return;
+      v.currentTime = Math.max(0, seconds);
+      v.play().catch(() => {});
+    } catch {}
+  };
+
+  // Подсветка коммента из уведомления (#comment-xxx)
+  const [flashComment, setFlashComment] = useState<string | null>(null);
+  useEffect(() => {
+    let timer: any = null;
+    const jump = () => {
+      try {
+        const h = window.location.hash;
+        if (!h.startsWith('#comment-') || comments.length === 0) return;
+        const cid = h.replace('#comment-', '');
+        const el = document.getElementById(`comment-${cid}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setFlashComment(cid);
+          if (timer) clearTimeout(timer);
+          timer = setTimeout(() => setFlashComment(null), 3500);
+        }
+      } catch {}
+    };
+    jump();
+    window.addEventListener('hashchange', jump);
+    return () => { window.removeEventListener('hashchange', jump); if (timer) clearTimeout(timer); };
+  }, [comments, id]);
+
+  // Закреп комментария автором видео (только один закреплён)
+  const [pinBusy, setPinBusy] = useState<string | null>(null);
+  const handlePinComment = async (commentId: string, pin: boolean) => {
+    if (!user || !video || user.$id !== video.uploaderId) return;
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const commsCol = import.meta.env.VITE_APPWRITE_COMMENTS_COLLECTION_ID;
+    if (!dbId || !commsCol) return;
+    setPinBusy(commentId);
+    try {
+      if (pin) {
+        const prev = comments.find(c => c.pinned && c.id !== commentId);
+        if (prev) {
+          try { await databases.updateDocument(dbId, commsCol, prev.id, { pinned: false }); } catch {}
+        }
+      }
+      await databases.updateDocument(dbId, commsCol, commentId, { pinned: pin });
+      setComments(comments.map(c => c.id === commentId ? { ...c, pinned: pin } : (pin ? { ...c, pinned: false } : c)));
+    } catch (err: any) {
+      console.error('Pin failed:', err);
+      if (String(err?.message || '').toLowerCase().includes('unknown attribute')) {
+        alert(language === 'ru'
+          ? 'Для закрепа создайте в Appwrite → Comments → Columns: pinned (Boolean, default false).'
+          : 'To pin, create in Appwrite → Comments → Columns: pinned (Boolean, default false).');
+      } else {
+        alert('Error: ' + (err?.message || err));
+      }
+    } finally {
+      setPinBusy(null);
+    }
+  };
 
   const handleVideoError = (e: any) => {
     console.error("Video Playback Error");
@@ -170,6 +409,28 @@ export default function Watch() {
     }
     return suggestedVideos;
   }, [suggestedVideos, activeSuggestionFilter, video]);
+
+  // Автоплей следующего (после конца видео — обратный отсчёт)
+  useEffect(() => {
+    if (!isVideoEnded || !autoplayNext) { setAutoCountdown(null); return; }
+    const next = filteredSuggestedVideos[0];
+    if (!next) return;
+    setAutoCountdown(6);
+    const iv = setInterval(() => {
+      setAutoCountdown(prev => {
+        if (prev == null) return prev;
+        if (prev <= 1) {
+          clearInterval(iv);
+          try { window.scrollTo(0, 0); } catch {}
+          navigate(`/watch/${next.id}`);
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVideoEnded]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -218,7 +479,6 @@ export default function Watch() {
     }
   }, [video]);
 
-  const playlistsCol = import.meta.env.VITE_APPWRITE_PLAYLISTS_COLLECTION_ID;
   const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
   useEffect(() => {
@@ -226,22 +486,13 @@ export default function Watch() {
   }, [user]);
 
   const loadPlaylists = async () => {
-    if (dbId && playlistsCol && user?.$id) {
+    if (user?.$id) {
       try {
-        const res = await withTimeout(databases.listDocuments(dbId, playlistsCol, [
-          Query.equal('userId', user.$id)
-        ]), 3000);
-        const mapped = res.documents.map((doc: any) => ({
-          id: doc.$id,
-          name: doc.name,
-          videos: doc.videos || [],
-          createdAt: doc.createdAt || doc.$createdAt,
-          _appwrite: true
-        }));
-        setPlaylists(mapped);
+        const dbLists = await loadDbPlaylists(user.$id);
+        setPlaylists(dbLists);
         return;
-      } catch (e) {
-        console.warn('Appwrite playlist load failed, falling back to localStorage', e);
+      } catch (e: any) {
+        if (!e?.missing) console.warn('Appwrite playlist load failed, falling back to localStorage', e);
       }
     }
     try {
@@ -253,31 +504,24 @@ export default function Watch() {
   const handleCreatePlaylist = async () => {
     if (!newPlaylistName.trim()) return;
     try {
+      if (user?.$id) {
+        try {
+          const created = await createDbPlaylist(user.$id, newPlaylistName.trim());
+          setPlaylists([...playlists, created]);
+          setNewPlaylistName('');
+          return;
+        } catch (e: any) {
+          if (!e?.missing) throw e;
+        }
+      }
       const newPlaylist = {
         id: 'pl_' + Date.now().toString(),
         name: newPlaylistName.trim(),
         videos: []
       };
-      if (dbId && playlistsCol && user?.$id) {
-        const doc = await databases.createDocument(dbId, playlistsCol, ID.unique(), {
-          userId: user.$id,
-          name: newPlaylist.name,
-          videos: [],
-          createdAt: new Date().toISOString()
-        });
-        const updatedPlaylists = [...playlists, {
-          id: doc.$id,
-          name: newPlaylist.name,
-          videos: [],
-          createdAt: doc.$createdAt,
-          _appwrite: true
-        }];
-        setPlaylists(updatedPlaylists);
-      } else {
-        const updatedPlaylists = [...playlists, newPlaylist];
-        SafeStorage.set('user_playlists', updatedPlaylists);
-        setPlaylists(updatedPlaylists);
-      }
+      const updatedPlaylists = [...playlists, newPlaylist];
+      SafeStorage.set('user_playlists', updatedPlaylists);
+      setPlaylists(updatedPlaylists);
       setNewPlaylistName('');
     } catch(err) {
       console.error('Failed to create playlist', err);
@@ -310,14 +554,16 @@ export default function Watch() {
       const updatedPlaylists = playlists.map(pl =>
         pl.id === playlistId ? { ...pl, videos: newVideos } : pl
       );
-      if (dbId && playlistsCol && user?.$id && (playlist as any)._appwrite) {
-        await databases.updateDocument(dbId, playlistsCol, playlistId, {
-          videos: newVideos
-        });
+      if ((playlist as any)._appwrite) {
+        const ids = newVideos.map((v: any) => v.id);
+        await setDbPlaylistVideos(playlist as any, ids);
+        setPlaylists(playlists.map(pl =>
+          pl.id === playlistId ? { ...pl, videos: newVideos, videoIds: ids } : pl
+        ));
       } else {
         SafeStorage.set('user_playlists', updatedPlaylists);
+        setPlaylists(updatedPlaylists);
       }
-      setPlaylists(updatedPlaylists);
     } catch(err) {
       console.error('Failed to update playlist', err);
     }
@@ -330,6 +576,43 @@ export default function Watch() {
       setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy link:", err);
+    }
+  };
+
+  // Репост видео с подписью в ленту
+  const handleRepost = async () => {
+    if (!user || !video || reposting) return;
+    if (needVerification(user, t, language)) return;
+    if (needUnbanned(profile, t)) return;
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const repostsCol = import.meta.env.VITE_APPWRITE_REPOSTS_COLLECTION_ID || 'reposts';
+    if (!dbId) return;
+    setReposting(true);
+    try {
+      const { ID: IDGen, Permission: Perm, Role: RoleX } = await import('appwrite');
+      await databases.createDocument(dbId, repostsCol, IDGen.unique(), {
+        authorId: user.$id,
+        authorName: profile?.name || user.name || 'User',
+        authorAvatar: profile?.avatar || '',
+        videoId: video.id,
+        videoTitle: video.title || '',
+        videoThumb: video.thumbnailUrl || '',
+        text: repostText.trim().slice(0, 500),
+      }, [Perm.read(RoleX.any())]);
+      setRepostText('');
+      setShowShareModal(false);
+      alert(language === 'ru' ? 'Опубликовано в ленте!' : 'Posted to feed!');
+    } catch (err: any) {
+      console.error('Repost failed:', err);
+      if (err?.code === 404 || String(err?.message || '').toLowerCase().includes('unknown attribute')) {
+        alert(language === 'ru'
+          ? 'Для репостов создайте в Appwrite → IcetubeDB → коллекцию reposts с атрибутами: authorId, authorName, authorAvatar, videoId, videoTitle, videoThumb (String 255/2048), text (String 500).'
+          : 'To enable reposts, create Appwrite collection "reposts" with String attributes: authorId, authorName, authorAvatar, videoId, videoTitle, videoThumb, text.');
+      } else {
+        alert('Error: ' + (err?.message || err));
+      }
+    } finally {
+      setReposting(false);
     }
   };
 
@@ -539,6 +822,7 @@ export default function Watch() {
           likedBy: c.likedBy || [],
           dislikedBy: c.dislikedBy || [],
           parentId: c.parentId || null,
+          pinned: !!(c as any).pinned,
           authorAvatar: c.authorAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.authorName)}`
         })));
       } else {
@@ -609,7 +893,8 @@ export default function Watch() {
             category: currentDoc.category || 'All',
             contentType: currentDoc.contentType || 'video',
             verified: currentDoc.verified || false,
-            duration: currentDoc.duration || '0:00'
+            duration: currentDoc.duration || '0:00',
+            status: (currentDoc as any).status || 'published'
           };
 
           // Redirect shorts to the shorts player
@@ -624,6 +909,23 @@ export default function Watch() {
           if (currentVideo.contentType === 'photo') {
              navigate(`/photos`, { replace: true });
              return;
+          }
+
+          // Черновики и несозревшая отложка — только автору
+          {
+            const st = (currentDoc as any).status || 'published';
+            if (st !== 'published') {
+              const due = st === 'scheduled' && (currentDoc as any).publishAt && new Date((currentDoc as any).publishAt).getTime() <= Date.now();
+              if (due) {
+                try { await databases.updateDocument(dbId, colId, currentDoc.$id, { status: 'published' }); } catch {}
+                (currentDoc as any).status = 'published';
+              } else if (currentDoc.uploaderId !== user?.$id) {
+                setVideo(null);
+                setSuggestedVideos([]);
+                setIsLoading(false);
+                return;
+              }
+            }
           }
 
           setVideo(currentVideo);
@@ -641,7 +943,7 @@ export default function Watch() {
             ]), 2500);
             
             const suggested = suggestedRes.documents
-              .filter((v: any) => v.$id !== id && !(v as any).hidden && (!v.contentType || v.contentType === 'video'))
+              .filter((v: any) => v.$id !== id && !(v as any).hidden && isVisibleStatus(v) && (!v.contentType || v.contentType === 'video'))
               .map(v => ({
                 id: v.$id,
                 uploaderId: v.uploaderId,
@@ -1042,9 +1344,11 @@ export default function Watch() {
           type: 'comment',
           videoId: video.id,
           videoTitle: video.title,
-          contentType: video.contentType
+          contentType: video.contentType,
+          commentId: res.$id
         }).catch(()=>{});
       }
+      if (user) notifyMentions(newComment, res.$id);
     } catch (err: any) {
       console.error("Comment submission failed:", err);
       
@@ -1204,10 +1508,12 @@ export default function Watch() {
             type: 'reply',
             videoId: video.id,
             videoTitle: video.title,
-            contentType: video.contentType
+            contentType: video.contentType,
+            commentId: parentId
           });
         }
       }
+      if (user) notifyMentions(replyText, parentId);
     } catch (err: any) {
       console.error("Reply failed:", err);
       if (err.message?.includes('likedBy') && err.message?.includes('invalid type')) {
@@ -1492,10 +1798,14 @@ export default function Watch() {
             onTimeUpdate={handleTimeUpdate}
             onEnded={() => setIsVideoEnded(true)}
             onError={handleVideoError}
-            onLoadedData={(e) => {
-              try {
-                const target = e.target as HTMLVideoElement;
-                if (target.duration && !isNaN(target.duration)) setVideoDuration(target.duration);
+              onLoadedData={(e) => {
+                try {
+                  const target = e.target as HTMLVideoElement;
+                  try {
+                    const sp = Number(SafeStorage.get('playback_speed', 1)) || 1;
+                    if (sp !== 1) target.playbackRate = sp;
+                  } catch {}
+                  if (target.duration && !isNaN(target.duration)) setVideoDuration(target.duration);
                 const saved = SafeStorage.get('watching_progress', {});
                 if (saved[video.id] && saved[video.id].currentTime) {
                   target.currentTime = saved[video.id].currentTime;
@@ -1505,8 +1815,39 @@ export default function Watch() {
           />
         </div>
 
+        {autoCountdown != null && filteredSuggestedVideos[0] && (
+          <div className="mx-4 sm:mx-0 mt-3 flex items-center gap-3 p-3 rounded-2xl bg-[#0a192f]/95 border border-[#70d6ff]/30 shadow-[0_10px_30px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom-2">
+            <div className="w-10 h-10 rounded-full bg-[#70d6ff]/15 border border-[#70d6ff]/40 flex items-center justify-center text-[#70d6ff] font-black tabular-nums shrink-0">
+              {autoCountdown}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] font-black uppercase tracking-widest text-slate-400">{language === 'ru' ? 'Далее' : 'Up next'}</div>
+              <div className="text-sm font-bold text-white truncate">{filteredSuggestedVideos[0].title}</div>
+            </div>
+            <button
+              onClick={() => { try { window.scrollTo(0, 0); } catch {} navigate(`/watch/${filteredSuggestedVideos[0].id}`); setAutoCountdown(null); }}
+              className="px-3.5 py-2 rounded-xl bg-[#70d6ff] text-black text-xs font-black hover:bg-white transition-colors shrink-0"
+            >
+              {language === 'ru' ? 'Сейчас' : 'Play'}
+            </button>
+            <button
+              onClick={() => setAutoCountdown(null)}
+              className="px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300 hover:bg-white/10 transition-colors shrink-0"
+            >
+              {language === 'ru' ? 'Стоп' : 'Cancel'}
+            </button>
+          </div>
+        )}
+
         <div className="mt-4 flex flex-col gap-3 px-4 sm:px-0">
-          <h1 className="text-xl sm:text-2xl font-bold font-display text-white line-clamp-2">{video.title}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold font-display text-white line-clamp-2">
+            {video.status && video.status !== 'published' && (
+              <span className="align-middle mr-2 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-400/30 text-amber-300 text-xs font-black uppercase tracking-wider">
+                {video.status === 'draft' ? (language === 'ru' ? 'Черновик' : 'Draft') : (language === 'ru' ? 'Отложено' : 'Scheduled')}
+              </span>
+            )}
+            {video.title}
+          </h1>
           
           {/* Mobile-Style Inline Description/Stats Row (Replaces the raw view count usually in the desc) */}
           <div 
@@ -1603,12 +1944,12 @@ export default function Watch() {
                 <span className="font-medium">{new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : 'en-US', { notation: "compact" }).format(snowflakesCount)}</span>
               </button>
               
-              <button 
-                onClick={handleShare}
+              <button
+                onClick={() => setShowShareModal(true)}
                 className="flex items-center gap-1.5 bg-white/5 border ice-border hover:bg-[rgba(112,214,255,0.08)] hover:text-[#70d6ff] px-3 py-2 rounded-full transition-colors text-sm shrink-0 text-slate-300"
               >
                 <Share2 className="w-4 h-4" />
-                <span className="font-medium">{isCopied ? (language === 'ru' ? 'Ссылка скопирована!' : 'Link copied!') : t('video_share')}</span>
+                <span className="font-medium">{t('video_share')}</span>
               </button>
 
               <button 
@@ -1683,6 +2024,57 @@ export default function Watch() {
                         </button>
                       ))}
                     </div>
+                    <div className="mx-3 h-px bg-white/10" />
+                    <div className="px-4 pt-2 pb-1 text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                      <Gauge className="w-3 h-3" />
+                      {language === 'ru' ? 'Скорость' : 'Speed'} · {playbackRate}x
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 px-3 pb-2">
+                      {[0.5, 0.75, 1, 1.25, 1.5, 2].map(r => (
+                        <button
+                          key={r}
+                          onClick={() => applySpeed(r)}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            playbackRate === r ? 'bg-[#70d6ff] text-black' : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
+                          }`}
+                        >
+                          {r}x
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mx-3 h-px bg-white/10" />
+                    <button
+                      onClick={() => { togglePiP(); setShowMoreMenu(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/5 hover:text-[#70d6ff] transition-colors"
+                    >
+                      <MonitorPlay className="w-4 h-4" />
+                      <span>{language === 'ru' ? 'Картинка в картинке' : 'Picture in picture'}</span>
+                    </button>
+                    <button
+                      onClick={() => { toggleSilence(); setShowMoreMenu(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/5 hover:text-[#70d6ff] transition-colors"
+                    >
+                      <TimerOff className="w-4 h-4" />
+                      <span className="flex-1 text-left">{language === 'ru' ? 'Пропускать тишину' : 'Skip silence'}</span>
+                      <span className={`w-8 h-[18px] rounded-full p-[2px] transition-colors ${skipSilence ? 'bg-[#70d6ff]' : 'bg-white/10'}`}>
+                        <span className={`block w-[14px] h-[14px] rounded-full bg-white transition-transform ${skipSilence ? 'translate-x-[14px]' : ''}`} />
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        const v = !autoplayNext;
+                        setAutoplayNext(v);
+                        try { SafeStorage.set('autoplay_next', v); } catch {}
+                        setShowMoreMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/5 hover:text-[#70d6ff] transition-colors"
+                    >
+                      <ListVideo className="w-4 h-4" />
+                      <span className="flex-1 text-left">{language === 'ru' ? 'Автоплей далее' : 'Autoplay next'}</span>
+                      <span className={`w-8 h-[18px] rounded-full p-[2px] transition-colors ${autoplayNext ? 'bg-[#70d6ff]' : 'bg-white/10'}`}>
+                        <span className={`block w-[14px] h-[14px] rounded-full bg-white transition-transform ${autoplayNext ? 'translate-x-[14px]' : ''}`} />
+                      </span>
+                    </button>
                     <div className="mx-3 h-px bg-white/10" />
                     <button 
                       onClick={() => {
@@ -1795,6 +2187,56 @@ export default function Watch() {
             </div>
           )}
 
+          {/* Share Modal: копировать ссылку + репост в ленту */}
+          {showShareModal && video && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setShowShareModal(false)}>
+              <div className="bg-[#0a192f] border ice-border w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b ice-border flex justify-between items-center bg-[#05070a]">
+                  <h3 className="text-white font-bold">{t('video_share')}</h3>
+                  <button onClick={() => setShowShareModal(false)} className="text-slate-400 hover:text-white transition-colors bg-white/5 rounded-full p-2">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="p-4 flex flex-col gap-3">
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                    {video.thumbnailUrl ? (
+                      <img src={video.thumbnailUrl} alt="" className="w-20 h-12 object-cover rounded-lg shrink-0" />
+                    ) : null}
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold text-white truncate">{video.title}</div>
+                      <div className="text-xs text-slate-400 truncate">{video.channelName}</div>
+                    </div>
+                  </div>
+                  <textarea
+                    value={repostText}
+                    onChange={e => setRepostText(e.target.value)}
+                    rows={2}
+                    maxLength={500}
+                    placeholder={language === 'ru' ? 'Подпись к репосту (необязательно)…' : 'Repost caption (optional)…'}
+                    className="w-full bg-white/5 border ice-border rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#70d6ff] resize-none placeholder:text-slate-500"
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={handleShare} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white/5 border ice-border rounded-xl text-sm font-bold text-slate-200 hover:bg-white/10 transition-colors">
+                      <Share2 className="w-4 h-4" />
+                      {isCopied ? (language === 'ru' ? 'Скопировано!' : 'Copied!') : (language === 'ru' ? 'Ссылка' : 'Copy link')}
+                    </button>
+                    <button
+                      onClick={handleRepost}
+                      disabled={reposting || !user}
+                      title={!user ? (language === 'ru' ? 'Войдите, чтобы репостить' : 'Sign in to repost') : undefined}
+                      className="flex-1 py-2.5 bg-[#70d6ff] text-black rounded-xl text-sm font-bold hover:bg-white transition-colors disabled:opacity-50"
+                    >
+                      {reposting ? (language === 'ru' ? 'Публикация…' : 'Posting…') : (language === 'ru' ? 'В ленту' : 'Repost')}
+                    </button>
+                  </div>
+                  {!user && (
+                    <p className="text-[11px] text-slate-500 text-center">{language === 'ru' ? 'Войдите, чтобы репостить' : 'Sign in to repost'}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Report Modal */}
           {showReportModal && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -1851,9 +2293,9 @@ export default function Watch() {
             </span>
             <span className="font-bold">• {getRelativeTime(video.uploadDate)}</span>
           </div>
-          <div className={`text-slate-300 font-medium whitespace-pre-wrap ${!isDescExpanded ? 'line-clamp-2' : ''}`}>
-             {video.description || (language === 'ru' ? 'Нет описания' : 'No description provided.')}
-          </div>
+           <div className={`text-slate-300 font-medium whitespace-pre-wrap ${!isDescExpanded ? 'line-clamp-2' : ''}`}>
+              <RichText text={video.description || (language === 'ru' ? 'Нет описания' : 'No description provided.')} onSeek={seekTo} language={language} />
+           </div>
           
           {!isDescExpanded && video.description && video.description.length > 100 && (
             <button className="text-slate-400 font-bold mt-2 hover:text-white transition-colors">
@@ -1903,7 +2345,7 @@ export default function Watch() {
                   </div>
                 </div>
                 <div className="whitespace-pre-wrap text-sm text-slate-200 pb-20 leading-relaxed">
-                  {video.description || (language === 'ru' ? 'Нет описания' : 'No description provided.')}
+                  <RichText text={video.description || (language === 'ru' ? 'Нет описания' : 'No description provided.')} onSeek={seekTo} language={language} />
                 </div>
               </div>
             </div>
@@ -1980,7 +2422,7 @@ export default function Watch() {
               const repliesToShow = replies.slice(0, expandedReplies.has(comment.id) ? replies.length : 3);
               const hiddenCount = replies.length - 3;
               return (
-              <div key={comment.id} className="flex gap-4 group flex-col">
+              <div key={comment.id} id={`comment-${comment.id}`} className={`flex gap-4 group flex-col rounded-xl p-2 -m-2 transition-colors ${flashComment === comment.id ? 'bg-[#70d6ff]/10 ring-1 ring-[#70d6ff]/40' : ''}`}>
                 <div className="flex gap-4 group">
                   <Link to={`/channel/${comment.authorId}`} className="shrink-0 hover:opacity-80 transition-opacity">
                     <img 
@@ -1995,12 +2437,28 @@ export default function Watch() {
                   </Link>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs mb-1">
+                      <div className="flex items-center gap-2 text-xs mb-1 flex-wrap">
                         <Link to={`/channel/${comment.authorId}`} className="font-medium text-slate-200 hover:text-white transition-colors">
                           @{(user && user.$id === comment.authorId && profile?.name) ? profile.name : comment.author}
                         </Link>
+                        {comment.pinned && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#70d6ff]/10 border border-[#70d6ff]/30 text-[#70d6ff] text-[10px] font-bold">
+                            <Pin className="w-2.5 h-2.5 fill-current" />
+                            {language === 'ru' ? 'Закреплено' : 'Pinned'}
+                          </span>
+                        )}
                         <span className="text-slate-500">{comment.ts}</span>
                       </div>
+                      {user && video && user.$id === video.uploaderId && (
+                        <button
+                          onClick={() => handlePinComment(comment.id, !comment.pinned)}
+                          disabled={pinBusy === comment.id}
+                          title={comment.pinned ? (language === 'ru' ? 'Открепить' : 'Unpin') : (language === 'ru' ? 'Закрепить' : 'Pin')}
+                          className={`p-1 rounded transition-colors ${comment.pinned ? 'text-[#70d6ff]' : 'text-slate-500 hover:text-[#70d6ff] hover:bg-white/10'} disabled:opacity-40`}
+                        >
+                          <Pin className={`w-3.5 h-3.5 ${comment.pinned ? 'fill-current' : ''}`} />
+                        </button>
+                      )}
                       {user && user.$id === comment.authorId && (
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
                            <button onClick={() => { setEditingCommentId(comment.id); setEditingText(comment.text); }} className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-[#70d6ff] transition-colors">
@@ -2029,7 +2487,9 @@ export default function Watch() {
                       </div>
                     ) : (
                       <div className="mt-1 flex flex-col items-start gap-1">
-                        <p className="text-sm text-slate-200">{comment.text}</p>
+                        <p className="text-sm text-slate-200 whitespace-pre-wrap break-words">
+                          <RichText text={comment.text} onSeek={seekTo} maxChars={300} language={language} />
+                        </p>
                         <button className="text-xs text-slate-400 font-medium hover:text-white transition-colors mt-0.5">
                           {t('comment_translate')}
                         </button>
@@ -2149,7 +2609,7 @@ export default function Watch() {
                              </div>
                           </div>
                         ) : (
-                          <p className="text-sm text-slate-300 mb-2">{reply.text}</p>
+                          <p className="text-sm text-slate-300 mb-2 whitespace-pre-wrap break-words"><RichText text={reply.text} onSeek={seekTo} maxChars={300} language={language} /></p>
                         )}
                         
                         <div className="flex items-center gap-4 text-slate-400">

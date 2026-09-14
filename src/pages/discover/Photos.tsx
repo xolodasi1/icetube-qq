@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useLanguage } from '../../language/LanguageContext';
 import { useAuth } from '../../auth/AuthContext';
 import { databases } from '../../lib/appwrite';
+import { isVisibleStatus } from '../../lib/publishing';
 import { SafeStorage } from '../../lib/storage';
 import { Query } from 'appwrite';
 import { Image, Loader2, X, ChevronLeft, ChevronRight, Heart, Eye, Calendar, User, Plus, Download } from 'lucide-react';
@@ -53,7 +54,7 @@ export default function Photos() {
         Query.limit(100)
       ]);
 
-      setPhotos(response.documents.filter((doc: any) => !(doc as any).hidden).map(doc => ({
+      setPhotos(response.documents.filter((doc: any) => !(doc as any).hidden && isVisibleStatus(doc)).map(doc => ({
         id: doc.$id,
         title: doc.title || 'Untitled',
         imageUrl: doc.videoUrl || doc.thumbnailUrl || '',

@@ -3,6 +3,7 @@ import { useLanguage } from '../../language/LanguageContext';
 import { VideoCard } from '../../components/VideoCard';
 import { Video, Loader2 } from 'lucide-react';
 import { databases } from '../../lib/appwrite';
+import { isVisibleStatus } from '../../lib/publishing';
 import { Query } from 'appwrite';
 
 export default function Clips() {
@@ -26,7 +27,7 @@ export default function Clips() {
         ]);
         
         const formatted = response.documents
-          .filter((v: any) => !(v as any).hidden && v.contentType === 'shorts')
+          .filter((v: any) => !(v as any).hidden && isVisibleStatus(v) && v.contentType === 'shorts')
           .map(v => ({
             id: v.$id,
             uploaderId: v.uploaderId,

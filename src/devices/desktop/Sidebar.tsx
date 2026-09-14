@@ -1,4 +1,4 @@
-import { Home, Compass, Flame, PlaySquare, Clock, ThumbsUp, History, Settings, User, Video, Download, ChevronRight, Scissors, Music, Film, Radio, ListVideo, Send, Bookmark, Trophy, Image, Search, List } from "lucide-react";
+import { Home, Compass, Flame, PlaySquare, Clock, ThumbsUp, History, Settings, User, Video, Download, ChevronRight, Scissors, Music, Film, Radio, ListVideo, Send, Bookmark, Trophy, Image, Search, List, Rss, MessageCircle } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import clsx from "clsx";
 import { useLanguage } from "../../language/LanguageContext";
@@ -61,6 +61,7 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
     { icon: Film, label: language === 'ru' ? 'Видео' : 'Videos', path: "/videos" },
     { icon: Compass, label: t('nav_shorts'), path: "/shorts" },
     { icon: Image, label: language === 'ru' ? 'Фото' : 'Photos', path: "/photos" },
+    { icon: Rss, label: t('nav_feed'), path: "/feed" },
     { divider: true },
     { header_text: language === 'ru' ? 'Вы' : 'You' },
     ...(user ? [{ icon: User, label: t('nav_your_channel'), path: `/channel/${user.$id}` }] : []),
@@ -70,6 +71,7 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
     { icon: ListVideo, label: t('nav_playlists'), path: "/playlists" },
     { icon: Clock, label: t('nav_watch_later'), path: "/watch-later" },
     { icon: ThumbsUp, label: t('nav_liked'), path: "/liked" },
+    { icon: MessageCircle, label: language === 'ru' ? 'Сообщения' : 'Messages', path: "/messages", requiresAuth: true },
     { icon: Video, label: t('nav_your_videos'), path: "/your-videos", requiresAuth: true },
     { icon: Download, label: t('nav_downloads'), path: "/downloads", requiresAuth: true },
     { icon: Scissors, label: t('nav_clips'), path: "/clips", requiresAuth: true },
