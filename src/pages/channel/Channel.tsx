@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { databases } from "../../lib/appwrite";
 import { Query, ID } from "appwrite";
-import { Loader2, User, AlertCircle, Video, TrendingUp } from "lucide-react";
+import { Loader2, User, AlertCircle, Video, TrendingUp, Image } from "lucide-react";
 import { useLanguage } from "../../language/LanguageContext";
 import { useAuth } from "../../auth/AuthContext";
 import { VideoCard } from "../../components/VideoCard";
@@ -22,7 +22,7 @@ export default function Channel() {
   const [subsCount, setSubsCount] = useState(0);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isSubbing, setIsSubbing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'home' | 'videos' | 'shorts' | 'about'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'videos' | 'shorts' | 'photos' | 'about'>('home');
   const [videoSort, setVideoSort] = useState<'newest' | 'popular' | 'oldest'>('newest');
 
   useEffect(() => {
@@ -227,6 +227,7 @@ export default function Channel() {
   const isPhoto = (v: any) => v.contentType === 'photo';
   const regularVideos = videos.filter(v => !isShort(v) && !isPhoto(v));
   const shortsVideos = videos.filter(v => isShort(v));
+  const photosVideos = videos.filter(v => isPhoto(v));
 
   const sortedRegularVideos = [...regularVideos].sort((a, b) => {
     if (videoSort === 'popular') return b.views - a.views;
@@ -235,6 +236,12 @@ export default function Channel() {
   });
 
   const sortedShortsVideos = [...shortsVideos].sort((a, b) => {
+    if (videoSort === 'popular') return b.views - a.views;
+    if (videoSort === 'oldest') return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  });
+
+  const sortedPhotosVideos = [...photosVideos].sort((a, b) => {
     if (videoSort === 'popular') return b.views - a.views;
     if (videoSort === 'oldest') return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
     return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
@@ -357,6 +364,12 @@ export default function Channel() {
           {t('shorts_tab')}
         </button>
         <button 
+          onClick={() => setActiveTab('photos')}
+          className={`px-6 py-4 font-medium whitespace-nowrap transition-colors active:scale-95 cursor-pointer border-b-2 ${activeTab === 'photos' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+        >
+          {t('nav_photos')}
+        </button>
+        <button 
           onClick={() => setActiveTab('about')}
           className={`px-6 py-4 font-medium whitespace-nowrap transition-colors active:scale-95 cursor-pointer border-b-2 ${activeTab === 'about' ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
         >
@@ -411,7 +424,29 @@ export default function Channel() {
               </div>
             )}
 
-            {regularVideos.length === 0 && shortsVideos.length === 0 && (
+            {photosVideos.length > 0 && (
+              <div>
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <Image className="w-5 h-5 text-slate-400" />
+                  {t('nav_photos')}
+                </h3>
+                <div className="flex overflow-x-auto gap-4 custom-scrollbar pb-6 hide-scrollbar snap-x">
+                  {photosVideos.slice(0, 10).map(photo => (
+                    <div key={photo.id} className="w-[160px] sm:w-[180px] shrink-0 snap-start">
+                      <Link to="/photos" className="block relative group aspect-square rounded-xl overflow-hidden bg-slate-900 border border-white/5 hover:border-white/15 transition-all">
+                        <img src={photo.thumbnailUrl} alt={photo.title}
+                          className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" referrerPolicy="no-referrer" loading="lazy" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                          <p className="absolute bottom-2.5 left-2.5 right-2.5 text-white text-xs font-medium truncate">{photo.title}</p>
+                        </div>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {regularVideos.length === 0 && shortsVideos.length === 0 && photosVideos.length === 0 && (
                <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/5 border border-white/10 rounded-2xl">
                  <Video className="w-12 h-12 text-slate-500 mb-4" />
                  <p className="text-lg">{t('channel_no_videos')}</p>
@@ -450,6 +485,33 @@ export default function Channel() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-y-6 gap-x-4">
                 {sortedShortsVideos.map(video => (
                   <VideoCard key={video.id} video={video} layout="clip" />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'photos' && (
+          <div>
+            <SortPills />
+            {sortedPhotosVideos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/5 border border-white/10 rounded-2xl">
+                <Image className="w-12 h-12 text-slate-500 mb-4" />
+                <p className="text-lg">{t('photos_empty')}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {sortedPhotosVideos.map(photo => (
+                  <div key={photo.id}>
+                    <Link to="/photos" className="block relative group aspect-square rounded-xl overflow-hidden bg-slate-900 border border-white/5 hover:border-white/15 transition-all">
+                      <img src={photo.thumbnailUrl} alt={photo.title}
+                        className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" referrerPolicy="no-referrer" loading="lazy" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                        <p className="absolute bottom-2.5 left-2.5 right-2.5 text-white text-xs font-medium truncate">{photo.title}</p>
+                      </div>
+                    </Link>
+                    <p className="text-sm text-slate-200 font-medium truncate mt-2">{photo.title}</p>
+                  </div>
                 ))}
               </div>
             )}
