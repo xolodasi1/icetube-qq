@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useEffect, useState } from "react";
 import { databases } from "../lib/appwrite";
 import { Query } from "appwrite";
+import { cleanupSelfSubscriptions, isOwnChannelDoc } from "../lib/subscriptions";
 
 export function Sidebar({ isOpen }: { isOpen: boolean }) {
   const location = useLocation();
@@ -21,7 +22,8 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
         const usersColId = import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
         if (!dbId || !usersColId) return;
 
-        // Fetch user's subscriptions
+        // Fetch user's subscriptions (самоподписок быть не должно — чистим тихо)
+        cleanupSelfSubscriptions(user.$id);
         const subsColId = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
         if (subsColId) {
           const subsRes = await databases.listDocuments(dbId, subsColId, [
@@ -57,7 +59,7 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
             } catch {}
             setSubscribedChannels(channelIds.map((cid: string) => {
               const doc: any = merged.get(cid) || [...merged.values()].find((d: any) => d.$id === cid);
-              if (!doc) return null;
+              if (!doc || isOwnChannelDoc(doc, user.$id)) return null;
               return {
                 id: doc.$id,
                 name: doc.name || 'Channel',

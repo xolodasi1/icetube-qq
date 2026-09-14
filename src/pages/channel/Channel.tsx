@@ -121,6 +121,7 @@ export default function Channel() {
 
   const handleSubscribe = async () => {
     if (!user || isSubbing || !id) return;
+    if (id === user.$id) return; // на себя подписаться нельзя
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const subsCol = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
     if (!dbId || !subsCol) return;

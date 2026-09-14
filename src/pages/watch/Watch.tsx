@@ -902,6 +902,7 @@ export default function Watch() {
     }
     if (needVerification(user, t, language)) return;
     if (isSubbing || !video) return;
+    if (video.uploaderId === user.$id) return; // на себя подписаться нельзя
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const subsCol = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
     if (!dbId || !subsCol) return;

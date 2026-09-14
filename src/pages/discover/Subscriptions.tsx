@@ -3,6 +3,7 @@ import { useLanguage } from '../../language/LanguageContext';
 import { useAuth } from '../../auth/AuthContext';
 import { databases } from '../../lib/appwrite';
 import { Query } from 'appwrite';
+import { cleanupSelfSubscriptions, isOwnChannelDoc } from '../../lib/subscriptions';
 import { VideoCard } from '../../components/VideoCard';
 import { Loader2, Users, Film, Scissors, Image } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -34,7 +35,8 @@ export default function Subscriptions() {
           return;
         }
 
-        // 1. Get user's subscriptions
+        // 1. Get user's subscriptions (самоподписок быть не должно — чистим тихо)
+        cleanupSelfSubscriptions(user.$id);
         const subsResponse = await databases.listDocuments(dbId, subsColId, [
           Query.equal('subscriberId', user.$id)
         ]);
@@ -69,7 +71,7 @@ export default function Subscriptions() {
           });
           setChannels(subscribedChannelIds.map((cid: string) => {
             const doc: any = merged.get(cid) || chanDocs.find((d: any) => d.$id === cid);
-            if (!doc) return null;
+            if (!doc || isOwnChannelDoc(doc, user.$id)) return null;
             return {
               id: doc.$id,
               name: doc.name || 'Channel',
@@ -90,7 +92,8 @@ export default function Subscriptions() {
             )
           );
           const videoDocs = videoResults.flatMap(r => r.documents);
-          setVideos(videoDocs.map((v: any) => ({
+          // свои видео в ленте подписок не показываем
+          setVideos(videoDocs.filter((v: any) => v.uploaderId !== user.$id).map((v: any) => ({
             id: v.$id,
             uploaderId: v.uploaderId,
             title: v.title,

@@ -6,6 +6,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { useEffect, useState } from "react";
 import { databases } from "../../lib/appwrite";
 import { Query } from "appwrite";
+import { cleanupSelfSubscriptions, isOwnChannelDoc } from "../../lib/subscriptions";
 
 export function Sidebar({ isOpen }: { isOpen: boolean }) {
   const location = useLocation();
@@ -21,6 +22,8 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
         const usersColId = import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID;
         const subsColId = import.meta.env.VITE_APPWRITE_SUBS_COLLECTION_ID;
         if (!dbId || !usersColId || !subsColId) return;
+        // самоподписок быть не должно — чистим тихо в фоне
+        cleanupSelfSubscriptions(user.$id);
         const subsRes = await databases.listDocuments(dbId, subsColId, [Query.equal('subscriberId', user.$id), Query.limit(50)]);
         if (subsRes.documents.length === 0) { setSubs([]); return; }
         const ids = Array.from(new Set(subsRes.documents.map((s:any)=>s.channelId).filter(Boolean))).slice(0,12);
@@ -40,10 +43,10 @@ export function Sidebar({ isOpen }: { isOpen: boolean }) {
           if (!prev || (!prev.avatar && avatar)) merged.set(key, d);
           else if (!merged.has(key)) merged.set(key, d);
         });
-        // сохраняем порядок подписок
+        // сохраняем порядок подписок; себя не показываем даже если строка осталась
         const ordered = ids.map((cid:string)=>{
           const d = merged.get(cid) || [...merged.values()].find((x:any)=>x.$id===cid);
-          if (!d) return null;
+          if (!d || isOwnChannelDoc(d, user.$id)) return null;
           const avatar = d.avatar || d.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.name || 'U')}&background=0f172a&color=70d6ff`;
           return { id: d.$id, name: d.name || 'Channel', avatar };
         }).filter(Boolean) as {id:string,name:string,avatar:string}[];
